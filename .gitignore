@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Generated data assets are committed intentionally (offline data),
+# but the raw download cache can be ignored:
+.cache-data

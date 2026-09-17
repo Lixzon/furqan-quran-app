@@ -1,0 +1,345 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Furqan theme system
+   All UI colours flow from CSS custom properties. Components
+   must NOT hardcode colours — they use Tailwind utilities that
+   reference the semantic tokens below, which switch by:
+     <html data-mode="light|dark">  and  <html data-accent="…">
+   ============================================================ */
+
+@font-face {
+  font-family: "Amiri Quran";
+  src: url("/fonts/AmiriQuran-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Naskh Arabic";
+  src: url("/fonts/NotoNaskhArabic.ttf") format("truetype");
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Scheherazade New";
+  src: url("/fonts/ScheherazadeNew.ttf") format("truetype");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+@theme inline {
+  --color-base: var(--q-bg);
+  --color-surface: var(--q-surface);
+  --color-surface2: var(--q-surface2);
+  --color-surface3: var(--q-surface3);
+  --color-ink: var(--q-text);
+  --color-ink2: var(--q-text2);
+  --color-mut: var(--q-muted);
+  --color-line: var(--q-border);
+  --color-line2: var(--q-border2);
+  --color-accent: var(--q-accent);
+  --color-accentstrong: var(--q-accent-strong);
+  --color-onaccent: var(--q-on-accent, #ffffff);
+  --color-gold: var(--q-gold);
+  --color-danger: var(--q-danger);
+  --font-sans: var(--q-font-ui);
+  --font-arabic: var(--q-font-arabic);
+  --shadow-card: var(--q-shadow);
+}
+
+/* ---------- mode palettes (light default) ---------- */
+:root,
+[data-mode="light"] {
+  --q-bg: #f1f6f3;
+  --q-surface: #ffffff;
+  --q-surface2: #e8f1ed;
+  --q-surface3: #dce8e2;
+  --q-text: #142520;
+  --q-text2: #48605a;
+  --q-muted: #6d7d77;
+  --q-border: #dbe6e1;
+  --q-border2: #c4d3cc;
+  --q-gold: #b98a1e;
+  --q-danger: #dc2626;
+  --q-shadow: 0 12px 32px -14px rgba(20, 60, 50, 0.28);
+}
+[data-mode="dark"] {
+  --q-bg: #0a120f;
+  --q-surface: #101d19;
+  --q-surface2: #162720;
+  --q-surface3: #1e352c;
+  --q-text: #e9f1ee;
+  --q-text2: #b9c9c2;
+  --q-muted: #8ba09a;
+  --q-border: #1f332c;
+  --q-border2: #2d473d;
+  --q-gold: #e3c15a;
+  --q-danger: #f2605f;
+  --q-shadow: 0 14px 36px -16px rgba(0, 0, 0, 0.72);
+}
+
+/* ---------- accent themes ---------- */
+[data-accent="teal"] {
+  --q-accent: #0d9488;
+  --q-accent-strong: #0f766e;
+  --q-on-accent: #ffffff;
+}
+[data-accent="emerald"] {
+  --q-accent: #10b981;
+  --q-accent-strong: #059669;
+  --q-on-accent: #ffffff;
+}
+[data-accent="green"] {
+  --q-accent: #16a34a;
+  --q-accent-strong: #15803d;
+  --q-on-accent: #ffffff;
+}
+[data-accent="gold"] {
+  --q-accent: #c08a1e;
+  --q-accent-strong: #9c7016;
+  --q-on-accent: #fffdf5;
+}
+[data-accent="blue"] {
+  --q-accent: #2563eb;
+  --q-accent-strong: #1d4ed8;
+  --q-on-accent: #ffffff;
+}
+[data-accent="rose"] {
+  --q-accent: #e11d48;
+  --q-accent-strong: #be123c;
+  --q-on-accent: #ffffff;
+}
+[data-accent="purple"] {
+  --q-accent: #7c3aed;
+  --q-accent-strong: #6d28d9;
+  --q-on-accent: #ffffff;
+}
+/* slightly brighter accents for dark mode readability */
+[data-mode="dark"][data-accent="teal"] {
+  --q-accent: #2dd4bf;
+  --q-accent-strong: #14b8a6;
+}
+[data-mode="dark"][data-accent="emerald"] {
+  --q-accent: #34d399;
+  --q-accent-strong: #10b981;
+}
+[data-mode="dark"][data-accent="gold"] {
+  --q-accent: #e3b341;
+  --q-accent-strong: #c9a227;
+}
+[data-mode="dark"][data-accent="blue"] {
+  --q-accent: #60a5fa;
+  --q-accent-strong: #3b82f6;
+}
+[data-mode="dark"][data-accent="rose"] {
+  --q-accent: #fb7185;
+  --q-accent-strong: #f43f5e;
+}
+[data-mode="dark"][data-accent="purple"] {
+  --q-accent: #a78bfa;
+  --q-accent-strong: #8b5cf6;
+}
+[data-mode="dark"][data-accent="green"] {
+  --q-accent: #4ade80;
+  --q-accent-strong: #22c55e;
+}
+
+/* ---------- fonts ---------- */
+:root {
+  --q-font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --q-font-arabic: "Amiri Quran", "Amiri", "Scheherazade New", "Noto Naskh Arabic", "Traditional Arabic", serif;
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--q-bg);
+  color: var(--q-text);
+  font-family: var(--q-font-ui);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+* {
+  box-sizing: border-box;
+}
+:focus-visible {
+  outline: 2px solid var(--q-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------- Arabic script styles ---------- */
+.ar-uthmani {
+  font-family: "Amiri Quran", "Amiri", "Traditional Arabic", "Scheherazade New", serif;
+}
+.ar-naskh {
+  font-family: "Scheherazade New", "Amiri Quran", "Noto Naskh Arabic", "Traditional Arabic", serif;
+}
+.ar-clear {
+  font-family: "Noto Naskh Arabic", "Scheherazade New", "Traditional Arabic", sans-serif;
+}
+
+/* ayah end ornament (circle number) */
+.ayah-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2em;
+  height: 2em;
+  padding: 0 0.45em;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--q-accent) 12%, transparent);
+  color: var(--q-accent);
+  font-family: var(--q-font-ui);
+  font-size: 0.52em;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: super;
+  margin-inline: 0.28em;
+  border: 1px solid color-mix(in srgb, var(--q-accent) 22%, transparent);
+}
+
+/* ---------- misc helpers ---------- */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.thin-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: var(--q-border2);
+  border-radius: 999px;
+}
+.thin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.safe-b {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-t {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* ---------- animations ---------- */
+@keyframes q-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes q-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes q-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes q-eq {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.anim-fade-up {
+  animation: q-fade-up 0.28s ease both;
+}
+.anim-fade {
+  animation: q-fade 0.25s ease both;
+}
+.anim-pop {
+  animation: q-pop 0.2s ease both;
+}
+/* keep the old page from jumping when navigating */
+.page-enter {
+  animation: q-fade 0.2s ease both;
+}
+
+/* now-playing equalizer bars */
+.eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+.eq > span {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: currentColor;
+  transform-origin: bottom;
+  animation: q-eq 0.9s ease-in-out infinite;
+}
+.eq > span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.eq > span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+.eq.paused > span {
+  animation-play-state: paused;
+  transform: scaleY(0.4);
+}
+
+/* ayah highlight during audio playback */
+.ayah-active {
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--q-accent) 16%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--q-accent) 40%, transparent);
+}
+
+/* subtle press feedback */
+.pressable {
+  transition: transform 0.08s ease, background-color 0.15s ease, opacity 0.15s ease;
+}
+.pressable:active {
+  transform: scale(0.97);
+}
+
+/* shimmer for loading skeletons */
+@keyframes q-shimmer {
+  0% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}
+.shimmer {
+  animation: q-shimmer 1.4s ease-in-out infinite;
+}
