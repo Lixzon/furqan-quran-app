@@ -5,6 +5,7 @@ import { useQuran } from '../data/QuranProvider';
 import { PageHeader, EmptyState } from '../components/ui/common';
 import { Icon } from '../components/ui/Icon';
 import { timeAgo, surahNumberToArabic } from '../lib/utils';
+import { QUOTES } from '../data/quotes';
 
 export default function ProgressPage() {
   const dispatch = useAppDispatch();
@@ -30,10 +31,68 @@ export default function ProgressPage() {
     .slice(0, 6);
 
   const juzPct = Math.round((completedJuz / 30) * 100);
+  const lastPosition = progress.lastPosition;
+  const lastMeta = lastPosition ? surahs?.find((s) => s.number === lastPosition.surah) : undefined;
+  const totalAyahsReached = Object.values(progress.ayahsReached).reduce((sum, count) => sum + count, 0);
+  const streak = currentStreak(progress.dailyActivity);
+  const recentSurahs = progress.activity
+    .filter((entry, index, entries) => entries.findIndex((item) => item.surah === entry.surah) === index)
+    .slice(0, 5);
+  const mostRead = mostActive(progress.activity, 0);
+  const mostReadWeek = mostActive(progress.activity, 7);
+  const mostReadToday = mostActive(progress.activity, 1);
 
   return (
     <div className="page-enter">
       <PageHeader title="Your progress" subtitle="A little each day completes the whole Qur’an." />
+
+      {lastPosition ? (
+        <div className="mb-4 rounded-2xl border border-accent/30 bg-accent/8 p-4">
+          <div className="text-xs font-semibold uppercase tracking-widest text-accent">Continue where you left off</div>
+          <div className="mt-1 flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-sm font-bold text-onaccent">
+              {surahNumberToArabic(lastPosition.surah)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-base font-semibold text-ink">{lastPosition.name}</div>
+              <div className="text-xs text-mut">Āyah {lastPosition.ayah} of {lastMeta?.numberOfAyahs ?? '—'} · {timeAgo(lastPosition.at)}</div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface2">
+                <div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, ((lastPosition.ayah / Math.max(1, lastMeta?.numberOfAyahs ?? lastPosition.ayah)) * 100))}%` }} />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(`/surah/${lastPosition.surah}?ayah=${lastPosition.ayah}`)}
+              className="shrink-0 rounded-full bg-accent px-3 py-2 text-xs font-semibold text-onaccent pressable"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-4 rounded-2xl border border-line bg-surface p-4">
+          <div className="text-sm font-semibold text-ink">Begin your reading journey</div>
+          <div className="mt-1 text-xs text-mut">Open a surah and your latest ayah will appear here for a quick return.</div>
+          <button type="button" onClick={() => navigate('/')} className="mt-3 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-onaccent pressable">Browse surahs</button>
+        </div>
+      )}
+
+      <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+        <StatCard icon="book" label="Ayahs reached" value={String(totalAyahsReached)} sub="across all surahs" />
+        <StatCard icon="stack" label="Current streak" value={`${streak} day${streak === 1 ? '' : 's'}`} sub="reading or listening" />
+        <StatCard icon="music" label="Most read" value={mostRead ? mostRead.name : '—'} sub={mostRead ? `${mostRead.count} activity marks` : 'none yet'} />
+        <StatCard icon="clock" label="This week" value={mostReadWeek ? mostReadWeek.name : '—'} sub={mostReadWeek ? `${mostReadWeek.count} activity marks` : 'none yet'} />
+        <StatCard icon="book" label="Today" value={mostReadToday ? mostReadToday.name : '—'} sub={mostReadToday ? `${mostReadToday.count} activity marks` : 'none yet'} />
+      </div>
+
+      {recentSurahs.length > 0 && (
+        <div className="mb-4">
+          <h2 className="mb-2 text-sm font-semibold text-ink">Recent surahs</h2>
+          <div className="flex flex-wrap gap-1.5">
+            {recentSurahs.map((entry) => <button key={entry.surah} type="button" onClick={() => navigate(`/surah/${entry.surah}?ayah=${entry.ayah}`)} className="rounded-full bg-surface px-3 py-1.5 text-xs text-ink pressable">{entry.name}</button>)}
+          </div>
+        </div>
+      )}
 
       {/* overview */}
       <div className="grid grid-cols-3 gap-2.5">
@@ -85,7 +144,7 @@ export default function ProgressPage() {
                 className={`pressable flex aspect-square flex-col items-center justify-center rounded-2xl border text-sm transition-colors ${
                   done
                     ? 'border-accent bg-accent text-onaccent'
-                    : 'border-line bg-surface text-mut hover:border-accent/50'
+                    : 'border-line bg-surface text-ink hover:border-accent/50'
                 }`}
               >
                 <span className="text-base font-bold">{j}</span>
@@ -154,6 +213,41 @@ export default function ProgressPage() {
           </div>
         </div>
       )}
+
+      {progress.activity.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-2 text-sm font-semibold text-ink">Qur’an history</h2>
+          <div className="space-y-1.5">
+            {progress.activity.slice(0, 12).map((entry, index) => {
+              const group = historyGroup(entry.at);
+              const previousGroup = index > 0 ? historyGroup(progress.activity[index - 1].at) : null;
+              return (
+                <div key={`${entry.at}-${index}`}>
+                  {group !== previousGroup && <div className="px-1 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-widest text-mut">{group}</div>}
+                  <button type="button" onClick={() => navigate(`/surah/${entry.surah}?ayah=${entry.ayah}`)} className="flex w-full items-center gap-3 rounded-xl bg-surface px-3 py-2 text-left pressable">
+                    <Icon name={entry.kind === 'listen' ? 'music' : 'book'} size={15} className="shrink-0 text-accent" />
+                    <span className="min-w-0 flex-1 truncate text-sm text-ink">{entry.name} · āyah {entry.ayah}</span>
+                    <span className="shrink-0 text-[11px] text-mut">{timeAgo(entry.at)}</span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {progress.quoteHistory.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-2 text-sm font-semibold text-ink">Quotes history</h2>
+          <div className="space-y-1.5">
+            {progress.quoteHistory.slice(0, 8).map((entry) => {
+              const quote = QUOTES.find((item) => item.id === entry.id);
+              if (!quote) return null;
+              return <button key={entry.id} type="button" onClick={() => navigate('/quotes')} className="w-full rounded-xl bg-surface px-3 py-2 text-left text-sm text-ink pressable">“{quote.text}” <span className="text-xs text-mut">· {quote.by}</span></button>;
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -165,7 +259,7 @@ function StatCard({
   sub,
   onClick,
 }: {
-  icon: 'stack' | 'book' | 'clock';
+  icon: 'stack' | 'book' | 'clock' | 'music';
   label: string;
   value: string;
   sub?: string;
@@ -189,4 +283,36 @@ function StatCard({
   ) : (
     <div className={cls}>{content}</div>
   );
+}
+
+function currentStreak(days: Record<string, boolean>): number {
+  const cursor = new Date();
+  let count = 0;
+  while (days[cursor.toISOString().slice(0, 10)]) {
+    count++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return count;
+}
+
+function mostActive(activity: { surah: number; name: string; at: number }[], days: number) {
+  const since = days === 0 ? 0 : Date.now() - days * 86400000;
+  const counts = new Map<number, { name: string; count: number }>();
+  activity.filter((entry) => entry.at >= since).forEach((entry) => {
+    const current = counts.get(entry.surah) ?? { name: entry.name, count: 0 };
+    counts.set(entry.surah, { name: current.name, count: current.count + 1 });
+  });
+  return [...counts.values()].sort((a, b) => b.count - a.count)[0];
+}
+
+function historyGroup(at: number): string {
+  const now = new Date();
+  const date = new Date(at);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const delta = Math.round((today - day) / 86400000);
+  if (delta === 0) return 'Today';
+  if (delta === 1) return 'Yesterday';
+  if (delta < 7) return 'This week';
+  return 'Older';
 }

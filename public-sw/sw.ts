@@ -31,4 +31,32 @@ registerRoute(
   }),
 );
 
+// Optional server-triggered notifications. The app remains fully usable without
+// a subscription; browsers that support Push can deliver a payload here.
+self.addEventListener('push', (event) => {
+  const data = event.data?.json() as { title?: string; body?: string; url?: string } | undefined;
+  event.waitUntil(
+    self.registration.showNotification(data?.title ?? 'A moment with the Qur’an', {
+      body: data?.body ?? 'Return to your reading when you have a moment.',
+      data: { url: data?.url ?? '/' },
+      icon: '/icons/icon-192.png',
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = new URL(event.notification.data?.url ?? '/', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((client) => 'focus' in client);
+      if (existing && 'navigate' in existing) {
+        void existing.navigate(url);
+        return existing.focus();
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});
+
 export {};

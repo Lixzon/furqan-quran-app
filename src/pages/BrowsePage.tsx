@@ -42,6 +42,10 @@ export default function BrowsePage() {
     return juz.filter((j) => progress.juzCompleted[j.juz]).length;
   }, [juz, progress.juzCompleted]);
 
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const hasCheckedIn = !!progress.dailyActivity[todayKey];
+  const checkInSurah = progress.lastPosition?.surah ?? 1;
+
   if (!surahs || !juz) {
     return (
       <div>
@@ -85,6 +89,17 @@ export default function BrowsePage() {
           {completedJuz}/{juz.length} Juz complete
         </button>
       </div>
+
+      {!hasCheckedIn && (
+        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-accent/25 bg-accent/8 p-3">
+          <Icon name="book" size={20} className="shrink-0 text-accent" />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-ink">Have you read your Qur’an today?</div>
+            <div className="text-xs text-mut">A few ayahs is a good place to begin.</div>
+          </div>
+          <button type="button" onClick={() => navigate(`/surah/${checkInSurah}`)} className="shrink-0 rounded-full bg-accent px-3 py-2 text-xs font-semibold text-onaccent pressable">Start</button>
+        </div>
+      )}
 
       {/* search */}
       <div className="relative mb-3">

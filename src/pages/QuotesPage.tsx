@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../components/ui/common';
 import { Icon } from '../components/ui/Icon';
 import { Chip } from '../components/ui/controls';
@@ -6,6 +6,7 @@ import { QUOTES, QUOTE_THEMES, QUOTE_THEME_LABELS, quoteOfTheDayIndex } from '..
 import { useAppDispatch } from '../store';
 import { push } from '../store/slices/toastSlice';
 import type { QuoteEntry, QuoteTheme } from '../types';
+import { recordQuoteView } from '../store/slices/progressSlice';
 
 export default function QuotesPage() {
   const dispatch = useAppDispatch();
@@ -13,6 +14,10 @@ export default function QuotesPage() {
   const [featuredIdx, setFeaturedIdx] = useState(() => quoteOfTheDayIndex(new Date()));
 
   const featured = QUOTES[featuredIdx] ?? QUOTES[0];
+
+  useEffect(() => {
+    if (featured) dispatch(recordQuoteView(featured.id));
+  }, [dispatch, featured?.id]);
 
   const filtered = useMemo(() => {
     if (filter === 'all') return QUOTES;

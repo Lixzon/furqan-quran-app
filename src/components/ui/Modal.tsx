@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { Icon } from './Icon';
@@ -21,6 +21,27 @@ export function Modal({
   dismissable?: boolean;
   size?: 'sm' | 'md' | 'lg' | 'xl';
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const focusInitialElement = () => {
+      const initialElement = dialogRef.current?.querySelector<HTMLElement>('[autofocus]');
+      (initialElement ?? closeButtonRef.current)?.focus();
+    };
+    const frame = requestAnimationFrame(focusInitialElement);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      if (openerRef.current?.isConnected) openerRef.current.focus();
+      openerRef.current = null;
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -46,25 +67,25 @@ export function Modal({
         aria-hidden="true"
       />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         className={`relative w-full ${widths[size]} max-h-[88vh] overflow-hidden rounded-t-2xl bg-surface shadow-card anim-pop sm:rounded-2xl`}
       >
-        {title !== undefined && (
-          <div className="flex items-center justify-between border-b border-line px-5 py-4">
-            <div className="text-base font-semibold text-ink">{title}</div>
-            {dismissable && (
-              <button
-                type="button"
-                aria-label="Close"
-                onClick={onClose}
-                className="pressable rounded-full p-1.5 text-mut hover:bg-surface2 hover:text-ink"
-              >
-                <Icon name="close" size={20} />
-              </button>
-            )}
-          </div>
-        )}
+        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+          <div className="text-base font-semibold text-ink">{title}</div>
+          {dismissable && (
+            <button
+              ref={closeButtonRef}
+              type="button"
+              aria-label="Close"
+              onClick={onClose}
+              className="pressable rounded-full p-1.5 text-mut hover:bg-surface2 hover:text-ink"
+            >
+              <Icon name="close" size={20} />
+            </button>
+          )}
+        </div>
         <div className="thin-scroll max-h-[calc(88vh-7rem)] overflow-y-auto px-5 py-4">{children}</div>
         {footer && <div className="border-t border-line px-5 py-3">{footer}</div>}
       </div>

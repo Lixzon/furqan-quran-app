@@ -116,7 +116,7 @@ export default function SurahReader() {
   // Persist reading position when the active ayah changes.
   useEffect(() => {
     if (!surah) return;
-    dispatch(rememberRead({ surah: surah.number, ayah: activeAyah + 1 }));
+    dispatch(rememberRead({ surah: surah.number, ayah: activeAyah + 1, name: surah.englishName }));
   }, [activeAyah, surah, dispatch]);
 
   // Follow the sounding ayah while audio plays on this surah.
@@ -337,10 +337,37 @@ function AyahBlock({
   onSelect: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    menuButtonRef.current?.focus();
+  };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node) && !menuButtonRef.current?.contains(event.target as Node)) {
+        closeMenu();
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeMenu();
+      }
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick);
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [menuOpen]);
 
   const copyArabic = () => {
     void navigator.clipboard?.writeText(ayah.ar);
-    setMenuOpen(false);
+    closeMenu();
   };
 
   return (
@@ -353,25 +380,26 @@ function AyahBlock({
       data-ayah={index}
     >
       {showArabic && (
-        <p className={`${arClass} pr-8 text-right leading-[2.05] text-ink`} dir="rtl" style={{ fontSize: arFontPx }}>
+        <p className={`${arClass} pr-8 text-right leading-[2.35] text-ink`} dir="rtl" style={{ fontSize: arFontPx }}>
           {ayah.ar}
           <span className="ayah-marker">{index + 1}</span>
         </p>
       )}
       {showTransliteration && ayah.tl && (
-        <p className="mt-3 pr-8 text-[14px] italic leading-relaxed text-ink2">
+        <p className="mt-4 pr-8 text-[14px] italic leading-relaxed text-ink2">
           <span className="mr-1.5 font-semibold not-italic text-accent">{index + 1}.</span>
           {ayah.tl}
         </p>
       )}
       {showTranslation && ayah.tr && (
-        <p className="mt-2 pr-8 text-[15px] leading-relaxed text-ink2">
+        <p className="mt-3 pr-8 text-[15px] leading-relaxed text-ink2">
           <span className="mr-1.5 font-semibold text-accent">{index + 1}.</span>
           {ayah.tr}
         </p>
       )}
       <div className="absolute right-1 top-5">
         <button
+          ref={menuButtonRef}
           type="button"
           aria-label={`More actions for ayah ${index + 1}`}
           onClick={(event) => {
@@ -383,14 +411,22 @@ function AyahBlock({
           <Icon name="more" size={18} />
         </button>
         {menuOpen && (
-          <div className="absolute right-0 top-9 z-10 w-44 rounded-xl border border-line bg-surface p-1 shadow-card">
+          <div ref={menuRef} className="absolute right-0 top-9 z-10 w-44 rounded-xl border border-line bg-surface p-1 shadow-card">
+            <button
+              type="button"
+              aria-label="Close actions"
+              className="absolute right-1 top-1 rounded-full p-1 text-mut hover:bg-surface2 hover:text-ink"
+              onClick={closeMenu}
+            >
+              <Icon name="close" size={15} />
+            </button>
             <button
               type="button"
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-surface2"
               onClick={(event) => {
                 event.stopPropagation();
                 onSelect();
-                setMenuOpen(false);
+                closeMenu();
               }}
             >
               <Icon name="play" size={15} /> Play from here

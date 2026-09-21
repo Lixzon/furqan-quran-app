@@ -1,7 +1,7 @@
 import { store } from '../store';
 import { patch, type PlayerState } from '../store/slices/playerSlice';
 import { push } from '../store/slices/toastSlice';
-import { markListened } from '../store/slices/progressSlice';
+import { markListened, rememberListened } from '../store/slices/progressSlice';
 import { audioStreamUrl, reciterById } from '../lib/constants';
 import { isAudioDownloaded, getDownloadedAudioUrl, getRangedAudioUrl } from '../services/audioStore';
 import { getSurahMetaList } from '../lib/dataClient';
@@ -238,6 +238,15 @@ class PlayerController {
     if (idx !== s.ayah) toPatch.ayah = idx;
     if (s.isPlaying !== !el.paused) toPatch.isPlaying = !el.paused;
     if (Object.keys(toPatch).length > 0) this.patch(toPatch);
+    if (idx !== s.ayah) {
+      store.dispatch(
+        rememberListened({
+          surah: s.surah,
+          ayah: idx + 1,
+          name: this.metaCache.get(s.surah)?.englishName ?? `Surah ${s.surah}`,
+        }),
+      );
+    }
 
     // position state for lock-screen seek scrubbing
     const ms = typeof navigator !== 'undefined' ? navigator.mediaSession : undefined;

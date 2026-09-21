@@ -64,6 +64,21 @@ export interface ReaderPosition {
   at: number;
 }
 
+export type ActivityKind = 'read' | 'listen';
+
+export interface ActivityEntry {
+  surah: number;
+  ayah: number;
+  name: string;
+  at: number;
+  kind: ActivityKind;
+}
+
+export interface QuoteHistoryEntry {
+  id: string;
+  at: number;
+}
+
 export interface ProgressState {
   /** per surah: last read ayah position (numberInSurah) */
   lastRead: Record<number, ReaderPosition>;
@@ -73,6 +88,16 @@ export interface ProgressState {
   surahCompleted: Record<number, boolean>;
   /** 30 juz, whether marked complete */
   juzCompleted: Record<number, boolean>;
+  /** Latest position across reading and listening sessions. */
+  lastPosition: ActivityEntry | null;
+  /** Small chronological activity log used by history and recent-item views. */
+  activity: ActivityEntry[];
+  /** ISO date keys for days with at least one reading/listening event. */
+  dailyActivity: Record<string, boolean>;
+  /** Count of ayahs reached at least once per surah. */
+  ayahsReached: Record<number, number>;
+  /** Quote views/favorites, newest first. */
+  quoteHistory: QuoteHistoryEntry[];
 }
 
 /* ---------------- quotes ---------------- */
@@ -140,6 +165,12 @@ export interface SettingsState {
   readingMode: boolean; // distraction free
   defaultReciter: string;
   followAudio: boolean; // auto-scroll/highlight reader to the playing ayah
+  notifications: {
+    daily: boolean;
+    fridayKahf: boolean;
+    nightlyMulk: boolean;
+    reminderTime: string;
+  };
 }
 
 export interface ThemeState {

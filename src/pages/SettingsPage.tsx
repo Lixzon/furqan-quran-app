@@ -12,6 +12,8 @@ import {
   setReadingMode,
   setDefaultReciter,
   setFollowAudio,
+  setNotificationPreference,
+  setReminderTime,
 } from '../store/slices/settingsSlice';
 import { clearAllProgress } from '../store/slices/progressSlice';
 import { db } from '../db/database';
@@ -39,6 +41,27 @@ export default function SettingsPage() {
   const [confirmClearAudio, setConfirmClearAudio] = useState(false);
   const [confirmResetProgress, setConfirmResetProgress] = useState(false);
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>(() =>
+    typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
+  );
+
+  const toggleNotification = async (key: 'daily' | 'fridayKahf' | 'nightlyMulk', enabled: boolean) => {
+    if (!enabled) {
+      dispatch(setNotificationPreference({ key, enabled: false }));
+      return;
+    }
+    if (typeof Notification === 'undefined') {
+      dispatch(push('Notifications are not supported in this browser.', 'error'));
+      return;
+    }
+    const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+    setNotificationPermission(permission);
+    if (permission === 'granted') {
+      dispatch(setNotificationPreference({ key, enabled: true }));
+    } else {
+      dispatch(push('Allow notifications in your browser to enable reminders.', 'info'));
+    }
+  };
 
   useEffect(() => {
     const onPrompt = (e: Event) => setInstallEvt(e as BeforeInstallPromptEvent);
@@ -173,6 +196,21 @@ export default function SettingsPage() {
             {storage.count} file{storage.count === 1 ? '' : 's'} · {formatBytes(storage.bytes)}
           </span>
         </button>
+      </Card>
+
+      {/* ---- Reminders ---- */}
+      <Section title="Reminders" icon="clock" />
+      <Card>
+        <p className="mb-3 text-xs leading-relaxed text-mut">
+          Reminders are optional. Enabling one asks your browser for permission and shows the reminder while Furqan is available. The in-app check-in remains available when background notifications are limited.
+        </p>
+        <Row label="Daily Qur’an check-in" control={<Toggle checked={settings.notifications.daily} onChange={(v) => void toggleNotification('daily', v)} label="Daily Qur’an check-in" />} />
+        <Row label="Friday · Surah Al-Kahf" control={<Toggle checked={settings.notifications.fridayKahf} onChange={(v) => void toggleNotification('fridayKahf', v)} label="Friday Surah Al-Kahf reminder" />} />
+        <Row label="Nightly · Surah Al-Mulk" control={<Toggle checked={settings.notifications.nightlyMulk} onChange={(v) => void toggleNotification('nightlyMulk', v)} label="Nightly Surah Al-Mulk reminder" />} />
+        <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
+          <label htmlFor="reminder-time" className="text-sm font-medium text-ink">Reminder time</label>
+          <input id="reminder-time" type="time" value={settings.notifications.reminderTime} disabled={notificationPermission !== 'granted'} onChange={(event) => dispatch(setReminderTime(event.target.value))} className="rounded-xl border border-line bg-surface2 px-3 py-2 text-sm text-ink disabled:opacity-50" />
+        </div>
       </Card>
 
       {/* ---- Data ---- */}

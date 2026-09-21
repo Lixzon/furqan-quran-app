@@ -13,6 +13,12 @@ const initialState: SettingsState = loadState<SettingsState>(KEYS.settings, {
   readingMode: false,
   defaultReciter: DEFAULT_RECITER,
   followAudio: true,
+  notifications: {
+    daily: false,
+    fridayKahf: false,
+    nightlyMulk: false,
+    reminderTime: '20:00',
+  },
 });
 
 const settingsSlice = createSlice({
@@ -43,6 +49,15 @@ const settingsSlice = createSlice({
     setFollowAudio(state, action: PayloadAction<boolean>) {
       state.followAudio = action.payload;
     },
+    setNotificationPreference(
+      state,
+      action: PayloadAction<{ key: 'daily' | 'fridayKahf' | 'nightlyMulk'; enabled: boolean }>,
+    ) {
+      state.notifications[action.payload.key] = action.payload.enabled;
+    },
+    setReminderTime(state, action: PayloadAction<string>) {
+      state.notifications.reminderTime = action.payload;
+    },
   },
 });
 
@@ -55,5 +70,7 @@ export const {
   setReadingMode,
   setDefaultReciter,
   setFollowAudio,
+  setNotificationPreference,
+  setReminderTime,
 } = settingsSlice.actions;
 export default settingsSlice.reducer;
