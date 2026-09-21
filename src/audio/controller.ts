@@ -442,9 +442,31 @@ class PlayerController {
 
   stop(): void {
     const el = this.ensureEl();
+    if (this.sleepTimerId !== null) {
+      window.clearTimeout(this.sleepTimerId);
+      this.sleepTimerId = null;
+    }
     el.pause();
     el.currentTime = 0;
-    this.patch({ isPlaying: false, currentTime: 0, ayah: 0 });
+    this.revokeUrl();
+    this.patch({
+      isPlaying: false,
+      surah: null,
+      ayah: null,
+      ayahCount: 0,
+      playlistId: null,
+      queueName: null,
+      queue: [],
+      order: [],
+      pos: 0,
+      currentTime: 0,
+      duration: 0,
+      usingDownload: false,
+      buffering: false,
+      error: null,
+      sleepTimer: null,
+      stopAfterSurah: false,
+    });
   }
 
   seek(time: number): void {

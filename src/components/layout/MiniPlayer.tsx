@@ -19,13 +19,14 @@ export function MiniPlayer() {
 
   const reciter = reciterById(p.reciter);
   const progress = p.duration > 0 ? Math.min(100, (p.currentTime / p.duration) * 100) : 0;
-  const bottom = readingMode ? 0 : 'calc(58px + env(safe-area-inset-bottom, 0px))';
+  const bottomClass = readingMode
+    ? 'bottom-0'
+    : 'bottom-[calc(58px+env(safe-area-inset-bottom,0px))] md:bottom-0';
 
   return (
     <div
       onClick={() => navigate('/player')}
-      className="fixed inset-x-0 z-40 cursor-pointer border-t border-line bg-surface/95 backdrop-blur md:left-60"
-      style={{ bottom }}
+      className={`fixed inset-x-0 z-40 cursor-pointer border-t border-line bg-surface/95 backdrop-blur md:left-60 ${bottomClass}`}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -91,6 +92,15 @@ export function MiniPlayer() {
             onClick={() => player.next()}
           >
             <Icon name="next" size={20} />
+          </button>
+          <button
+            type="button"
+            aria-label="Close player"
+            title="Stop playback and close player"
+            className="pressable rounded-full p-2 text-mut hover:bg-surface2 hover:text-danger"
+            onClick={() => player.stop()}
+          >
+            <Icon name="close" size={20} />
           </button>
         </div>
       </div>
