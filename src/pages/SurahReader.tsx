@@ -20,6 +20,7 @@ import { clamp } from '../lib/utils';
 import { Icon } from '../components/ui/Icon';
 import { Segmented, Slider, Toggle } from '../components/ui/controls';
 import { Modal } from '../components/ui/Modal';
+import { SurahArtwork } from '../components/ui/SurahArtwork';
 import { ErrorBlock, SkeletonRows } from '../components/ui/common';
 import type { AyahData, SettingsState, SurahFull } from '../types';
 
@@ -309,12 +310,14 @@ export default function SurahReader() {
         }
       />
 
-      <div className="mt-3 mb-3 text-center">
+      <div className="relative mt-3 mb-3 overflow-hidden rounded-3xl border border-line bg-surface/70 px-4 py-3 text-center shadow-card backdrop-blur-sm">
+        <SurahArtwork surah={surah.number} className="opacity-70" />
+        <div className="relative">
         <div className="text-xs font-medium uppercase tracking-widest text-mut">
           Juz {currentJuz?.juz ?? '—'} · {surah.englishName}
         </div>
         <div className="mt-1 text-xs text-mut">{surah.revelationType} · {surah.numberOfAyahs} āyāt</div>
-        <div className={`${arClass} mt-3 text-3xl text-ink`} style={{ direction: 'rtl' }}>
+        <div className={`${arClass} mt-3 text-4xl font-semibold text-ink`} style={{ direction: 'rtl' }}>
           {surah.name}
         </div>
         <div className="mt-1 text-sm text-mut">{surah.englishNameTranslation}</div>
@@ -323,6 +326,7 @@ export default function SurahReader() {
             بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
           </div>
         )}
+        </div>
       </div>
 
       {viewMode === 'list' ? (

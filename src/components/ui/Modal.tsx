@@ -70,7 +70,7 @@ export function Modal({
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        className={`relative w-full ${widths[size]} max-h-[88vh] overflow-hidden rounded-t-2xl bg-surface shadow-card anim-pop sm:rounded-2xl`}
+        className={`relative w-full ${widths[size]} max-h-[88vh] overflow-hidden rounded-t-2xl bg-surface/90 shadow-card anim-pop backdrop-blur-xl sm:rounded-2xl`}
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <div className="text-base font-semibold text-ink">{title}</div>

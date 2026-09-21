@@ -15,6 +15,7 @@ import { Icon } from '../components/ui/Icon';
 import { Slider, IconButton } from '../components/ui/controls';
 import { Modal } from '../components/ui/Modal';
 import { EmptyState } from '../components/ui/common';
+import { SurahArtwork } from '../components/ui/SurahArtwork';
 
 const SLEEP_OPTIONS = [10, 20, 30, 45, 60];
 
@@ -113,10 +114,10 @@ export default function NowPlayingPage() {
         </button>
       </div>
       {/* artwork */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent to-accentstrong p-6 text-onaccent shadow-card">
-        <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-white/10" />
-        <div className="pointer-events-none absolute -bottom-14 -left-10 h-40 w-40 rounded-full bg-black/10" />
-        <div className="relative">
+      <div className={`now-playing-art relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent to-accentstrong p-6 text-onaccent shadow-card ${p.isPlaying ? 'now-playing-art-active' : ''}`}>
+        <SurahArtwork surah={p.surah} className="opacity-90" />
+        <div className="now-playing-wash pointer-events-none absolute inset-0" />
+        <div className="relative z-10">
           <div className="flex items-start justify-between">
             <span className="rounded-full bg-black/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider">
               {p.playlistId ? 'Playlist · queue' : 'Surah'}
@@ -141,7 +142,7 @@ export default function NowPlayingPage() {
             <div className="text-xs font-medium uppercase tracking-[0.2em] opacity-80">
               Sūrah {surahNumberToArabic(p.surah)}
             </div>
-            <h1 className="mt-1 text-3xl font-bold">{meta.englishName}</h1>
+            <h1 className="mt-1 text-4xl font-bold tracking-tight">{meta.englishName}</h1>
             <div className="mt-2 text-xl opacity-90" style={{ direction: 'rtl' }}>
               {meta.name}
             </div>
@@ -205,8 +206,12 @@ export default function NowPlayingPage() {
             type="button"
             aria-label={p.isPlaying ? 'Pause' : 'Play'}
             onClick={() => player.togglePlay()}
-            className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-onaccent shadow-card pressable"
+            className="relative flex h-16 w-16 items-center justify-center rounded-full bg-accent text-onaccent shadow-card pressable"
           >
+            <svg className="pointer-events-none absolute -inset-1 h-[4.5rem] w-[4.5rem] -rotate-90" viewBox="0 0 72 72" aria-hidden="true">
+              <circle cx="36" cy="36" r="33" fill="none" stroke="currentColor" strokeOpacity="0.22" strokeWidth="2" />
+              <circle className="progress-ring" cx="36" cy="36" r="33" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress} />
+            </svg>
             <Icon name={p.isPlaying ? 'pause' : 'play'} size={30} />
           </button>
           <IconButton icon="next" label="Next" onClick={() => player.next()} size={26} />

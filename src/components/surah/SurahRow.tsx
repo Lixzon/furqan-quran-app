@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import type { SurahMeta } from '../../types';
 import { surahNumberToArabic } from '../../lib/utils';
 import { Icon, type IconName } from '../ui/Icon';
+import { SurahArtwork } from '../ui/SurahArtwork';
 
 interface SurahRowProps {
   meta: SurahMeta;
@@ -33,7 +34,8 @@ export function SurahRow({ meta, leading, trailing, onPlay, showPlay = false, is
       }`}
     >
       {leading}
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/12 font-semibold text-accent">
+      <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-accent/12 font-semibold text-accent">
+        <SurahArtwork surah={meta.number} className="opacity-80" />
         <span className="text-[15px]">{surahNumberToArabic(meta.number)}</span>
       </div>
       <div className="min-w-0 flex-1">

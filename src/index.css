@@ -282,6 +282,46 @@ button {
 .anim-pop {
   animation: q-pop 0.2s ease both;
 }
+
+/* ---------- layered artwork and restrained motion ---------- */
+.now-playing-wash {
+  background:
+    radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--q-gold) 30%, transparent), transparent 38%),
+    radial-gradient(circle at 82% 78%, color-mix(in srgb, var(--q-accent-strong) 55%, transparent), transparent 52%);
+}
+.now-playing-art-active::after {
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--q-accent) 28%, transparent), transparent 64%);
+  content: "";
+  animation: q-breathe 4.8s ease-in-out infinite;
+}
+.progress-ring {
+  transition: stroke-dashoffset 0.45s ease;
+}
+@keyframes q-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.04);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 /* keep the old page from jumping when navigating */
 .page-enter {
   animation: q-fade 0.2s ease both;
