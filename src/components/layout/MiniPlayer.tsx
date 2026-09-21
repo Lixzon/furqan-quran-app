@@ -24,7 +24,7 @@ export function MiniPlayer() {
   return (
     <div
       onClick={() => navigate('/player')}
-      className="fixed inset-x-0 z-40 cursor-pointer border-t border-line bg-surface/95 backdrop-blur"
+      className="fixed inset-x-0 z-40 cursor-pointer border-t border-line bg-surface/95 backdrop-blur md:left-60"
       style={{ bottom }}
       role="button"
       tabIndex={0}
