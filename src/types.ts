@@ -54,7 +54,7 @@ export interface Playlist {
 }
 
 /** Player repeat semantics layered on top of per-item repeat counts. */
-export type PlayerRepeatMode = 'off' | 'all';
+export type PlayerRepeatMode = 'off' | 'one' | 'all';
 
 /* ---------------- progress ---------------- */
 

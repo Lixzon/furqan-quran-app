@@ -93,7 +93,7 @@ export function audioStreamUrl(reciter: string, surah: number): string {
 
 export const DEFAULT_ACCENT: AccentId = 'teal';
 export const DEFAULT_RECITER = 'ar.alafasy';
-export const DEFAULT_ARABIC_SCALE = 1.7;
+export const DEFAULT_ARABIC_SCALE = 1.3;
 
 /** theme colour applied to the browser chrome */
 export function accentHex(accent: AccentId, dark: boolean): string {

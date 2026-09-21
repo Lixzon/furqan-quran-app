@@ -13,6 +13,7 @@ const PLAYER_PREFS = 'furqan:player';
 interface PlayerPrefs {
   volume: number;
   muted: boolean;
+  playbackRate: number;
 }
 
 class PlayerController {
@@ -123,6 +124,7 @@ class PlayerController {
       error: null,
       isPlaying: false,
     });
+    el.playbackRate = this.getState().playbackRate;
     this.fallbackToken = 0;
 
     try {
@@ -303,8 +305,13 @@ class PlayerController {
       this.patch({ isPlaying: false, stopAfterSurah: false, ayah: s.ayahCount ? s.ayahCount - 1 : s.ayah });
       return;
     }
-    if (s.loopSurah) {
+    if (s.loopSurah || s.repeat === 'one') {
       void this.loadCurrent(true);
+      return;
+    }
+    if (s.playlistId === null && s.queue.length === 1 && s.surah !== null) {
+      if (s.surah < 114) this.playSingleSurah(s.surah + 1, { reciter: s.reciter });
+      else this.patch({ isPlaying: false, ayah: s.ayahCount ? s.ayahCount - 1 : s.ayah });
       return;
     }
     const np = s.pos + 1;
@@ -365,6 +372,7 @@ class PlayerController {
       order: [0],
       pos: 0,
       mode: 'order',
+      repeat: 'off',
       reciter,
       loopSurah: false,
       isPlaying: false,
@@ -406,6 +414,10 @@ class PlayerController {
     const s = this.getState();
     if (s.queue.length === 0) return;
     if (s.loopSurah) this.patch({ loopSurah: false });
+    if (s.playlistId === null && s.queue.length === 1 && s.surah !== null) {
+      if (s.surah < 114) this.playSingleSurah(s.surah + 1, { reciter: s.reciter });
+      return;
+    }
     const np = s.pos + 1;
     if (np >= s.order.length) {
       this.jumpTo(0);
@@ -417,12 +429,10 @@ class PlayerController {
 
   previous(): void {
     const s = this.getState();
-    const el = this.ensureEl();
     if (s.queue.length === 0) return;
-    // If >3s in, restart the current surah; otherwise go to the previous entry.
-    if (el.currentTime > 3) {
-      el.currentTime = 0;
-      this.patch({ currentTime: 0, ayah: 0 });
+    if (s.loopSurah) this.patch({ loopSurah: false });
+    if (s.playlistId === null && s.queue.length === 1 && s.surah !== null) {
+      if (s.surah > 1) this.playSingleSurah(s.surah - 1, { reciter: s.reciter });
       return;
     }
     const np = s.pos > 0 ? s.pos - 1 : s.order.length - 1;
@@ -483,6 +493,14 @@ class PlayerController {
     el.volume = vol;
     el.muted = vol === 0 ? el.muted : false;
     this.patch({ volume: vol, muted: vol === 0 });
+    this.savePrefs();
+  }
+
+  setPlaybackRate(rate: number): void {
+    const playbackRate = Math.min(2, Math.max(0.5, rate));
+    const el = this.ensureEl();
+    el.playbackRate = playbackRate;
+    this.patch({ playbackRate });
     this.savePrefs();
   }
 
@@ -574,7 +592,7 @@ class PlayerController {
   /* ------------------------------------------- misc ------------------- */
   private savePrefs(): void {
     const s = this.getState();
-    const prefs: PlayerPrefs = { volume: s.volume, muted: s.muted };
+    const prefs: PlayerPrefs = { volume: s.volume, muted: s.muted, playbackRate: s.playbackRate };
     try {
       localStorage.setItem(PLAYER_PREFS, JSON.stringify(prefs));
     } catch {
@@ -584,17 +602,19 @@ class PlayerController {
 
   initialize(): void {
     this.setupMediaSession();
-    let prefs: PlayerPrefs = { volume: 1, muted: false };
+    let prefs: PlayerPrefs = { volume: 1, muted: false, playbackRate: 1 };
     try {
       const raw = localStorage.getItem(PLAYER_PREFS);
       if (raw) prefs = { ...prefs, ...(JSON.parse(raw) as PlayerPrefs) };
     } catch {
       /* ignore */
     }
-    this.patch({ volume: prefs.volume, muted: prefs.muted });
+    const playbackRate = Number.isFinite(prefs.playbackRate) ? prefs.playbackRate : 1;
+    this.patch({ volume: prefs.volume, muted: prefs.muted, playbackRate });
     const el = this.ensureEl();
     el.volume = prefs.volume;
     el.muted = prefs.muted;
+    el.playbackRate = playbackRate;
   }
 
   get isActive(): boolean {

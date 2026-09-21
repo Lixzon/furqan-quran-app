@@ -2,13 +2,13 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { ScriptStyle, SettingsState } from '../../types';
 import { loadState } from '../persist';
 import { KEYS } from '../persist';
-import { DEFAULT_RECITER } from '../../lib/constants';
+import { DEFAULT_ARABIC_SCALE, DEFAULT_RECITER } from '../../lib/constants';
 
 const initialState: SettingsState = loadState<SettingsState>(KEYS.settings, {
   showArabic: true,
   showTransliteration: true,
   showTranslation: true,
-  arabicFontScale: 1.8,
+  arabicFontScale: DEFAULT_ARABIC_SCALE,
   script: 'uthmani',
   readingMode: false,
   defaultReciter: DEFAULT_RECITER,

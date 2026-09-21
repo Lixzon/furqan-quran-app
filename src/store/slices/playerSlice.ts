@@ -33,6 +33,7 @@ export interface PlayerState {
   duration: number;
   volume: number; // 0..1
   muted: boolean;
+  playbackRate: number;
   usingDownload: boolean; // audio currently served from a downloaded blob
   buffering: boolean;
   error: string | null;
@@ -58,6 +59,7 @@ const initialState: PlayerState = {
   duration: 0,
   volume: 1,
   muted: false,
+  playbackRate: 1,
   usingDownload: false,
   buffering: false,
   error: null,

@@ -42,11 +42,49 @@ export default function SurahReader() {
   const [activeAyah, setActiveAyah] = useState(0);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'book'>('list');
+  const [bookPage, setBookPage] = useState(0);
 
   const validSurahNumber = Number.isInteger(surahNumber) && surahNumber >= 1 && surahNumber <= 114;
 
   const refs = useRef(new Map<number, HTMLDivElement>());
   const initTarget = useRef<number | null>(null);
+  const bookPageRef = useRef(0);
+
+  const updateBookPage = useCallback((page: number) => {
+    bookPageRef.current = page;
+    setBookPage(page);
+  }, []);
+
+  const pages = useMemo(() => {
+    if (!surah) return [];
+    const capacity = settings.showArabic ? 8 : 12;
+    const lineWeight = (ayah: AyahData) => {
+      let weight = settings.showArabic ? 1.6 + ayah.ar.length / 140 : 0;
+      if (settings.showTransliteration && ayah.tl) weight += 1 + ayah.tl.length / 180;
+      if (settings.showTranslation && ayah.tr) weight += 1 + ayah.tr.length / 220;
+      return Math.max(1, weight);
+    };
+    const result: number[][] = [];
+    let current: number[] = [];
+    let used = 0;
+    surah.ayahs.forEach((ayah, index) => {
+      const weight = lineWeight(ayah);
+      if (current.length > 0 && used + weight > capacity) {
+        result.push(current);
+        current = [];
+        used = 0;
+      }
+      current.push(index);
+      used += weight;
+    });
+    if (current.length > 0) result.push(current);
+    return result;
+  }, [surah, settings.showArabic, settings.showTransliteration, settings.showTranslation]);
+
+  const pageForAyah = useCallback(
+    (index: number) => Math.max(0, pages.findIndex((page) => page.includes(index))),
+    [pages],
+  );
 
   const fromUrl = useMemo(() => {
     const a = Number(searchParams.get('ayah'));
@@ -91,6 +129,7 @@ export default function SurahReader() {
     const start = clamp(startRaw, 0, surah.ayahs.length - 1);
     setActiveAyah(start);
     initTarget.current = start;
+    updateBookPage(pageForAyah(start));
   }, [surah?.number]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scrollToAyah = useCallback(
@@ -128,11 +167,13 @@ export default function SurahReader() {
       // cancel any pending “resume” jump so it can’t fight live playback
       initTarget.current = null;
       setActiveAyah(ayah);
-      scrollToAyah(ayah, true);
+      if (viewMode === 'book') updateBookPage(pageForAyah(ayah));
+      else scrollToAyah(ayah, true);
     }
-  }, [playerState.ayah, playerState.surah, playerState.isPlaying, settings.followAudio, activeAyah, scrollToAyah, surah?.number]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [playerState.ayah, playerState.surah, playerState.isPlaying, settings.followAudio, activeAyah, scrollToAyah, pageForAyah, updateBookPage, viewMode, surah?.number]);
 
   const isActiveSession = playerState.surah === surahNumber;
+  const readerRepeat = isActiveSession ? playerState.repeat : 'off';
   const currentJuz = useMemo(() => {
     if (!juz) return null;
     return juz.reduce<(typeof juz)[number] | null>((found, boundary) => {
@@ -167,6 +208,25 @@ export default function SurahReader() {
     const showLines = !(settings.showTranslation || settings.showTransliteration);
     dispatch(setShowTranslation(showLines));
     dispatch(setShowTransliteration(showLines));
+  };
+
+  const changeViewMode = (mode: 'list' | 'book') => {
+    if (mode === 'book') updateBookPage(pageForAyah(activeAyah));
+    setViewMode(mode);
+  };
+
+  const turnPage = (direction: -1 | 1) => {
+    const nextPage = bookPageRef.current + direction;
+    if (nextPage >= 0 && nextPage < pages.length) {
+      updateBookPage(nextPage);
+      return;
+    }
+    if (direction > 0 && surahNumber < 114) {
+      navigate(`/surah/${surahNumber + 1}?ayah=1`);
+    } else if (direction < 0 && surahNumber > 1) {
+      const previous = surahs?.find((item) => item.number === surahNumber - 1);
+      navigate(`/surah/${surahNumber - 1}?ayah=${previous?.numberOfAyahs ?? 1}`);
+    }
   };
 
   if (loading || (!surah && !error)) {
@@ -238,7 +298,7 @@ export default function SurahReader() {
             </button>
             <button
               type="button"
-              onClick={() => setViewMode((mode) => (mode === 'list' ? 'book' : 'list'))}
+              onClick={() => changeViewMode(viewMode === 'list' ? 'book' : 'list')}
               aria-label={`Switch to ${viewMode === 'list' ? 'book' : 'list'} view`}
               title={`${viewMode === 'list' ? 'Book' : 'List'} view`}
               className={`pressable rounded-full p-2 ${viewMode === 'list' ? 'text-mut' : 'bg-accent/15 text-accent'}`}
@@ -257,7 +317,7 @@ export default function SurahReader() {
         <div className={`${arClass} mt-3 text-3xl text-ink`} style={{ direction: 'rtl' }}>
           {surah.name}
         </div>
-        <div className="text-sm text-mut">{surah.englishNameTranslation}</div>
+        <div className="mt-1 text-sm text-mut">{surah.englishNameTranslation}</div>
         {showBasmala && (
           <div className={`${arClass} mt-4 text-2xl leading-loose text-ink2`} style={{ direction: 'rtl' }}>
             بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
@@ -265,12 +325,9 @@ export default function SurahReader() {
         )}
       </div>
 
-      {/* ayahs */}
-      <div className="mt-2">
-        {surah.ayahs.map((a, i) => {
-          const sounding = isActiveSession && playerState.isPlaying && playerState.ayah === i;
-          const selected = activeAyah === i;
-          return (
+      {viewMode === 'list' ? (
+        <div className="mt-2">
+          {surah.ayahs.map((a, i) => (
             <AyahBlock
               key={a.g}
               ayah={a}
@@ -280,23 +337,52 @@ export default function SurahReader() {
               showArabic={settings.showArabic}
               showTranslation={settings.showTranslation}
               showTransliteration={settings.showTransliteration}
-              sounding={sounding}
-              selected={selected}
+              sounding={isActiveSession && playerState.isPlaying && playerState.ayah === i}
+              selected={activeAyah === i}
               registerRef={(el) => {
                 if (el) refs.current.set(i, el);
                 else refs.current.delete(i);
               }}
               onSelect={() => handleSelect(i)}
             />
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <BookView
+          pages={pages}
+          pageIndex={bookPage}
+          surah={surah}
+          arClass={arClass}
+          arFontPx={arFontPx}
+          showArabic={settings.showArabic}
+          showTranslation={settings.showTranslation}
+          showTransliteration={settings.showTransliteration}
+          isActiveSession={isActiveSession}
+          isPlaying={playerState.isPlaying}
+          activeAyah={activeAyah}
+          onSelect={handleSelect}
+          onTurn={turnPage}
+        />
+      )}
 
       <ReaderBottomBar
         viewMode={viewMode}
-        onViewModeChange={setViewMode}
+        onViewModeChange={changeViewMode}
         isPlaying={isActiveSession && playerState.isPlaying}
         onPlay={handlePlay}
+        repeat={readerRepeat}
+        shuffle={playerState.mode === 'shuffle'}
+        playbackRate={playerState.playbackRate}
+        onRepeat={() => {
+          const next = readerRepeat === 'off' ? 'one' : readerRepeat === 'one' ? 'all' : 'off';
+          player.setRepeat(next);
+        }}
+        onShuffle={() => player.setMode(playerState.mode === 'shuffle' ? 'order' : 'shuffle')}
+        onPlaybackRate={() => {
+          const rates = [0.5, 1, 1.5, 2];
+          const next = rates[(rates.indexOf(playerState.playbackRate) + 1) % rates.length];
+          player.setPlaybackRate(next);
+        }}
       />
 
       {/* reader options modal */}
@@ -448,6 +534,109 @@ function AyahBlock({
   );
 }
 
+function BookView({
+  pages,
+  pageIndex,
+  surah,
+  arClass,
+  arFontPx,
+  showArabic,
+  showTranslation,
+  showTransliteration,
+  isActiveSession,
+  isPlaying,
+  activeAyah,
+  onSelect,
+  onTurn,
+}: {
+  pages: number[][];
+  pageIndex: number;
+  surah: SurahFull;
+  arClass: string;
+  arFontPx: number;
+  showArabic: boolean;
+  showTranslation: boolean;
+  showTransliteration: boolean;
+  isActiveSession: boolean;
+  isPlaying: boolean;
+  activeAyah: number;
+  onSelect: (index: number) => void;
+  onTurn: (direction: -1 | 1) => void;
+}) {
+  const dragStart = useRef<number | null>(null);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft') onTurn(1);
+      if (event.key === 'ArrowRight') onTurn(-1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onTurn]);
+
+  const page = pages[pageIndex] ?? [];
+  return (
+    <div className="mt-2">
+      <div
+        className="relative touch-pan-y overflow-hidden rounded-2xl border border-line bg-surface px-3 py-2 shadow-card"
+        onPointerDown={(event) => {
+          dragStart.current = event.clientX;
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerUp={(event) => {
+          if (dragStart.current === null) return;
+          const delta = event.clientX - dragStart.current;
+          dragStart.current = null;
+          if (Math.abs(delta) < 40) return;
+          onTurn(delta < 0 ? 1 : -1);
+        }}
+        onPointerCancel={() => {
+          dragStart.current = null;
+        }}
+      >
+        <div key={pageIndex} className="anim-fade min-h-[55vh]">
+          {page.map((index) => {
+            const ayah = surah.ayahs[index];
+            return (
+              <AyahBlock
+                key={ayah.g}
+                ayah={ayah}
+                index={index}
+                arClass={arClass}
+                arFontPx={arFontPx}
+                showArabic={showArabic}
+                showTranslation={showTranslation}
+                showTransliteration={showTransliteration}
+                sounding={isActiveSession && isPlaying && activeAyah === index}
+                selected={activeAyah === index}
+                registerRef={() => undefined}
+                onSelect={() => onSelect(index)}
+              />
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          aria-label="Previous page"
+          onClick={() => onTurn(-1)}
+          className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-surface2/80 text-mut hover:text-ink"
+        >
+          <Icon name="chevronRight" size={16} className="rotate-180" />
+        </button>
+        <button
+          type="button"
+          aria-label="Next page"
+          onClick={() => onTurn(1)}
+          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-surface2/80 text-mut hover:text-ink"
+        >
+          <Icon name="chevronRight" size={16} />
+        </button>
+      </div>
+      <div className="mt-2 text-center text-xs text-mut">Page {Math.min(pageIndex + 1, pages.length)} of {pages.length}</div>
+    </div>
+  );
+}
+
 /* ============================ sticky bar ============================ */
 function ReaderBar({
   backLabel,
@@ -492,14 +681,38 @@ function ReaderBottomBar({
   onViewModeChange,
   isPlaying,
   onPlay,
+  repeat,
+  shuffle,
+  playbackRate,
+  onRepeat,
+  onShuffle,
+  onPlaybackRate,
 }: {
   viewMode: 'list' | 'book';
   onViewModeChange: (mode: 'list' | 'book') => void;
   isPlaying: boolean;
   onPlay: () => void;
+  repeat: 'off' | 'one' | 'all';
+  shuffle: boolean;
+  playbackRate: number;
+  onRepeat: () => void;
+  onShuffle: () => void;
+  onPlaybackRate: () => void;
 }) {
   return (
-    <div className="safe-b sticky bottom-0 z-20 mt-5 flex items-center justify-between border-t border-line bg-base/90 px-1 py-3 backdrop-blur">
+    <div className="safe-b sticky bottom-0 z-20 mt-5 border-t border-line bg-base/90 px-1 py-3 backdrop-blur">
+      <div className="mb-2 flex items-center justify-center gap-2">
+        <button type="button" onClick={onShuffle} aria-label={shuffle ? 'Turn shuffle off' : 'Turn shuffle on'} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium ${shuffle ? 'bg-accent/15 text-accent' : 'text-mut hover:text-ink'}`}>
+          <Icon name="shuffle" size={14} /> {shuffle ? 'Shuffle on' : 'Shuffle'}
+        </button>
+        <button type="button" onClick={onRepeat} aria-label={`Repeat ${repeat}`} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium ${repeat !== 'off' ? 'bg-accent/15 text-accent' : 'text-mut hover:text-ink'}`}>
+          <Icon name={repeat === 'one' ? 'repeatOne' : 'repeat'} size={14} /> {repeat === 'one' ? 'Repeat one' : repeat === 'all' ? 'Repeat all' : 'Repeat off'}
+        </button>
+        <button type="button" onClick={onPlaybackRate} aria-label={`Playback speed ${playbackRate} times`} className="rounded-full px-2.5 py-1.5 text-xs font-medium text-mut hover:bg-surface2 hover:text-ink">
+          {playbackRate}x
+        </button>
+      </div>
+      <div className="flex items-center justify-between">
       <div className="flex rounded-xl bg-surface2 p-1">
         {(['list', 'book'] as const).map((mode) => (
           <button
@@ -520,6 +733,7 @@ function ReaderBottomBar({
       >
         <Icon name={isPlaying ? 'pause' : 'play'} size={21} />
       </button>
+      </div>
     </div>
   );
 }
