@@ -19,7 +19,7 @@ export function AppLayout() {
       {!readingMode && <Sidebar />}
       <div className={readingMode ? '' : 'md:pl-60'}>
         <main
-          className="safe-t mx-auto w-full max-w-3xl px-4 pt-4"
+          className="safe-t mx-auto w-full max-w-3xl px-4 pt-6"
           style={{ paddingBottom: readingMode ? '5rem' : '11.5rem' }}
         >
           <Outlet />

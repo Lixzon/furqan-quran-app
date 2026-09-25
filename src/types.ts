@@ -96,6 +96,8 @@ export interface ProgressState {
   dailyActivity: Record<string, boolean>;
   /** Count of ayahs reached at least once per surah. */
   ayahsReached: Record<number, number>;
+  /** Milestone thresholds already earned, keyed by day count. */
+  milestones: Record<number, number>;
   /** Quote views/favorites, newest first. */
   quoteHistory: QuoteHistoryEntry[];
 }

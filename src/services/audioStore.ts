@@ -1,5 +1,5 @@
 import { deleteStoredAudio, getStoredAudio, isAudioDownloaded, isUsableAudio, putStoredAudio, type StoredAudio } from '../db/database';
-import { audioStreamUrl } from '../lib/constants';
+import { resolveAudioSourceUrl } from '../lib/audioTiming';
 
 const RANGE_SIZE = 4 * 1024 * 1024;
 
@@ -54,7 +54,7 @@ export async function downloadSurahAudio(
   surah: number,
   onProgress?: (fraction: number) => void,
 ): Promise<number> {
-  const url = audioStreamUrl(reciter, surah);
+  const url = await resolveAudioSourceUrl(reciter, surah);
   const blob = await fetchAudioBlob(url, surah, onProgress);
   const rec: StoredAudio = {
     key: `${reciter}|${surah}`,
@@ -78,7 +78,8 @@ export async function getDownloadedAudioUrl(reciter: string, surah: number): Pro
 
 /** Fetch a playable remote blob when the CDN rejects a normal full-file request. */
 export async function getRangedAudioUrl(reciter: string, surah: number): Promise<string> {
-  const blob = await fetchAudioBlob(audioStreamUrl(reciter, surah), surah);
+  const url = await resolveAudioSourceUrl(reciter, surah);
+  const blob = await fetchAudioBlob(url, surah);
   return URL.createObjectURL(blob);
 }
 

@@ -1,11 +1,24 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store';
-import { setJuzCompleted } from '../store/slices/progressSlice';
+import { markMilestone, setJuzCompleted } from '../store/slices/progressSlice';
+import { push } from '../store/slices/toastSlice';
 import { useQuran } from '../data/QuranProvider';
 import { PageHeader, EmptyState } from '../components/ui/common';
 import { Icon } from '../components/ui/Icon';
 import { timeAgo, surahNumberToArabic } from '../lib/utils';
 import { QUOTES } from '../data/quotes';
+
+const MILESTONES = [
+  { days: 3, title: 'A Steady Start', description: 'A gentle beginning is still a beginning. Keep returning to the words that steady the heart.' },
+  { days: 7, title: 'A Week of Remembrance', description: 'Consistency is a kind of devotion. Small, regular moments are powerful and sincere.' },
+  { days: 14, title: 'Two Weeks of Steady Light', description: 'The habit is growing. Keep making room for reflection, even in the busiest days.' },
+  { days: 30, title: 'A Month of Consistency', description: 'A month of regular remembrance is a meaningful rhythm to be grateful for.' },
+  { days: 50, title: 'Fifty Days of Gentle Commitment', description: 'You are building a faithful pattern, one page and one recitation at a time.' },
+  { days: 100, title: 'A Century of Devotion', description: 'A hundred days of return is a beautiful act of sincerity and persistence.' },
+  { days: 200, title: 'Two Hundred Days of Remembrance', description: 'This is a strong and steady practice — a habit of heart and mind.' },
+  { days: 365, title: 'A Full Year with the Qur’an', description: 'A full year of regular engagement is a lasting blessing and a meaningful achievement.' },
+] as const;
 
 export default function ProgressPage() {
   const dispatch = useAppDispatch();
@@ -35,6 +48,21 @@ export default function ProgressPage() {
   const lastMeta = lastPosition ? surahs?.find((s) => s.number === lastPosition.surah) : undefined;
   const totalAyahsReached = Object.values(progress.ayahsReached).reduce((sum, count) => sum + count, 0);
   const streak = currentStreak(progress.dailyActivity);
+
+  useEffect(() => {
+    const newlyReached = MILESTONES.filter(
+      (milestone) => !progress.milestones[milestone.days] && streak >= milestone.days,
+    );
+
+    if (newlyReached.length === 0) return;
+
+    const at = Date.now();
+    newlyReached.forEach((milestone) => {
+      dispatch(markMilestone({ days: milestone.days, at }));
+      dispatch(push(`Milestone reached: ${milestone.title}.`, 'success'));
+    });
+  }, [dispatch, progress.milestones, streak]);
+
   const recentSurahs = progress.activity
     .filter((entry, index, entries) => entries.findIndex((item) => item.surah === entry.surah) === index)
     .slice(0, 5);
@@ -94,6 +122,49 @@ export default function ProgressPage() {
         </div>
       )}
 
+      <div className="mt-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-ink">Milestones</h2>
+          <span className="text-[11px] uppercase tracking-[0.2em] text-mut">{Object.keys(progress.milestones).length}/{MILESTONES.length} earned</span>
+        </div>
+        <div className="space-y-2.5">
+          {MILESTONES.map((milestone) => {
+            const reachedAt = progress.milestones[milestone.days];
+            const reached = Boolean(reachedAt);
+            const daysLeft = Math.max(0, milestone.days - streak);
+            return (
+              <div
+                key={milestone.days}
+                className={`milestone-card rounded-2xl border p-3 ${reached ? 'border-accent/40 bg-accent/8' : 'border-line bg-surface text-muted'}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`milestone-badge flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl border ${reached ? 'border-accent/60 bg-accent text-onaccent' : 'border-line bg-surface2 text-accent/70'}`}>
+                      <svg viewBox="0 0 40 40" className="h-7 w-7" aria-hidden="true">
+                        <path d="M20 3 24.5 15.5 37 20 24.5 24.5 20 37 15.5 24.5 3 20 15.5 15.5Z" fill="currentColor" opacity={reached ? 0.9 : 0.55} />
+                        <circle cx="20" cy="20" r="5" fill="currentColor" opacity={reached ? 0.9 : 0.65} />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className={`text-sm font-semibold ${reached ? 'text-ink' : 'text-mut'}`}>{milestone.title}</div>
+                      <div className={`text-xs ${reached ? 'text-accent' : 'text-mut'}`}>
+                        {reached ? `Earned ${new Date(reachedAt!).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}` : `${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining`}
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${reached ? 'bg-accent text-onaccent' : 'bg-surface2 text-mut'}`}>
+                    {reached ? 'Earned' : 'Locked'}
+                  </span>
+                </div>
+                <div className={`mt-2 text-sm ${reached ? 'text-ink2' : 'text-mut'}`}>
+                  {milestone.description}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* overview */}
       <div className="grid grid-cols-3 gap-2.5">
         <StatCard
@@ -144,7 +215,7 @@ export default function ProgressPage() {
                 className={`pressable flex aspect-square flex-col items-center justify-center rounded-2xl border text-sm transition-colors ${
                   done
                     ? 'border-accent bg-accent text-onaccent'
-                    : 'border-line bg-surface text-ink hover:border-accent/50'
+                    : 'border-line bg-surface text-accent hover:border-accent/50'
                 }`}
               >
                 <span className="text-base font-bold">{j}</span>

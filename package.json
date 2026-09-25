@@ -9,6 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "data:fetch": "node scripts/fetch-quran.mjs && node scripts/normalize-basmala.mjs",
+    "data:timing": "node scripts/fetch-audio-timing.mjs",
     "data:fonts": "node scripts/fetch-fonts.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "setup:assets": "node scripts/generate-icons.mjs && node scripts/fetch-fonts.mjs"

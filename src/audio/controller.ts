@@ -2,7 +2,8 @@ import { store } from '../store';
 import { patch, type PlayerState } from '../store/slices/playerSlice';
 import { push } from '../store/slices/toastSlice';
 import { markListened, rememberListened } from '../store/slices/progressSlice';
-import { audioStreamUrl, reciterById } from '../lib/constants';
+import { reciterById } from '../lib/constants';
+import { getSurahTimingData, resolveAudioSourceUrl } from '../lib/audioTiming';
 import { isAudioDownloaded, getDownloadedAudioUrl, getRangedAudioUrl } from '../services/audioStore';
 import { getSurahMetaList } from '../lib/dataClient';
 import { buildAyahFractions, buildExpandedQueue, clampIndex, shuffleIndices } from '../lib/queue';
@@ -25,6 +26,7 @@ class PlayerController {
   private sleepTimerId: number | null = null;
   private loadToken = 0;
   private fallbackToken = 0;
+  private realTiming: Array<{ start: number; end: number }> | null = null;
 
   /* ------------------------------------------------ element --------- */
   private ensureEl(): HTMLAudioElement {
@@ -91,6 +93,11 @@ class PlayerController {
     const el = this.ensureEl();
     el.pause();
     this.revokeUrl();
+    this.realTiming = null;
+
+    const timing = await getSurahTimingData(reciter, surah);
+    if (loadToken !== this.loadToken) return;
+    this.realTiming = timing?.timestamps ?? null;
 
     const downloaded = await isAudioDownloaded(reciter, surah);
     if (loadToken !== this.loadToken) return;
@@ -101,10 +108,10 @@ class PlayerController {
         src = url;
         this.objectUrl = url;
       } else {
-        src = audioStreamUrl(reciter, surah);
+        src = await resolveAudioSourceUrl(reciter, surah);
       }
     } else {
-      src = audioStreamUrl(reciter, surah);
+      src = await resolveAudioSourceUrl(reciter, surah);
     }
     if (loadToken !== this.loadToken) {
       if (this.objectUrl && downloaded) this.revokeUrl();
@@ -205,6 +212,10 @@ class PlayerController {
   }
 
   private ayahStartTime(ayahIndex: number, count: number, duration: number): number {
+    if (this.realTiming && this.realTiming.length >= count) {
+      const segment = this.realTiming[ayahIndex];
+      return segment ? segment.start : (ayahIndex / Math.max(1, count)) * duration;
+    }
     if (this.cumulative && this.cumulative.length === count) {
       const frac = ayahIndex === 0 ? 0 : this.cumulative[ayahIndex - 1];
       return frac * duration;
@@ -214,6 +225,14 @@ class PlayerController {
 
   private computeAyahIndex(time: number, duration: number, count: number): number {
     if (count <= 0 || duration <= 0) return 0;
+    if (this.realTiming && this.realTiming.length >= count) {
+      for (let i = 0; i < count; i++) {
+        const segment = this.realTiming[i];
+        if (!segment) continue;
+        if (time < segment.end) return i;
+      }
+      return Math.max(0, count - 1);
+    }
     const p = Math.min(1, Math.max(0, time / duration));
     if (this.cumulative && this.cumulative.length === count) {
       let lo = 0;

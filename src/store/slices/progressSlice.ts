@@ -12,6 +12,7 @@ const empty: ProgressState = {
   activity: [],
   dailyActivity: {},
   ayahsReached: {},
+  milestones: {},
   quoteHistory: [],
 };
 
@@ -60,6 +61,10 @@ const progressSlice = createSlice({
     setJuzCompleted(state, action: PayloadAction<{ juz: number; value: boolean }>) {
       state.juzCompleted[action.payload.juz] = action.payload.value;
     },
+    markMilestone(state, action: PayloadAction<{ days: number; at?: number }>) {
+      const at = action.payload.at ?? Date.now();
+      state.milestones[action.payload.days] = state.milestones[action.payload.days] ?? at;
+    },
     clearAllProgress(state) {
       state.lastRead = {};
       state.lastListened = {};
@@ -69,6 +74,7 @@ const progressSlice = createSlice({
       state.activity = [];
       state.dailyActivity = {};
       state.ayahsReached = {};
+      state.milestones = {};
       state.quoteHistory = [];
     },
     recordQuoteView(state, action: PayloadAction<string>) {
@@ -86,6 +92,7 @@ export const {
   markListened,
   markSurahComplete,
   setJuzCompleted,
+  markMilestone,
   clearAllProgress,
   recordQuoteView,
 } = progressSlice.actions;
