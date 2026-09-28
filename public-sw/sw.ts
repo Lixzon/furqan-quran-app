@@ -1,5 +1,6 @@
 import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
-import { registerRoute, NavigationRoute } from 'workbox-routing';
+import { registerRoute, NavigationRoute, setCatchHandler } from 'workbox-routing';
+import { matchPrecache } from 'workbox-precaching';
 import { CacheFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 
@@ -19,6 +20,12 @@ cleanupOutdatedCaches();
 
 // SPA navigation fallback → index.html
 registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
+setCatchHandler(async ({ request }) => {
+  if (request.mode === 'navigate') {
+    return (await matchPrecache('/offline.html')) ?? Response.error();
+  }
+  return Response.error();
+});
 
 // Bundled Qur’an JSON (large, immutable) — cache first after the first visit.
 registerRoute(

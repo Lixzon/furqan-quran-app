@@ -57,7 +57,7 @@ export function Segmented<T extends string>({
 }) {
   const pad = size === 'sm' ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-2 text-sm';
   return (
-    <div className={`inline-flex items-center gap-1 rounded-full bg-surface2 p-1 ${className}`}>
+    <div className={`inline-flex flex-wrap items-center gap-1 rounded-full bg-surface2 p-1 ${className}`}>
       {options.map((o) => {
         const active = o.value === value;
         return (

@@ -260,6 +260,8 @@ class PlayerController {
     if (s.isPlaying !== !el.paused) toPatch.isPlaying = !el.paused;
     if (Object.keys(toPatch).length > 0) this.patch(toPatch);
     if (idx !== s.ayah) {
+      const surahName = this.metaCache.get(s.surah)?.englishName ?? `Surah ${s.surah}`;
+      this.updateMediaSession(`${surahName} ${s.surah}:${idx + 1}`, reciterLabel(s.reciter));
       store.dispatch(
         rememberListened({
           surah: s.surah,

@@ -12,7 +12,7 @@ export function ThemeManager() {
     const apply = () => {
       const dark = mode === 'dark' || (mode === 'system' && mq.matches);
       const root = document.documentElement;
-      root.dataset.mode = dark ? 'dark' : 'light';
+      root.dataset.mode = mode === 'sepia' ? 'sepia' : dark ? 'dark' : 'light';
       root.dataset.accent = accent;
       root.style.colorScheme = dark ? 'dark' : 'light';
       const meta = document.querySelector('meta[name="theme-color"]');

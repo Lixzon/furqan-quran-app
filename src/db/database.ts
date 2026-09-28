@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import type { AyahBookmark } from '../store/slices/bookmarksSlice';
 
 export interface StoredAudio {
   key: string; // `${reciter}|${surah}`
@@ -21,6 +22,7 @@ class FurqanDB extends Dexie {
   audio!: Table<StoredAudio, string>;
   cachedJson!: Table<CachedJson, string>;
   kv!: Table<{ key: string; value: unknown }, string>;
+  bookmarks!: Table<AyahBookmark, string>;
 
   constructor() {
     super('furqan-db');
@@ -28,6 +30,12 @@ class FurqanDB extends Dexie {
       audio: 'key, reciter, surah, storedAt',
       cachedJson: 'url, cachedAt',
       kv: 'key',
+    });
+    this.version(2).stores({
+      audio: 'key, reciter, surah, storedAt',
+      cachedJson: 'url, cachedAt',
+      kv: 'key',
+      bookmarks: 'id, surah, createdAt',
     });
   }
 }

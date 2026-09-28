@@ -40,6 +40,7 @@ export default function SettingsPage() {
   const progress = useAppSelector((s) => s.progress);
   const playlists = useAppSelector((s) => s.playlists);
   const favorites = useAppSelector((s) => s.favorites.items);
+  const bookmarks = useAppSelector((s) => s.bookmarks.items);
   const storage = useStorageStats();
   const backupInputRef = useRef<HTMLInputElement>(null);
 
@@ -74,7 +75,7 @@ export default function SettingsPage() {
         progress.juzCompleted, progress.dailyActivity, progress.ayahsReached, progress.milestones];
       const hasUserData = progress.lastPosition !== null || progress.activity.length > 0 ||
         progress.quoteHistory.length > 0 || progressMaps.some((records) => Object.keys(records).length > 0) ||
-        favorites.length > 0 || playlists.playlists.some((playlist) =>
+        favorites.length > 0 || bookmarks.length > 0 || playlists.playlists.some((playlist) =>
           playlist.createdAt > 0 || playlist.name !== 'My Playlist' || playlist.items.length > 0);
       if (hasUserData) {
         setPendingBackup(backup);
@@ -131,6 +132,7 @@ export default function SettingsPage() {
             { value: 'system', label: 'System', icon: 'stack' },
             { value: 'light', label: 'Light', icon: 'sun' },
             { value: 'dark', label: 'Dark', icon: 'moon' },
+            { value: 'sepia', label: 'Sepia', icon: 'sun' },
           ]}
         />
         <div className="mb-1 mt-4 text-xs font-medium text-mut">Accent colour</div>

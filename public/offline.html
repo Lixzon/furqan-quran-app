@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0d9488" />
+    <title>Offline · Furqan</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        background: #f1f6f3;
+        color: #142520;
+      }
+      main {
+        width: min(28rem, calc(100% - 3rem));
+        padding: 1.5rem;
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.5rem;
+      }
+      p {
+        color: #48605a;
+        line-height: 1.6;
+      }
+      button {
+        min-width: 48px;
+        min-height: 48px;
+        margin-top: 1rem;
+        padding: 0.75rem 1.25rem;
+        border: 0;
+        border-radius: 999px;
+        background: #0d9488;
+        color: white;
+        font: inherit;
+        font-weight: 600;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0a120f;
+          color: #e9f1ee;
+        }
+        p {
+          color: #b9c9c2;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>You’re offline</h1>
+      <p>
+        Furqan couldn’t open this page. Reconnect and try again. Quran text
+        already saved on this device remains available in the app.
+      </p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

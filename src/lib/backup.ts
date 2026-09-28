@@ -2,6 +2,8 @@ import type { PlaylistState } from '../store/slices/playlistSlice';
 import { restorePlaylists } from '../store/slices/playlistSlice';
 import type { FavoritesState } from '../store/slices/favoritesSlice';
 import { restoreFavorites } from '../store/slices/favoritesSlice';
+import type { BookmarksState } from '../store/slices/bookmarksSlice';
+import { restoreBookmarks } from '../store/slices/bookmarksSlice';
 import { restoreProgress } from '../store/slices/progressSlice';
 import { restoreSettings } from '../store/slices/settingsSlice';
 import { restoreTheme } from '../store/slices/themeSlice';
@@ -18,6 +20,7 @@ export interface FurqanBackup {
     progress: ProgressState;
     playlists: PlaylistState;
     favorites: FavoritesState;
+    bookmarks: BookmarksState;
   };
 }
 
@@ -38,7 +41,7 @@ function isActivityEntry(value: unknown): boolean {
 }
 
 function isTheme(value: unknown): value is ThemeState {
-  return isRecord(value) && ['light', 'dark', 'system'].includes(String(value.mode)) &&
+  return isRecord(value) && ['light', 'dark', 'system', 'sepia'].includes(String(value.mode)) &&
     ['teal', 'emerald', 'green', 'gold', 'blue', 'rose', 'purple'].includes(String(value.accent));
 }
 
@@ -95,12 +98,21 @@ function isFavorites(value: unknown): value is FavoritesState {
   return isRecord(value) && Array.isArray(value.items) && value.items.every((item) => typeof item === 'string');
 }
 
+function isBookmarks(value: unknown): value is BookmarksState {
+  return isRecord(value) && Array.isArray(value.items) && value.items.every((item) =>
+    isRecord(item) && typeof item.id === 'string' && Number.isInteger(item.surah) &&
+    Number(item.surah) >= 1 && Number(item.surah) <= 114 && Number.isInteger(item.ayah) &&
+    Number(item.ayah) >= 1 && typeof item.surahName === 'string' &&
+    typeof item.arabic === 'string' && typeof item.translation === 'string' &&
+    typeof item.note === 'string' && isFiniteNumber(item.createdAt));
+}
+
 export function createBackupJson(): string {
-  const { theme, settings, progress, playlists, favorites } = store.getState();
+  const { theme, settings, progress, playlists, favorites, bookmarks } = store.getState();
   const backup: FurqanBackup = {
     version: 1,
     exportedAt: new Date().toISOString(),
-    data: { theme, settings, progress, playlists, favorites },
+    data: { theme, settings, progress, playlists, favorites, bookmarks },
   };
   return JSON.stringify(backup, null, 2);
 }
@@ -116,23 +128,25 @@ export function parseBackupJson(text: string): FurqanBackup {
       !Number.isFinite(Date.parse(value.exportedAt)) || !isRecord(value.data) ||
       !isTheme(value.data.theme) || !isSettings(value.data.settings) ||
       !isProgress(value.data.progress) || !isPlaylists(value.data.playlists) ||
-      !isFavorites(value.data.favorites)) {
+      !isFavorites(value.data.favorites) || !isBookmarks(value.data.bookmarks)) {
     throw new Error('This file is not a valid Furqan backup.');
   }
   return value as unknown as FurqanBackup;
 }
 
 export function restoreBackup(backup: FurqanBackup): void {
-  const { theme, settings, progress, playlists, favorites } = backup.data;
+  const { theme, settings, progress, playlists, favorites, bookmarks } = backup.data;
   store.dispatch(restoreTheme(theme));
   store.dispatch(restoreSettings(settings));
   store.dispatch(restoreProgress(progress));
   store.dispatch(restorePlaylists(playlists));
   store.dispatch(restoreFavorites(favorites));
+  store.dispatch(restoreBookmarks(bookmarks));
 
   saveState(KEYS.theme, theme);
   saveState(KEYS.settings, settings);
   saveState(KEYS.progress, progress);
   saveState(KEYS.playlists, playlists);
   saveState(KEYS.favorites, favorites);
+  saveState(KEYS.bookmarks, bookmarks);
 }

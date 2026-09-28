@@ -38,4 +38,5 @@ export const KEYS = {
   playlists: 'playlists',
   progress: 'progress',
   favorites: 'favorites',
+  bookmarks: 'bookmarks',
 } as const;

@@ -77,6 +77,20 @@
   --q-danger: #f2605f;
   --q-shadow: 0 14px 36px -16px rgba(0, 0, 0, 0.72);
 }
+[data-mode="sepia"] {
+  --q-bg: #efe5d1;
+  --q-surface: #f8f0df;
+  --q-surface2: #e8dcc3;
+  --q-surface3: #ddd0b5;
+  --q-text: #33291e;
+  --q-text2: #5e4d38;
+  --q-muted: #796b56;
+  --q-border: #d8c9ac;
+  --q-border2: #c8b795;
+  --q-gold: #99712b;
+  --q-danger: #b42318;
+  --q-shadow: 0 12px 32px -14px rgba(60, 45, 25, 0.22);
+}
 
 /* ---------- accent themes ---------- */
 [data-accent="teal"] {
@@ -157,6 +171,15 @@ html,
 body,
 #root {
   height: 100%;
+}
+button {
+  touch-action: manipulation;
+}
+@media (pointer: coarse) {
+  button {
+    min-width: 48px;
+    min-height: 48px;
+  }
 }
 body {
   margin: 0;

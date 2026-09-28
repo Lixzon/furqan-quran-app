@@ -154,7 +154,7 @@ export interface DownloadRecord {
 
 /* ---------------- settings / theme ---------------- */
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark' | 'system' | 'sepia';
 export type ScriptStyle = 'uthmani' | 'naskh' | 'clear';
 export type AccentId = 'teal' | 'emerald' | 'green' | 'gold' | 'blue' | 'rose' | 'purple';
 

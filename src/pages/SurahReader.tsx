@@ -5,6 +5,8 @@ import { player } from '../audio/controller';
 import { getSurah } from '../lib/dataClient';
 import { useQuran } from '../data/QuranProvider';
 import { rememberRead } from '../store/slices/progressSlice';
+import { toggleAyahBookmark } from '../store/slices/bookmarksSlice';
+import type { AyahBookmark } from '../store/slices/bookmarksSlice';
 import {
   setArabicFontScale,
   setReadingMode,
@@ -31,6 +33,8 @@ export default function SurahReader() {
 
   const settings = useAppSelector((s) => s.settings);
   const playerState = useAppSelector((s) => s.player);
+  const bookmarkItems = useAppSelector((s) => s.bookmarks.items);
+  const bookmarkIds = useMemo(() => new Set(bookmarkItems.map((item) => item.id)), [bookmarkItems]);
   const lastRead = useAppSelector((s) => s.progress.lastRead[surahNumber]);
   const { surahs, juz } = useQuran();
 
@@ -46,6 +50,7 @@ export default function SurahReader() {
   const validSurahNumber = Number.isInteger(surahNumber) && surahNumber >= 1 && surahNumber <= 114;
 
   const refs = useRef(new Map<number, HTMLDivElement>());
+  const listSwipeStart = useRef<{ x: number; y: number } | null>(null);
   const initTarget = useRef<number | null>(null);
   const bookPageRef = useRef(0);
 
@@ -336,12 +341,31 @@ export default function SurahReader() {
       </div>
 
       {viewMode === 'list' ? (
-        <div className="mt-2">
+        <div
+          className="mt-2 touch-pan-y"
+          onPointerDown={(event) => {
+            if (event.pointerType === 'mouse' || (event.target as HTMLElement).closest('button')) return;
+            listSwipeStart.current = { x: event.clientX, y: event.clientY };
+          }}
+          onPointerUp={(event) => {
+            const start = listSwipeStart.current;
+            listSwipeStart.current = null;
+            if (!start) return;
+            const deltaX = event.clientX - start.x;
+            const deltaY = event.clientY - start.y;
+            if (Math.abs(deltaX) < 72 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
+            turnPage(deltaX < 0 ? 1 : -1);
+          }}
+          onPointerCancel={() => { listSwipeStart.current = null; }}
+        >
           {surah.ayahs.map((a, i) => (
             <AyahBlock
               key={a.g}
               ayah={a}
               index={i}
+              bookmark={{ id: `${surah.number}:${a.i}`, surah: surah.number, ayah: a.i, surahName: surah.englishName, arabic: a.ar, translation: a.tr }}
+              isBookmarked={bookmarkIds.has(`${surah.number}:${a.i}`)}
+              onToggleBookmark={(item) => dispatch(toggleAyahBookmark(item))}
               arClass={arClass}
               arFontPx={arFontPx}
               showArabic={settings.showArabic}
@@ -371,6 +395,8 @@ export default function SurahReader() {
           isPlaying={playerState.isPlaying}
           activeAyah={activeAyah}
           onSelect={handleSelect}
+          bookmarkedIds={bookmarkIds}
+          onToggleBookmark={(item) => dispatch(toggleAyahBookmark(item))}
           onTurn={turnPage}
         />
       )}
@@ -405,6 +431,9 @@ export default function SurahReader() {
 function AyahBlock({
   ayah,
   index,
+  bookmark,
+  isBookmarked,
+  onToggleBookmark,
   arClass,
   arFontPx,
   showArabic,
@@ -417,6 +446,9 @@ function AyahBlock({
 }: {
   ayah: AyahData;
   index: number;
+  bookmark: Omit<AyahBookmark, 'note' | 'createdAt'>;
+  isBookmarked: boolean;
+  onToggleBookmark: (bookmark: Omit<AyahBookmark, 'note' | 'createdAt'>) => void;
   arClass: string;
   arFontPx: number;
   showArabic: boolean;
@@ -497,12 +529,25 @@ function AyahBlock({
             event.stopPropagation();
             setMenuOpen((open) => !open);
           }}
-          className="pressable rounded-full p-1.5 text-mut opacity-70 hover:bg-surface2 hover:text-ink sm:opacity-0 sm:group-hover:opacity-100"
+          className="pressable flex h-12 w-12 items-center justify-center rounded-full text-mut hover:bg-surface2 hover:text-ink sm:opacity-0 sm:group-hover:opacity-100"
         >
           <Icon name="more" size={18} />
         </button>
         {menuOpen && (
           <div ref={menuRef} className="absolute right-0 top-9 z-10 w-44 rounded-xl border border-line bg-surface p-1 shadow-card">
+            <button
+              type="button"
+              aria-label={isBookmarked ? `Remove bookmark for ayah ${index + 1}` : `Bookmark ayah ${index + 1}`}
+              aria-pressed={isBookmarked}
+              className="flex min-h-12 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-surface2"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleBookmark(bookmark);
+                closeMenu();
+              }}
+            >
+              <Icon name="pin" size={16} /> {isBookmarked ? 'Remove bookmark' : 'Bookmark ayah'}
+            </button>
             <button
               type="button"
               aria-label="Close actions"
@@ -552,6 +597,8 @@ function BookView({
   isPlaying,
   activeAyah,
   onSelect,
+  bookmarkedIds,
+  onToggleBookmark,
   onTurn,
 }: {
   pages: number[][];
@@ -566,6 +613,8 @@ function BookView({
   isPlaying: boolean;
   activeAyah: number;
   onSelect: (index: number) => void;
+  bookmarkedIds: Set<string>;
+  onToggleBookmark: (bookmark: Omit<AyahBookmark, 'note' | 'createdAt'>) => void;
   onTurn: (direction: -1 | 1) => void;
 }) {
   const dragStart = useRef<number | null>(null);
@@ -607,6 +656,9 @@ function BookView({
                 key={ayah.g}
                 ayah={ayah}
                 index={index}
+                bookmark={{ id: `${surah.number}:${ayah.i}`, surah: surah.number, ayah: ayah.i, surahName: surah.englishName, arabic: ayah.ar, translation: ayah.tr }}
+                isBookmarked={bookmarkedIds.has(`${surah.number}:${ayah.i}`)}
+                onToggleBookmark={onToggleBookmark}
                 arClass={arClass}
                 arFontPx={arFontPx}
                 showArabic={showArabic}
@@ -786,12 +838,13 @@ function ReaderOptions({
     { mode: 'light', label: 'Light', background: '#f1f6f3', surface: '#ffffff', ink: '#142520', muted: '#6d7d77', line: '#dbe6e1' },
     { mode: 'dark', label: 'Dark', background: '#0a120f', surface: '#101d19', ink: '#e9f1ee', muted: '#8ba09a', line: '#1f332c' },
     { mode: 'system', label: 'Auto', background: 'linear-gradient(135deg, #f1f6f3 0 49%, #101d19 51% 100%)', surface: '#ffffff', ink: '#142520', muted: '#6d7d77', line: '#dbe6e1' },
+    { mode: 'sepia', label: 'Sepia', background: '#f2e7cf', surface: '#fbf3e3', ink: '#3b3022', muted: '#786b58', line: '#d6c6a8' },
   ];
 
   return (
     <Modal open={open} onClose={onClose} title="Reading settings" variant="frosted">
       <SectionLabel>Appearance</SectionLabel>
-      <div className="grid grid-cols-3 gap-2 py-2">
+      <div className="grid grid-cols-2 gap-2 py-2">
         {previews.map((preview) => {
           const selected = theme.mode === preview.mode;
           return (
@@ -829,10 +882,11 @@ function ReaderOptions({
                 aria-pressed={selected}
                 title={accent.label}
                 onClick={() => dispatch(setAccent(accent.id))}
-                className={`flex h-7 w-7 items-center justify-center rounded-full ${selected ? 'ring-2 ring-ink ring-offset-2 ring-offset-surface' : ''}`}
-                style={{ backgroundColor: accent.swatch }}
+                className="flex h-12 w-12 items-center justify-center rounded-full"
               >
-                {selected && <Icon name="check" size={14} className="text-white" />}
+                <span className={`flex h-7 w-7 items-center justify-center rounded-full ${selected ? 'ring-2 ring-ink ring-offset-2 ring-offset-surface' : ''}`} style={{ backgroundColor: accent.swatch }}>
+                  {selected && <Icon name="check" size={14} className="text-white" />}
+                </span>
               </button>
             );
           })}

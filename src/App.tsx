@@ -21,6 +21,7 @@ import QuotesPage from './pages/QuotesPage';
 import ProgressPage from './pages/ProgressPage';
 import DownloadsPage from './pages/DownloadsPage';
 import SettingsPage from './pages/SettingsPage';
+import BookmarksPage from './pages/BookmarksPage';
 
 export default function App() {
   const { pathname } = useLocation();
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="playlist/:id" element={<PlaylistDetailPage />} />
             <Route path="player" element={<NowPlayingPage />} />
             <Route path="quotes" element={<QuotesPage />} />
+            <Route path="bookmarks" element={<BookmarksPage />} />
             <Route path="progress" element={<ProgressPage />} />
             <Route path="downloads" element={<DownloadsPage />} />
             <Route path="settings" element={<SettingsPage />} />
