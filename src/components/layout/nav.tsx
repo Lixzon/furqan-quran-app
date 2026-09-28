@@ -2,6 +2,7 @@ import { useAppSelector } from '../../store';
 import { APP_NAME, APP_NAME_AR } from '../../lib/constants';
 import { NavLink } from 'react-router-dom';
 import { Icon, type IconName } from '../ui/Icon';
+import { MihrabLogo } from '../ui/MihrabLogo';
 
 interface NavItem {
   to: string;
@@ -24,9 +25,7 @@ export function Sidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line bg-surface md:flex">
       <div className="flex items-center gap-3 px-5 py-5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent text-onaccent shadow">
-          <Icon name="book" size={22} />
-        </div>
+        <MihrabLogo size={40} className="shrink-0 drop-shadow-sm" />
         <div className="leading-tight">
           <div className="text-[15px] font-bold text-ink">{APP_NAME}</div>
           <div className="text-xs text-accent" style={{ direction: 'rtl' }}>

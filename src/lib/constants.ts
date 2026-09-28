@@ -22,6 +22,7 @@ export const ACCENTS: AccentOption[] = [
   { id: 'blue', label: 'Blue', swatch: '#2563eb' },
   { id: 'rose', label: 'Rose', swatch: '#e11d48' },
   { id: 'purple', label: 'Purple', swatch: '#7c3aed' },
+  { id: 'sapphire', label: 'Sapphire', swatch: '#1e3a8a' },
 ];
 
 /* ---------------- Arabic script styles ---------------- */
@@ -61,10 +62,8 @@ export function scriptClassName(script: ScriptStyle): string {
 
 /* ---------------- reciters ---------------- */
 
-const CDN = (bitrate: number, edition: string) => (surah: number) => {
-  const path = `/audio-surah/${bitrate}/${edition}/${surah}.mp3`;
-  return import.meta.env.DEV ? path : `https://cdn.islamic.network/quran${path}`;
-};
+const AUDIO_PATH = (bitrate: number, edition: string, surah: number) =>
+  `/audio-surah/${bitrate}/${edition}/${surah}.mp3`;
 
 export const RECITERS: Reciter[] = [
   { id: 'ar.alafasy', label: 'Mishary Rashid Alafasy', arabicName: 'مشاري راشد العفاسي', edition: 'ar.alafasy', bitrate: 128 },
@@ -84,9 +83,27 @@ export function reciterById(id: string): Reciter {
   return RECITERS.find((r) => r.id === id) ?? RECITERS[0];
 }
 
+/**
+ * URL for media elements. `<audio>` may stream cross-origin without CORS and
+ * handles byte ranges natively, so production points straight at the CDN.
+ * Development uses the Vite proxy configured in vite.config.ts.
+ */
 export function audioStreamUrl(reciter: string, surah: number): string {
   const r = reciterById(reciter);
-  return CDN(r.bitrate, r.edition)(surah);
+  const path = AUDIO_PATH(r.bitrate, r.edition, surah);
+  return import.meta.env.DEV ? path : `https://cdn.islamic.network/quran${path}`;
+}
+
+/**
+ * URL for reading audio bytes in JS (downloads, ranged fallback).
+ *
+ * Must stay same-origin: cdn.islamic.network sends no Access-Control-Allow-Origin
+ * header, so a direct cross-origin fetch() cannot be read and downloads fail.
+ * Served by the Vite dev proxy locally and the Vercel rewrite in production.
+ */
+export function audioFetchUrl(reciter: string, surah: number): string {
+  const r = reciterById(reciter);
+  return AUDIO_PATH(r.bitrate, r.edition, surah);
 }
 
 /* ---------------- default values ---------------- */
@@ -105,6 +122,7 @@ export function accentHex(accent: AccentId, dark: boolean): string {
     blue: ['#2563eb', '#60a5fa'],
     rose: ['#e11d48', '#fb7185'],
     purple: ['#7c3aed', '#a78bfa'],
+    sapphire: ['#1e3a8a', '#3b82f6'],
   };
   return dark ? map[accent][1] : map[accent][0];
 }

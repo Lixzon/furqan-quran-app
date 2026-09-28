@@ -15,7 +15,7 @@ export function AppLayout() {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-dvh bg-base text-ink">
+    <div className="min-h-dvh bg-canvas text-ink">
       {!readingMode && <Sidebar />}
       <div className={readingMode ? '' : 'md:pl-60'}>
         <main

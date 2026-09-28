@@ -2,6 +2,15 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { ActivityEntry, ProgressState } from '../../types';
 import { loadState } from '../persist';
 import { KEYS } from '../persist';
+import {
+  ISTIQAMAH_MILESTONES,
+  consumeStreakFreeze,
+  countDailyActivity,
+  emptyProgression,
+  migrateProgression,
+  restartStreak,
+  todayKey,
+} from '../../lib/progression';
 
 const empty: ProgressState = {
   lastRead: {},
@@ -14,9 +23,17 @@ const empty: ProgressState = {
   ayahsReached: {},
   milestones: {},
   quoteHistory: [],
+  progression: emptyProgression,
 };
 
-const initialState: ProgressState = loadState<ProgressState>(KEYS.progress, empty);
+const stored = loadState<ProgressState>(KEYS.progress, empty);
+
+// Normalise legacy field names (longestStreak/lastGoalDate/freezes/claimedTiers)
+// into the unified streak state on first load.
+const initialState: ProgressState = {
+  ...stored,
+  progression: migrateProgression(stored.progression, stored.dailyActivity ?? {}, todayKey()),
+};
 
 function dateKey(at: number): string {
   return new Date(at).toISOString().slice(0, 10);
@@ -24,7 +41,11 @@ function dateKey(at: number): string {
 
 function recordActivity(state: ProgressState, entry: ActivityEntry): void {
   state.lastPosition = entry;
-  state.dailyActivity[dateKey(entry.at)] = true;
+  const day = dateKey(entry.at);
+  state.dailyActivity[day] = true;
+  // Every recorded ayah or listening event flows through the one streak
+  // function, so there is a single code path for counting a day.
+  countDailyActivity(state.progression, day);
   state.ayahsReached[entry.surah] = Math.max(state.ayahsReached[entry.surah] ?? 0, entry.ayah);
   const previous = state.activity[0];
   if (!previous || previous.surah !== entry.surah || previous.ayah !== entry.ayah || previous.kind !== entry.kind) {
@@ -40,7 +61,17 @@ const progressSlice = createSlice({
   initialState,
   reducers: {
     restoreProgress(_state, action: PayloadAction<ProgressState>) {
-      return action.payload;
+      // Merge over defaults and normalise legacy streak keys so backups written
+      // before the streak state was unified still restore cleanly.
+      const restored = { ...empty, ...action.payload };
+      return {
+        ...restored,
+        progression: migrateProgression(
+          action.payload?.progression,
+          restored.dailyActivity ?? {},
+          todayKey(),
+        ),
+      };
     },
     /** remember where the user left off in a surah (ayah = numberInSurah) */
     rememberRead(state, action: PayloadAction<{ surah: number; ayah: number; name?: string }>) {
@@ -64,10 +95,6 @@ const progressSlice = createSlice({
     setJuzCompleted(state, action: PayloadAction<{ juz: number; value: boolean }>) {
       state.juzCompleted[action.payload.juz] = action.payload.value;
     },
-    markMilestone(state, action: PayloadAction<{ days: number; at?: number }>) {
-      const at = action.payload.at ?? Date.now();
-      state.milestones[action.payload.days] = state.milestones[action.payload.days] ?? at;
-    },
     clearAllProgress(state) {
       state.lastRead = {};
       state.lastListened = {};
@@ -79,6 +106,79 @@ const progressSlice = createSlice({
       state.ayahsReached = {};
       state.milestones = {};
       state.quoteHistory = [];
+      state.progression = { ...emptyProgression };
+    },
+
+    /**
+     * The single "a day was completed" entry point. Call this whenever the
+     * daily goal is met; it is idempotent, so it is safe to call on every
+     * activity or render tick.
+     */
+    recordDailyActivity(state, action: PayloadAction<{ today: string }>) {
+      const { today } = action.payload;
+      if (!state.dailyActivity[today]) return;
+      countDailyActivity(state.progression, today);
+    },
+
+    /** Spend a Ruksah to protect the streak across a single missed day. */
+    useStreakFreeze(state, action: PayloadAction<{ today: string }>) {
+      consumeStreakFreeze(state.progression, action.payload.today);
+    },
+
+    /** The reader declined the Ruksah: start a fresh run from today. */
+    declineStreakFreeze(state, action: PayloadAction<{ today: string }>) {
+      restartStreak(state.progression, action.payload.today);
+    },
+
+    dismissMissedDay(state, action: PayloadAction<{ date: string }>) {
+      state.progression.missedDayPromptedFor = action.payload.date;
+    },
+
+    markDailyCelebrated(state, action: PayloadAction<{ date: string }>) {
+      state.progression.dailyGoalCelebratedDate = action.payload.date;
+    },
+
+    claimTier(state, action: PayloadAction<{ tier: number }>) {
+      if (!state.progression.unlockedTiers.includes(action.payload.tier)) {
+        state.progression.unlockedTiers.push(action.payload.tier);
+      }
+    },
+
+    setIstiqamahGoal(state, action: PayloadAction<{ days: number }>) {
+      state.progression.istiqamahGoal = action.payload.days;
+    },
+
+    celebrateMilestone(state, action: PayloadAction<{ days: number }>) {
+      if (!state.progression.celebratedMilestones.includes(action.payload.days)) {
+        state.progression.celebratedMilestones.push(action.payload.days);
+      }
+    },
+
+    addListenMinute(state, action: PayloadAction<{ date: string }>) {
+      const minutes = state.progression.dailyListenMinutes;
+      minutes[action.payload.date] = (minutes[action.payload.date] ?? 0) + 1;
+    },
+
+    /* ---------- developer test controls (Settings) ---------- */
+
+    devAddStreakDays(state, action: PayloadAction<{ days: number }>) {
+      const progression = state.progression;
+      progression.currentStreak = Math.max(0, progression.currentStreak + action.payload.days);
+      progression.highestStreak = Math.max(progression.highestStreak, progression.currentStreak);
+      // Mark today as already counted so countDailyActivity does not re-derive
+      // the streak from real activity and wipe the simulation on the next load.
+      progression.lastActiveDate = todayKey();
+    },
+
+    devSetStreak(state, action: PayloadAction<{ days: number }>) {
+      const progression = state.progression;
+      progression.currentStreak = Math.max(0, action.payload.days);
+      progression.highestStreak = Math.max(progression.highestStreak, progression.currentStreak);
+      progression.lastActiveDate = todayKey();
+    },
+
+    devResetStreak(state) {
+      state.progression = { ...emptyProgression, istiqamahGoal: ISTIQAMAH_MILESTONES[0] };
     },
     recordQuoteView(state, action: PayloadAction<string>) {
       state.quoteHistory = [
@@ -96,8 +196,19 @@ export const {
   markListened,
   markSurahComplete,
   setJuzCompleted,
-  markMilestone,
   clearAllProgress,
   recordQuoteView,
+  recordDailyActivity,
+  useStreakFreeze,
+  declineStreakFreeze,
+  dismissMissedDay,
+  markDailyCelebrated,
+  claimTier,
+  setIstiqamahGoal,
+  celebrateMilestone,
+  addListenMinute,
+  devAddStreakDays,
+  devSetStreak,
+  devResetStreak,
 } = progressSlice.actions;
 export default progressSlice.reducer;

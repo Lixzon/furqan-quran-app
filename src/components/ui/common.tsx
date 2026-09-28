@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Icon, type IconName } from './Icon';
+import { StreakFlame } from './StreakFlame';
 
 export function PageHeader({ title, subtitle, right }: { title: ReactNode; subtitle?: ReactNode; right?: ReactNode }) {
   return (
@@ -8,7 +9,10 @@ export function PageHeader({ title, subtitle, right }: { title: ReactNode; subti
         <h1 className="text-xl font-bold text-ink">{title}</h1>
         {subtitle && <p className="mt-0.5 text-sm text-mut">{subtitle}</p>}
       </div>
-      {right && <div className="shrink-0">{right}</div>}
+      <div className="flex shrink-0 items-center gap-2">
+        <StreakFlame />
+        {right}
+      </div>
     </div>
   );
 }

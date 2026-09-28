@@ -10,7 +10,7 @@ import { Icon } from '../components/ui/Icon';
 import { setJuzCompleted } from '../store/slices/progressSlice';
 import { surahNumberToArabic } from '../lib/utils';
 import type { SurahMeta } from '../types';
-import { QUOTES, quoteOfTheDayIndex } from '../data/quotes';
+import { islamicQuoteOfTheDay } from '../data/quotes';
 
 type Tab = 'surah' | 'juz';
 
@@ -44,9 +44,12 @@ export default function BrowsePage() {
   }, [juz, progress.juzCompleted]);
 
   const todayKey = new Date().toISOString().slice(0, 10);
-  const welcomeQuote = QUOTES[quoteOfTheDayIndex(new Date())] ?? QUOTES[0];
   const hasCheckedIn = !!progress.dailyActivity[todayKey];
   const checkInSurah = progress.lastPosition?.surah ?? 1;
+  const dailyQuote = islamicQuoteOfTheDay(new Date());
+  const streak = progress.progression.currentStreak;
+  const goal = progress.progression.istiqamahGoal;
+  const goalPct = Math.min(100, (streak / Math.max(1, goal)) * 100);
 
   if (!surahs || !juz) {
     return (
@@ -76,14 +79,29 @@ export default function BrowsePage() {
       <div className="mb-4 rounded-2xl bg-gradient-to-br from-accent to-accentstrong p-4 text-onaccent shadow-card">
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest opacity-90">
           <Icon name="quote" size={14} />
-          A saying for today
+          Qur’an reminder for today
         </div>
-        <p className="mt-2 text-sm font-medium leading-relaxed">“{welcomeQuote.text}”</p>
+        <p className="mt-2 text-sm font-medium leading-relaxed">“{dailyQuote.text}”</p>
         <div className="mt-2 flex items-end justify-between gap-3">
-          <p className="text-xs opacity-90">{welcomeQuote.by} · {welcomeQuote.source}</p>
+          <p className="text-xs opacity-90">{dailyQuote.by} · {dailyQuote.source}</p>
           <button type="button" onClick={() => navigate('/quotes')} aria-label="Explore sayings and duas" className="shrink-0 rounded-full bg-white/20 p-2 pressable">
             <Icon name="forward" size={16} />
           </button>
+        </div>
+      </div>
+
+      <div className="mb-4 rounded-2xl bg-surface p-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+            <Icon name="sparkle" size={16} className="text-accent" />
+            {streak}-day streak
+          </span>
+          <span className="shrink-0 text-xs tabular-nums text-mut">
+            {Math.min(streak, goal)}/{goal} towards your {goal}-day goal
+          </span>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface2">
+          <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${goalPct}%` }} />
         </div>
       </div>
 

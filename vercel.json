@@ -2,6 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/audio-surah/:path*",
+      "destination": "https://cdn.islamic.network/quran/audio-surah/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

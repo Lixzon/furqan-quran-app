@@ -11,6 +11,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { Modal } from './components/ui/Modal';
 import { Icon } from './components/ui/Icon';
 import { RECITERS } from './lib/constants';
+import { islamicQuoteOfTheDay } from './data/quotes';
+import { ProgressionHost } from './components/layout/ProgressionHost';
 
 import BrowsePage from './pages/BrowsePage';
 import SurahReader from './pages/SurahReader';
@@ -53,6 +55,7 @@ export default function App() {
         </Routes>
         <ToastHost />
         <ReminderHost />
+        <ProgressionHost />
         <DefaultReciterOffer />
       </QuranProvider>
     </ErrorBoundary>
@@ -193,7 +196,8 @@ function ReminderHost() {
 
       if (currentMinutes < reminderMinutes) return;
       if (notifications.daily && !dailyActivity[date]) {
-        show('daily', 'A moment with the Qur’an', 'Have you read your Qur’an today?', '/');
+        const quote = islamicQuoteOfTheDay(new Date());
+        show('daily', 'Your Quran streak is waiting! 🔥', quote.text, '/');
       }
       if (notifications.nightlyMulk) {
         show('mulk', 'Surah Al-Mulk', 'Take a few minutes with Surah Al-Mulk.', '/surah/67');

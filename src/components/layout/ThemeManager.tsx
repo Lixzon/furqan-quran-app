@@ -10,9 +10,12 @@ export function ThemeManager() {
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const apply = () => {
-      const dark = mode === 'dark' || (mode === 'system' && mq.matches);
+      const prefersDark = mq.matches;
+      // Velvet is a dark-family progression theme; Golden is a light one.
+      const dark = mode === 'dark' || mode === 'velvet' || (mode === 'system' && prefersDark);
       const root = document.documentElement;
-      root.dataset.mode = mode === 'sepia' ? 'sepia' : dark ? 'dark' : 'light';
+      const isExplicit = mode === 'sepia' || mode === 'velvet' || mode === 'golden';
+      root.dataset.mode = isExplicit ? mode : dark ? 'dark' : 'light';
       root.dataset.accent = accent;
       root.style.colorScheme = dark ? 'dark' : 'light';
       const meta = document.querySelector('meta[name="theme-color"]');

@@ -709,7 +709,7 @@ function ReaderBar({
   onOptions: () => void;
 }) {
   return (
-    <div className="safe-t sticky top-0 z-30 -mx-4 flex items-center gap-2 border-b border-line bg-base/85 px-4 py-2 backdrop-blur">
+    <div className="safe-t sticky top-0 z-30 -mx-4 flex items-center gap-2 border-b border-line bg-canvas/85 px-4 py-2 backdrop-blur">
       <button
         type="button"
         onClick={onBack}

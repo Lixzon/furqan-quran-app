@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Furqan — Mihrab of Guidance">
+  <defs>
+    <linearGradient id="mihrab-beam" x1="0" y1="374" x2="0" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e3c15a" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#e3c15a" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="mihrab-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#f7f1e3"/>
+  <path d="M230 374 L282 374 L272 138 L240 138 Z" fill="#e3c15a" opacity="0.16" filter="url(#mihrab-glow)"/>
+  <path d="M244 374 L268 374 L266 138 L246 138 Z" fill="url(#mihrab-beam)"/>
+  <path d="M150 428 V250 C150 180 200 140 256 116 C312 140 362 180 362 250 V428" fill="none" stroke="#c9a227" stroke-width="16" stroke-linecap="round"/>
+  <path d="M186 428 V258 C186 206 216 176 256 158 C296 176 326 206 326 258 V428" fill="none" stroke="#c9a227" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+  <path d="M132 430 H380" stroke="#c9a227" stroke-width="12" stroke-linecap="round"/>
+  <path d="M256 372 C232 356 202 350 168 354 L168 402 C202 398 232 404 256 420 C280 404 310 398 344 402 L344 354 C310 350 280 356 256 372 Z" fill="#1e3a8a"/>
+  <path d="M256 374 V418" stroke="#f7f1e3" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+</svg>

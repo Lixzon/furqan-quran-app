@@ -100,6 +100,37 @@ export interface ProgressState {
   milestones: Record<number, number>;
   /** Quote views/favorites, newest first. */
   quoteHistory: QuoteHistoryEntry[];
+  /** Istiqamah (consistency) progression: streaks, freeze and tier unlocks. */
+  progression: ProgressionState;
+}
+
+/**
+ * Consistency progression. Purely derived from reading/listening activity —
+ * no currencies, points or purchasable items.
+ */
+export interface ProgressionState {
+  /** Consecutive days on which the daily reading/listening goal was met. */
+  currentStreak: number;
+  /** Best streak ever recorded. */
+  highestStreak: number;
+  /** ISO date the goal was last met. */
+  lastActiveDate: string | null;
+  /** Ruksah (streak freezes) available, capped at 2. */
+  streakFreezes: number;
+  /** Days a freeze was spent on, for transparency. */
+  freezeUsedDates: string[];
+  /** Tier thresholds already unlocked. */
+  unlockedTiers: number[];
+  /** The reader's chosen next Istiqamah goal in days. */
+  istiqamahGoal: number;
+  /** Milestone thresholds already offered. */
+  celebratedMilestones: number[];
+  /** Missed-day prompt already shown for this date. */
+  missedDayPromptedFor: string | null;
+  /** Daily completion popup already shown for this date. */
+  dailyGoalCelebratedDate: string | null;
+  /** Minutes of recitation listened per ISO date. */
+  dailyListenMinutes: Record<string, number>;
 }
 
 /* ---------------- quotes ---------------- */
@@ -154,9 +185,9 @@ export interface DownloadRecord {
 
 /* ---------------- settings / theme ---------------- */
 
-export type ThemeMode = 'light' | 'dark' | 'system' | 'sepia';
+export type ThemeMode = 'light' | 'dark' | 'system' | 'sepia' | 'velvet' | 'golden';
 export type ScriptStyle = 'uthmani' | 'naskh' | 'clear';
-export type AccentId = 'teal' | 'emerald' | 'green' | 'gold' | 'blue' | 'rose' | 'purple';
+export type AccentId = 'teal' | 'emerald' | 'green' | 'gold' | 'blue' | 'rose' | 'purple' | 'sapphire';
 
 export interface SettingsState {
   showArabic: boolean;

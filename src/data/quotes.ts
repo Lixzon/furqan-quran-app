@@ -276,6 +276,89 @@ export const QUOTES: QuoteEntry[] = [
   },
 ];
 
+export interface IslamicQuote {
+  id: string;
+  text: string;
+  by: string;
+  source: string;
+}
+
+/**
+ * Qur’an-focused encouragement, used for the streak reminder notifications and
+ * the daily card on the home screen. Prophetic sayings carry their classical
+ * references; companion and scholar sayings are labelled “attributed”, matching
+ * the convention used for QUOTES above.
+ */
+export const ISLAMIC_QUOTES: IslamicQuote[] = [
+  {
+    id: 'iq1',
+    text: 'The most beloved deeds to Allah are those done consistently, even if they are small.',
+    by: 'Prophet Muhammad ﷺ',
+    source: 'Sahih al-Bukhari 6464 · Sahih Muslim 783',
+  },
+  {
+    id: 'iq2',
+    text: 'Recite the Qur’an, for it will come on the Day of Resurrection as an intercessor for its companions.',
+    by: 'Prophet Muhammad ﷺ',
+    source: 'Sahih Muslim 804',
+  },
+  {
+    id: 'iq3',
+    text: 'Whoever recites a letter from the Book of Allah has a reward, and that reward is multiplied tenfold.',
+    by: 'Prophet Muhammad ﷺ',
+    source: 'Jamiʿ at-Tirmidhi 2910',
+  },
+  {
+    id: 'iq4',
+    text: 'The best of you are those who learn the Qur’an and teach it.',
+    by: 'Prophet Muhammad ﷺ',
+    source: 'Sahih al-Bukhari 5027',
+  },
+  {
+    id: 'iq5',
+    text: 'The one who is proficient in the Qur’an is with the noble, righteous scribes; and the one who recites it with difficulty has two rewards.',
+    by: 'Prophet Muhammad ﷺ',
+    source: 'Sahih al-Bukhari 4937 · Sahih Muslim 798',
+  },
+  {
+    id: 'iq6',
+    text: 'The religion is easy, and no one overburdens himself in the religion but it overcomes him. So be balanced, give glad tidings, and seek help in the morning, the evening and a portion of the night.',
+    by: 'Prophet Muhammad ﷺ',
+    source: 'Sahih al-Bukhari 39',
+  },
+  {
+    id: 'iq7',
+    text: 'My servant continues to draw near to Me with voluntary deeds until I love him.',
+    by: 'Hadith Qudsi',
+    source: 'Sahih al-Bukhari 6502',
+  },
+  {
+    id: 'iq8',
+    text: 'I do not leave a verse but that I wish to know in what it was revealed.',
+    by: 'Abū Bakr aṣ-Ṣiddīq (attributed)',
+    source: 'Islamic sayings literature',
+  },
+  {
+    id: 'iq9',
+    text: 'The Qur’an was revealed to be acted upon, but people have taken its recitation as their action.',
+    by: 'ʿAbdullāh ibn Masʿūd (attributed)',
+    source: 'Islamic sayings literature',
+  },
+  {
+    id: 'iq10',
+    text: 'Son of Adam, you are but a number of days: whenever a day passes, a part of you passes with it.',
+    by: 'Ḥasan al-Baṣrī (attributed)',
+    source: 'Islamic sayings literature',
+  },
+];
+
+/** Deterministic 24-hour rotation over the Qur’an-focused set. */
+export function islamicQuoteOfTheDay(date: Date): IslamicQuote {
+  const start = Date.UTC(date.getFullYear(), 0, 0);
+  const day = Math.floor((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - start) / 86400000);
+  return ISLAMIC_QUOTES[day % ISLAMIC_QUOTES.length];
+}
+
 /** Deterministic “quote of the day” index from a date. */
 export function quoteOfTheDayIndex(date: Date): number {
   const start = Date.UTC(date.getFullYear(), 0, 0);

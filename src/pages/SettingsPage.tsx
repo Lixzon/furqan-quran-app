@@ -15,7 +15,8 @@ import {
   setNotificationPreference,
   setReminderTime,
 } from '../store/slices/settingsSlice';
-import { clearAllProgress } from '../store/slices/progressSlice';
+import { clearAllProgress, devAddStreakDays, devResetStreak, devSetStreak, setIstiqamahGoal } from '../store/slices/progressSlice';
+import { BADGE_TONES, ISTIQAMAH_MILESTONES, TIERS, isTierUnlocked, tierProgress } from '../lib/progression';
 import { db } from '../db/database';
 import { useStorageStats } from '../services/useDownloads';
 import { ACCENTS, APP_NAME, RECITERS, SCRIPT_STYLES } from '../lib/constants';
@@ -24,6 +25,7 @@ import { PageHeader } from '../components/ui/common';
 import { Icon, type IconName } from '../components/ui/Icon';
 import { Segmented, Slider, Toggle } from '../components/ui/controls';
 import { Modal } from '../components/ui/Modal';
+import { MihrabLogo } from '../components/ui/MihrabLogo';
 import { createBackupJson, parseBackupJson, restoreBackup, type FurqanBackup } from '../lib/backup';
 
 /* beforeinstallprompt is a Chromium-only event */
@@ -257,6 +259,148 @@ export default function SettingsPage() {
         </div>
       </Card>
 
+      {/* ---- Istiqamah progression ---- */}
+      <Section title="Istiqamah progression" icon="sparkle" />
+      <Card>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-ink">Current streak</div>
+            <div className="mt-0.5 text-xs text-mut">
+              Longest {progress.progression.highestStreak} days
+              {progress.progression.streakFreezes > 0 ? ` · ${progress.progression.streakFreezes} streak freeze${progress.progression.streakFreezes === 1 ? '' : 's'}` : ''}
+            </div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="text-2xl font-bold tabular-nums text-ink">{progress.progression.currentStreak}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-mut">days</div>
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between text-xs font-medium text-mut">
+            <span>Your Istiqamah goal</span>
+            <span className="tabular-nums">
+              {Math.min(progress.progression.currentStreak, progress.progression.istiqamahGoal)}/{progress.progression.istiqamahGoal} days
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-surface2">
+            <div
+              className="h-full rounded-full bg-accent transition-[width] duration-300"
+              style={{ width: `${Math.min(100, (progress.progression.currentStreak / Math.max(1, progress.progression.istiqamahGoal)) * 100)}%` }}
+            />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {ISTIQAMAH_MILESTONES.map((days) => (
+              <button
+                key={days}
+                type="button"
+                onClick={() => dispatch(setIstiqamahGoal({ days }))}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium pressable ${
+                  progress.progression.istiqamahGoal === days ? 'bg-accent text-onaccent' : 'bg-surface2 text-mut hover:text-ink'
+                }`}
+              >
+                {days} days
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 text-xs font-medium text-mut">Themes and badges</div>
+        <div className="mt-2 space-y-2">
+          {TIERS.map((tier) => {
+            const unlocked = isTierUnlocked(progress.progression.currentStreak, tier);
+            const { ratio, remaining } = tierProgress(progress.progression.currentStreak, tier);
+            const applied =
+              Boolean(tier.theme) &&
+              (!tier.theme?.mode || theme.mode === tier.theme.mode) &&
+              (!tier.theme?.accent || theme.accent === tier.theme.accent);
+            return (
+              <div
+                key={tier.tier}
+                className={`rounded-xl border p-3 ${unlocked ? 'border-accent/40 bg-accent/8' : 'border-line bg-surface2'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base"
+                    style={{ backgroundColor: `${BADGE_TONES[tier.badge]}22`, color: BADGE_TONES[tier.badge] }}
+                  >
+                    {unlocked ? <Icon name="sparkle" size={18} /> : <span aria-hidden="true">🔒</span>}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-ink">
+                      {tier.name} <span className="text-xs font-normal text-mut">· {tier.days} days</span>
+                    </div>
+                    <div className="text-xs text-mut">{tier.unlocks}</div>
+                  </div>
+                  {unlocked && tier.theme && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (tier.theme?.mode) dispatch(setMode(tier.theme.mode));
+                        if (tier.theme?.accent) dispatch(setAccent(tier.theme.accent));
+                      }}
+                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold pressable ${
+                        applied ? 'bg-surface2 text-mut' : 'bg-accent text-onaccent'
+                      }`}
+                    >
+                      {applied ? 'Applied' : 'Apply'}
+                    </button>
+                  )}
+                  {unlocked && !tier.theme && (
+                    <span className="shrink-0 rounded-full bg-surface2 px-3 py-1.5 text-xs font-semibold text-accent">Unlocked</span>
+                  )}
+                </div>
+
+                {!unlocked && (
+                  <div className="mt-3">
+                    <div className="mb-1 flex items-center justify-between text-[11px] text-mut">
+                      <span>Locked: reach {tier.days} days to unlock</span>
+                      <span className="tabular-nums">Current: {progress.progression.currentStreak}/{tier.days}</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-surface3">
+                      <div className="h-full rounded-full bg-accent" style={{ width: `${ratio * 100}%` }} />
+                    </div>
+                    <div className="mt-1 text-[11px] text-mut">
+                      {remaining} day{remaining === 1 ? '' : 's'} to go
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 rounded-xl border border-line2 p-3">
+          <div className="text-xs font-medium text-mut">Developer test controls</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => dispatch(devAddStreakDays({ days: 7 }))}
+              className="rounded-full bg-surface2 px-3 py-1.5 text-xs font-medium text-ink pressable"
+            >
+              Add +7 Days
+            </button>
+            <button
+              type="button"
+              onClick={() => dispatch(devSetStreak({ days: 364 }))}
+              className="rounded-full bg-surface2 px-3 py-1.5 text-xs font-medium text-ink pressable"
+            >
+              Set Streak to 364
+            </button>
+            <button
+              type="button"
+              onClick={() => dispatch(devResetStreak())}
+              className="rounded-full bg-surface2 px-3 py-1.5 text-xs font-medium text-ink pressable"
+            >
+              Reset Streak
+            </button>
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-mut">
+            These simulate streak days so the tier locks and unlock celebrations can be tested without waiting.
+          </p>
+        </div>
+      </Card>
+
       {/* ---- Data ---- */}
       <Section title="Data" icon="settings" />
       <Card>
@@ -317,6 +461,13 @@ export default function SettingsPage() {
       {/* ---- About ---- */}
       <Section title={`About ${APP_NAME}`} icon="info" />
       <Card>
+        <div className="mb-4 flex flex-col items-center gap-2">
+          <MihrabLogo size={80} />
+          <div className="text-center">
+            <div className="text-sm font-semibold text-ink">{APP_NAME}</div>
+            <div className="text-[11px] text-mut">الفرقان · offline Qur’an</div>
+          </div>
+        </div>
         <div className="text-sm leading-relaxed text-mut">
           <p>
             <b className="text-ink">{APP_NAME}</b> is an offline-first Qur’an app — read all 114

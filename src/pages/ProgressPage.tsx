@@ -1,24 +1,21 @@
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store';
-import { markMilestone, setJuzCompleted } from '../store/slices/progressSlice';
-import { push } from '../store/slices/toastSlice';
+import { setJuzCompleted } from '../store/slices/progressSlice';
 import { useQuran } from '../data/QuranProvider';
 import { PageHeader, EmptyState } from '../components/ui/common';
 import { Icon } from '../components/ui/Icon';
 import { timeAgo, surahNumberToArabic } from '../lib/utils';
 import { QUOTES } from '../data/quotes';
-
-const MILESTONES = [
-  { days: 3, title: 'A Steady Start', description: 'A gentle beginning is still a beginning. Keep returning to the words that steady the heart.' },
-  { days: 7, title: 'A Week of Remembrance', description: 'Consistency is a kind of devotion. Small, regular moments are powerful and sincere.' },
-  { days: 14, title: 'Two Weeks of Steady Light', description: 'The habit is growing. Keep making room for reflection, even in the busiest days.' },
-  { days: 30, title: 'A Month of Consistency', description: 'A month of regular remembrance is a meaningful rhythm to be grateful for.' },
-  { days: 50, title: 'Fifty Days of Gentle Commitment', description: 'You are building a faithful pattern, one page and one recitation at a time.' },
-  { days: 100, title: 'A Century of Devotion', description: 'A hundred days of return is a beautiful act of sincerity and persistence.' },
-  { days: 200, title: 'Two Hundred Days of Remembrance', description: 'This is a strong and steady practice — a habit of heart and mind.' },
-  { days: 365, title: 'A Full Year with the Qur’an', description: 'A full year of regular engagement is a lasting blessing and a meaningful achievement.' },
-] as const;
+import {
+  ISTIQAMAH_MILESTONES,
+  TIERS,
+  isTierUnlocked,
+  khatmProgress,
+  nextTier,
+  tierProgress,
+  todayKey,
+  weeklyRecap,
+} from '../lib/progression';
 
 export default function ProgressPage() {
   const dispatch = useAppDispatch();
@@ -47,21 +44,26 @@ export default function ProgressPage() {
   const lastPosition = progress.lastPosition;
   const lastMeta = lastPosition ? surahs?.find((s) => s.number === lastPosition.surah) : undefined;
   const totalAyahsReached = Object.values(progress.ayahsReached).reduce((sum, count) => sum + count, 0);
-  const streak = currentStreak(progress.dailyActivity);
+  const streak = progress.progression.currentStreak;
 
-  useEffect(() => {
-    const newlyReached = MILESTONES.filter(
-      (milestone) => !progress.milestones[milestone.days] && streak >= milestone.days,
-    );
-
-    if (newlyReached.length === 0) return;
-
-    const at = Date.now();
-    newlyReached.forEach((milestone) => {
-      dispatch(markMilestone({ days: milestone.days, at }));
-      dispatch(push(`Milestone reached: ${milestone.title}.`, 'success'));
-    });
-  }, [dispatch, progress.milestones, streak]);
+  const today = todayKey();
+  const week = weeklyRecap(progress.activity, progress.progression.dailyListenMinutes, today);
+  const weekAyahs = week.reduce((sum, day) => sum + day.ayahs, 0);
+  const weekMinutes = week.reduce((sum, day) => sum + day.minutes, 0);
+  const weekPeak = Math.max(1, ...week.map((day) => day.ayahs));
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const monthSurahs = Object.values(progress.lastRead).filter((entry) => entry.at >= monthStart.getTime()).length;
+  const khatm = khatmProgress(progress.ayahsReached);
+  const upcomingTier = nextTier(progress.progression.currentStreak);
+  const tierRatio = upcomingTier
+    ? tierProgress(progress.progression.currentStreak, upcomingTier).ratio
+    : 1;
+  const unlockedTierCount = TIERS.filter((tier) => isTierUnlocked(streak, tier)).length;
+  const reachedGoalCount = ISTIQAMAH_MILESTONES.filter((days) =>
+    progress.progression.celebratedMilestones.includes(days),
+  ).length;
 
   const recentSurahs = progress.activity
     .filter((entry, index, entries) => entries.findIndex((item) => item.surah === entry.surah) === index)
@@ -124,17 +126,16 @@ export default function ProgressPage() {
 
       <div className="mt-6">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-ink">Milestones</h2>
-          <span className="text-[11px] uppercase tracking-[0.2em] text-mut">{Object.keys(progress.milestones).length}/{MILESTONES.length} earned</span>
+          <h2 className="text-sm font-semibold text-ink">Milestones &amp; tiers</h2>
+          <span className="text-[11px] uppercase tracking-[0.2em] text-mut">{unlockedTierCount}/{TIERS.length} tiers · {reachedGoalCount}/{ISTIQAMAH_MILESTONES.length} goals</span>
         </div>
         <div className="space-y-2.5">
-          {MILESTONES.map((milestone) => {
-            const reachedAt = progress.milestones[milestone.days];
-            const reached = Boolean(reachedAt);
-            const daysLeft = Math.max(0, milestone.days - streak);
+          {TIERS.map((tier) => {
+            const reached = isTierUnlocked(streak, tier);
+            const daysLeft = Math.max(0, tier.days - streak);
             return (
               <div
-                key={milestone.days}
+                key={tier.tier}
                 className={`milestone-card rounded-2xl border p-3 ${reached ? 'border-accent/40 bg-accent/8' : 'border-line bg-surface text-muted'}`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -146,9 +147,9 @@ export default function ProgressPage() {
                       </svg>
                     </div>
                     <div>
-                      <div className={`text-sm font-semibold ${reached ? 'text-ink' : 'text-mut'}`}>{milestone.title}</div>
+                      <div className={`text-sm font-semibold ${reached ? 'text-ink' : 'text-mut'}`}>{tier.name} · {tier.days} days</div>
                       <div className={`text-xs ${reached ? 'text-accent' : 'text-mut'}`}>
-                        {reached ? `Earned ${new Date(reachedAt!).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}` : `${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining`}
+                        {reached ? 'Unlocked' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining`}
                       </div>
                     </div>
                   </div>
@@ -157,7 +158,7 @@ export default function ProgressPage() {
                   </span>
                 </div>
                 <div className={`mt-2 text-sm ${reached ? 'text-ink2' : 'text-mut'}`}>
-                  {milestone.description}
+                  {tier.unlocks}
                 </div>
               </div>
             );
@@ -212,19 +213,88 @@ export default function ProgressPage() {
                 key={j}
                 type="button"
                 onClick={() => dispatch(setJuzCompleted({ juz: j, value: !done }))}
-                className={`pressable flex aspect-square flex-col items-center justify-center rounded-2xl border text-sm transition-colors ${
+                className={`pressable flex aspect-square flex-col items-center justify-center rounded-2xl border transition-colors ${
                   done
-                    ? 'border-accent bg-accent text-onaccent'
-                    : 'border-accent/25 bg-accent/8 text-ink hover:border-accent/50'
+                    ? 'border-accent bg-accentstrong text-onaccent'
+                    : 'border-accent/25 bg-accent/8 text-ink hover:border-accent/50 hover:bg-accent/12'
                 }`}
               >
-                <span className="text-base font-bold">{j}</span>
+                <span className="text-lg font-semibold leading-none tracking-wide">{j}</span>
                 {done && <Icon name="check" size={13} />}
               </button>
             );
           })}
         </div>
         {surahs && <div className="mt-4 text-center text-sm text-mut">This marks how many juz you’ve completed on your way to finishing the whole Qur’an.</div>}
+      </div>
+
+      {/* progress recaps */}
+      <div className="mt-6">
+        <h2 className="mb-2 text-sm font-semibold text-ink">Your recaps</h2>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl bg-surface p-3 sm:col-span-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-mut">This week</span>
+              <span className="text-[11px] text-mut">
+                {weekAyahs} āyāt · {weekMinutes} min listening
+              </span>
+            </div>
+            <div className="mt-3 flex items-end justify-between gap-2">
+              {week.map((day) => (
+                <div key={day.key} className="flex flex-1 flex-col items-center gap-1">
+                  <div className="flex h-16 w-full items-end overflow-hidden rounded-md bg-surface2">
+                    <div
+                      className="w-full rounded-md bg-accent"
+                      style={{ height: `${(day.ayahs / weekPeak) * 100}%` }}
+                      title={`${day.ayahs} āyāt · ${day.minutes} min`}
+                    />
+                  </div>
+                  <span className="text-[10px] font-semibold text-mut">{day.label}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 text-[11px] text-mut">Āyāt recorded each day, from your reading and listening history.</div>
+          </div>
+
+          <div className="grid gap-3">
+            <StatCard
+              icon="book"
+              label="This month"
+              value={`${monthSurahs} surah${monthSurahs === 1 ? '' : 's'}`}
+              sub={`${completedJuz}/30 juz complete`}
+            />
+            <div className="rounded-2xl bg-surface p-3">
+              <div className="flex items-center gap-1.5 text-[11px] font-medium text-mut">
+                <Icon name="progress" size={13} className="text-accent" />
+                Yearly khatm
+              </div>
+              <div className="mt-1 text-xl font-bold text-ink">{khatm.toFixed(1)}%</div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface2">
+                <div className="h-full rounded-full bg-accent" style={{ width: `${khatm}%` }} />
+              </div>
+              <div className="mt-1 text-[11px] text-mut">Estimated coverage of the whole Qur’an.</div>
+            </div>
+            <div className="rounded-2xl bg-surface p-3">
+              <div className="flex items-center gap-1.5 text-[11px] font-medium text-mut">
+                <Icon name="sparkle" size={13} className="text-accent" />
+                Next tier
+              </div>
+              {upcomingTier ? (
+                <>
+                  <div className="mt-1 text-sm font-semibold text-ink">{upcomingTier.name}</div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface2">
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${tierRatio * 100}%` }} />
+                  </div>
+                  <div className="mt-1 text-[11px] text-mut">
+                    {progress.progression.currentStreak}/{upcomingTier.days} days
+                  </div>
+                </>
+              ) : (
+                <div className="mt-1 text-sm font-semibold text-accent">Every tier unlocked</div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* recently read */}
@@ -354,16 +424,6 @@ function StatCard({
   ) : (
     <div className={cls}>{content}</div>
   );
-}
-
-function currentStreak(days: Record<string, boolean>): number {
-  const cursor = new Date();
-  let count = 0;
-  while (days[cursor.toISOString().slice(0, 10)]) {
-    count++;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return count;
 }
 
 function mostActive(activity: { surah: number; name: string; at: number }[], days: number) {

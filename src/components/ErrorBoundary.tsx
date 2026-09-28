@@ -18,7 +18,7 @@ export class ErrorBoundary extends Component<{
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-dvh items-center justify-center bg-base px-6 text-center">
+        <div className="flex min-h-dvh items-center justify-center bg-canvas px-6 text-center">
           <div className="max-w-sm rounded-3xl border border-line bg-surface p-6 shadow-card">
             <div className="text-lg font-semibold text-ink">Something went wrong</div>
             <p className="mt-2 text-sm leading-relaxed text-mut">

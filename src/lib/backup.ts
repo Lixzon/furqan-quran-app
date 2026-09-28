@@ -41,8 +41,8 @@ function isActivityEntry(value: unknown): boolean {
 }
 
 function isTheme(value: unknown): value is ThemeState {
-  return isRecord(value) && ['light', 'dark', 'system', 'sepia'].includes(String(value.mode)) &&
-    ['teal', 'emerald', 'green', 'gold', 'blue', 'rose', 'purple'].includes(String(value.accent));
+  return isRecord(value) && ['light', 'dark', 'system', 'sepia', 'velvet', 'golden'].includes(String(value.mode)) &&
+    ['teal', 'emerald', 'green', 'gold', 'blue', 'rose', 'purple', 'sapphire'].includes(String(value.accent));
 }
 
 function isSettings(value: unknown): value is SettingsState {
