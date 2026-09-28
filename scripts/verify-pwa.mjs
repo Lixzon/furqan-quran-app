@@ -63,6 +63,17 @@ function checkAssetLinks() {
   if (!Array.isArray(target?.sha256_cert_fingerprints) || target.sha256_cert_fingerprints.length === 0) {
     failures.push('assetlinks.json is missing target.sha256_cert_fingerprints');
   }
+
+  // A placeholder fingerprint silently breaks TWA verification, so catch it here.
+  const sha256 = /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/i;
+  for (const fingerprint of target?.sha256_cert_fingerprints ?? []) {
+    const value = String(fingerprint);
+    if (/replace|placeholder|your_|xxx/i.test(value)) {
+      failures.push('assetlinks.json still contains a placeholder fingerprint');
+    } else if (!sha256.test(value)) {
+      failures.push(`assetlinks.json has a malformed SHA-256 fingerprint: ${value}`);
+    }
+  }
 }
 
 function checkServiceWorker() {
