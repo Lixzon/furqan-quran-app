@@ -47,6 +47,8 @@ export type IconName =
   | 'chevronRight'
   | 'cloud'
   | 'snowflake'
+  | 'lock'
+  | 'unlock'
   | 'user';
 
 const S = (props: { children: ReactElement[] | ReactElement; fill?: boolean }) => (
@@ -321,6 +323,18 @@ const ICONS: Record<IconName, ReactElement> = {
       <path d="M19.1 7.9L4.9 16.1" />
       <path d="M9.8 6l2.2 2.2L14.2 6" />
       <path d="M9.8 18l2.2-2.2L14.2 18" />
+    </S>
+  ),
+  lock: (
+    <S>
+      <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
+      <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
+    </S>
+  ),
+  unlock: (
+    <S>
+      <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
+      <path d="M8 10.5V8a4 4 0 0 1 7.6-1.6" />
     </S>
   ),
   user: (

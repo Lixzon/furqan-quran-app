@@ -193,9 +193,25 @@ export interface DownloadRecord {
 
 /* ---------------- settings / theme ---------------- */
 
-export type ThemeMode = 'light' | 'dark' | 'system' | 'sepia' | 'velvet' | 'golden';
+export type ThemeMode =
+  | 'light'
+  | 'dark'
+  | 'system'
+  /** Gated reading themes (100-day Istiqamah milestone, see `lib/unlocks.ts`). */
+  | 'sepia'
+  | 'midnight'
+  | 'emerald'
+  /** Progression themes granted by the badge tiers. */
+  | 'velvet'
+  | 'golden';
 export type ScriptStyle = 'uthmani' | 'naskh' | 'clear';
 export type AccentId = 'teal' | 'emerald' | 'green' | 'gold' | 'blue' | 'rose' | 'purple' | 'sapphire';
+
+/**
+ * Reader layout presets. `classic` is the default behaviour; the other two are
+ * granted by the 365-day Istiqamah milestone.
+ */
+export type AssistantLayout = 'classic' | 'guided' | 'immersive';
 
 export interface SettingsState {
   showArabic: boolean;
@@ -208,6 +224,8 @@ export interface SettingsState {
   followAudio: boolean; // auto-scroll/highlight reader to the playing ayah
   hasOfferedDefaultReciterDownload: boolean;
   wifiDownloadPending: boolean;
+  /** Dynamic reader layout, gated behind the 365-day milestone. */
+  assistantLayout: AssistantLayout;
   notifications: {
     daily: boolean;
     fridayKahf: boolean;
@@ -219,4 +237,9 @@ export interface SettingsState {
 export interface ThemeState {
   mode: ThemeMode;
   accent: AccentId;
+  /**
+   * A reader-built accent, `#rrggbb`, or null for the stock palette. Gated
+   * behind the 365-day milestone; applied by `ThemeManager`.
+   */
+  customAccent: string | null;
 }

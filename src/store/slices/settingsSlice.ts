@@ -1,5 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { ScriptStyle, SettingsState } from '../../types';
+import type { AssistantLayout, ScriptStyle, SettingsState } from '../../types';
 import { loadState } from '../persist';
 import { KEYS } from '../persist';
 import { DEFAULT_ARABIC_SCALE, DEFAULT_RECITER } from '../../lib/constants';
@@ -15,6 +15,7 @@ const initialState: SettingsState = loadState<SettingsState>(KEYS.settings, {
   followAudio: true,
   hasOfferedDefaultReciterDownload: false,
   wifiDownloadPending: false,
+  assistantLayout: 'classic',
   notifications: {
     daily: false,
     fridayKahf: false,
@@ -28,7 +29,8 @@ const settingsSlice = createSlice({
   initialState,
   reducers: {
     restoreSettings(_state, action: PayloadAction<SettingsState>) {
-      return action.payload;
+      // Backups written before a field existed would otherwise restore undefined.
+      return { ...action.payload, assistantLayout: action.payload.assistantLayout ?? 'classic' };
     },
     setShowArabic(state, action: PayloadAction<boolean>) {
       state.showArabic = action.payload;
@@ -60,6 +62,9 @@ const settingsSlice = createSlice({
     setWifiDownloadPending(state, action: PayloadAction<boolean>) {
       state.wifiDownloadPending = action.payload;
     },
+    setAssistantLayout(state, action: PayloadAction<AssistantLayout>) {
+      state.assistantLayout = action.payload;
+    },
     setNotificationPreference(
       state,
       action: PayloadAction<{ key: 'daily' | 'fridayKahf' | 'nightlyMulk'; enabled: boolean }>,
@@ -84,6 +89,7 @@ export const {
   setFollowAudio,
   setDefaultReciterOfferSeen,
   setWifiDownloadPending,
+  setAssistantLayout,
   setNotificationPreference,
   setReminderTime,
 } = settingsSlice.actions;

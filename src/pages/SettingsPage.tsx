@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store';
 import { push } from '../store/slices/toastSlice';
-import { setMode, setAccent } from '../store/slices/themeSlice';
+import { setMode, setAccent, setCustomAccent } from '../store/slices/themeSlice';
 import {
   setShowArabic,
   setShowTransliteration,
@@ -12,21 +12,37 @@ import {
   setReadingMode,
   setDefaultReciter,
   setFollowAudio,
+  setAssistantLayout,
   setNotificationPreference,
   setReminderTime,
 } from '../store/slices/settingsSlice';
 import { clearAllProgress, devAddStreakDays, devResetStreak, devSetStreak, setIstiqamahGoal } from '../store/slices/progressSlice';
 import { BADGE_TONES, ISTIQAMAH_MILESTONES, TIERS, isTierUnlocked, tierProgress } from '../lib/progression';
+import {
+  AI_UI_FEATURES,
+  AI_UI_LOCKED_TEXT,
+  AI_UI_UNLOCK_DAYS,
+  ASSISTANT_LAYOUTS,
+  CUSTOM_READING_THEMES,
+  READING_THEMES_UNLOCK_DAYS,
+  isAiUiUnlocked,
+  isReadingThemesUnlocked,
+  isThemeSelectable,
+  lockedText,
+  unlockProgress,
+} from '../lib/unlocks';
+import { normalizeHex } from '../lib/customTheme';
 import { db } from '../db/database';
 import { useStorageStats } from '../services/useDownloads';
 import { ACCENTS, APP_NAME, APP_TAGLINE, RECITERS, SCRIPT_STYLES } from '../lib/constants';
 import { formatBytes } from '../lib/utils';
 import { PageHeader } from '../components/ui/common';
 import { Icon, type IconName } from '../components/ui/Icon';
-import { Segmented, Slider, Toggle } from '../components/ui/controls';
+import { Segmented, Slider, Toggle, type SegOption } from '../components/ui/controls';
 import { Modal } from '../components/ui/Modal';
 import { MihrabLogo } from '../components/ui/MihrabLogo';
 import { createBackupJson, parseBackupJson, restoreBackup, type FurqanBackup } from '../lib/backup';
+import type { ThemeMode } from '../types';
 
 /* beforeinstallprompt is a Chromium-only event */
 interface BeforeInstallPromptEvent extends Event {
@@ -53,6 +69,22 @@ export default function SettingsPage() {
     typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
   );
   const [pendingBackup, setPendingBackup] = useState<FurqanBackup | null>(null);
+
+  const streak = progress.progression.currentStreak;
+  const readingThemesUnlocked = isReadingThemesUnlocked(streak);
+  const aiUiUnlocked = isAiUiUnlocked(streak);
+
+  // Sepia is one of the gated reading themes, so it only joins the free picker
+  // once the milestone is reached — or while it is the theme in use, so the
+  // chip stays honest for a reader whose streak has since dropped.
+  const modeOptions: SegOption<ThemeMode>[] = [
+    { value: 'system', label: 'System', icon: 'stack' },
+    { value: 'light', label: 'Light', icon: 'sun' },
+    { value: 'dark', label: 'Dark', icon: 'moon' },
+    ...(readingThemesUnlocked || theme.mode === 'sepia'
+      ? [{ value: 'sepia' as const, label: 'Sepia', icon: 'sun' as const }]
+      : []),
+  ];
 
   const exportBackup = () => {
     try {
@@ -127,16 +159,7 @@ export default function SettingsPage() {
       <Section title="Appearance" icon="sun" />
       <Card>
         <div className="mb-1 text-xs font-medium text-mut">Colour mode</div>
-        <Segmented
-          value={theme.mode}
-          onChange={(m) => dispatch(setMode(m))}
-          options={[
-            { value: 'system', label: 'System', icon: 'stack' },
-            { value: 'light', label: 'Light', icon: 'sun' },
-            { value: 'dark', label: 'Dark', icon: 'moon' },
-            { value: 'sepia', label: 'Sepia', icon: 'sun' },
-          ]}
-        />
+        <Segmented value={theme.mode} onChange={(m) => dispatch(setMode(m))} options={modeOptions} />
         <div className="mb-1 mt-4 text-xs font-medium text-mut">Accent colour</div>
         <div className="flex flex-wrap gap-2.5">
           {ACCENTS.map((a) => {
@@ -163,6 +186,168 @@ export default function SettingsPage() {
             );
           })}
         </div>
+
+        {/* Reading themes unlocked by the 100-day milestone. */}
+        <div className="mt-4 border-t border-line pt-3">
+          <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-mut">
+            <span className="inline-flex items-center gap-1.5">
+              <Icon
+                name={readingThemesUnlocked ? 'unlock' : 'lock'}
+                size={13}
+                className={readingThemesUnlocked ? 'text-accent' : undefined}
+              />
+              Custom reading themes
+            </span>
+            <span className="tabular-nums">
+              {Math.min(streak, READING_THEMES_UNLOCK_DAYS)}/{READING_THEMES_UNLOCK_DAYS} days
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {CUSTOM_READING_THEMES.map((option) => {
+              const active = theme.mode === option.id;
+              const selectable = isThemeSelectable(option.id, streak, active);
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  disabled={!selectable}
+                  aria-pressed={active}
+                  onClick={() => dispatch(setMode(option.id))}
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2.5 text-[11px] font-medium pressable ${
+                    active ? 'border-accent bg-accent/8' : 'border-line bg-surface2'
+                  } ${selectable ? '' : 'opacity-70'}`}
+                >
+                  <span
+                    className={`h-8 w-8 rounded-full border border-line ${
+                      active ? 'ring-2 ring-ink ring-offset-2 ring-offset-surface' : ''
+                    }`}
+                    style={{ backgroundColor: option.swatch }}
+                  />
+                  <span className="inline-flex items-center gap-1 text-ink">
+                    {!selectable && <Icon name="lock" size={11} />}
+                    {option.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {!readingThemesUnlocked && (
+            <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-mut">
+              <Icon name="lock" size={13} />
+              {lockedText(READING_THEMES_UNLOCK_DAYS)}
+            </p>
+          )}
+          <p className="mt-1.5 text-[11px] leading-relaxed text-mut">
+            {CUSTOM_READING_THEMES.map((option) => option.description).join(' · ')}
+          </p>
+        </div>
+      </Card>
+
+      {/* ---- AI UI customization (365-day milestone) ---- */}
+      <Section title="AI UI Customization" icon="sparkle" />
+      <Card>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 text-sm font-medium text-ink">
+              <Icon
+                name={aiUiUnlocked ? 'unlock' : 'lock'}
+                size={15}
+                className={aiUiUnlocked ? 'text-accent' : 'text-mut'}
+              />
+              {aiUiUnlocked ? 'Unlocked' : 'Locked'}
+            </div>
+            <div className="mt-0.5 text-xs text-mut">
+              {aiUiUnlocked
+                ? 'Dynamic Quran Assistant layouts and custom themes are available.'
+                : AI_UI_FEATURES.map((feature) => feature.label).join(' · ')}
+            </div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="text-2xl font-bold tabular-nums text-ink">
+              {Math.min(streak, AI_UI_UNLOCK_DAYS)}
+            </div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-mut">
+              / {AI_UI_UNLOCK_DAYS} days
+            </div>
+          </div>
+        </div>
+
+        {!aiUiUnlocked && (
+          <>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface2">
+              <div
+                className="h-full rounded-full bg-accent/70"
+                style={{ width: `${unlockProgress(streak, AI_UI_UNLOCK_DAYS).ratio * 100}%` }}
+              />
+            </div>
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-surface2 px-2.5 py-1.5 text-[11px] font-medium text-mut">
+              <Icon name="lock" size={13} />
+              {AI_UI_LOCKED_TEXT}
+            </p>
+            <ul className="mt-3 space-y-2">
+              {AI_UI_FEATURES.map((feature) => (
+                <li key={feature.id} className="flex items-start gap-2">
+                  <Icon name="lock" size={13} className="mt-0.5 shrink-0 text-mut" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-ink">{feature.label}</span>
+                    <span className="block text-xs text-mut">{feature.description}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {aiUiUnlocked && (
+          <>
+            <div className="mt-4">
+              <div className="mb-1 text-xs font-medium text-mut">Dynamic Quran Assistant layouts</div>
+              <Segmented
+                value={settings.assistantLayout}
+                onChange={(value) => dispatch(setAssistantLayout(value))}
+                options={ASSISTANT_LAYOUTS.map((layout) => ({ value: layout.id, label: layout.label }))}
+                size="sm"
+              />
+              <p className="mt-1.5 text-[11px] leading-relaxed text-mut">
+                {ASSISTANT_LAYOUTS.find((layout) => layout.id === settings.assistantLayout)?.description}
+              </p>
+            </div>
+            <div className="mt-4 border-t border-line pt-3">
+              <div className="mb-1 text-xs font-medium text-mut">Custom accent colour</div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  aria-label="Custom accent colour"
+                  value={theme.customAccent ?? '#0d9488'}
+                  onChange={(event) => {
+                    const hex = normalizeHex(event.target.value);
+                    if (hex) dispatch(setCustomAccent(hex));
+                  }}
+                  className="h-10 w-14 shrink-0 cursor-pointer rounded-lg border border-line bg-surface2 p-1"
+                />
+                <span className="min-w-0 flex-1 text-xs text-mut">
+                  {theme.customAccent ? (
+                    <>
+                      Your accent:{' '}
+                      <span className="font-medium tabular-nums text-ink">{theme.customAccent}</span>
+                    </>
+                  ) : (
+                    'Pick a colour to build your own accent.'
+                  )}
+                </span>
+                {theme.customAccent && (
+                  <button
+                    type="button"
+                    onClick={() => dispatch(setCustomAccent(null))}
+                    className="shrink-0 rounded-full bg-surface2 px-3 py-1.5 text-xs font-semibold text-mut pressable"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </Card>
 
       {/* ---- Reading ---- */}

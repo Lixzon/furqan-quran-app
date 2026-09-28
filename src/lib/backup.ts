@@ -41,8 +41,12 @@ function isActivityEntry(value: unknown): boolean {
 }
 
 function isTheme(value: unknown): value is ThemeState {
-  return isRecord(value) && ['light', 'dark', 'system', 'sepia', 'velvet', 'golden'].includes(String(value.mode)) &&
-    ['teal', 'emerald', 'green', 'gold', 'blue', 'rose', 'purple', 'sapphire'].includes(String(value.accent));
+  return isRecord(value) &&
+    ['light', 'dark', 'system', 'sepia', 'midnight', 'emerald', 'velvet', 'golden'].includes(String(value.mode)) &&
+    ['teal', 'emerald', 'green', 'gold', 'blue', 'rose', 'purple', 'sapphire'].includes(String(value.accent)) &&
+    // Older backups predate the custom accent; null means "stock palette".
+    (value.customAccent === undefined || value.customAccent === null ||
+      (typeof value.customAccent === 'string' && /^#[0-9a-f]{6}$/i.test(value.customAccent)));
 }
 
 function isSettings(value: unknown): value is SettingsState {
@@ -56,6 +60,9 @@ function isSettings(value: unknown): value is SettingsState {
     typeof value.followAudio === 'boolean' &&
     typeof value.hasOfferedDefaultReciterDownload === 'boolean' &&
     typeof value.wifiDownloadPending === 'boolean' &&
+    // Optional so backups exported before the assistant layouts still load.
+    (value.assistantLayout === undefined ||
+      ['classic', 'guided', 'immersive'].includes(String(value.assistantLayout))) &&
     typeof value.notifications.daily === 'boolean' &&
     typeof value.notifications.fridayKahf === 'boolean' &&
     typeof value.notifications.nightlyMulk === 'boolean' &&

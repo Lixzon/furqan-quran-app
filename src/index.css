@@ -134,6 +134,40 @@
   --q-shadow: 0 12px 32px -14px rgba(90, 70, 20, 0.28);
 }
 
+/* Custom reading themes, granted by the 100-day Istiqamah milestone
+   (see src/lib/unlocks.ts). Their accents come from the accent picker, so
+   these blocks deliberately leave the accent tokens alone. */
+[data-mode="midnight"] {
+  --q-bg: #070f1d;
+  --q-surface: #0d1a2e;
+  --q-surface2: #13243d;
+  --q-surface3: #1b3050;
+  --q-text: #e6eefb;
+  --q-text2: #b3c6e3;
+  --q-muted: #8296b8;
+  --q-border: #1b2c48;
+  --q-border2: #2a3f63;
+  --q-gold: #e3c15a;
+  --q-frozen: #8fc7f5;
+  --q-danger: #f2605f;
+  --q-shadow: 0 14px 36px -16px rgba(0, 0, 0, 0.82);
+}
+[data-mode="emerald"] {
+  --q-bg: #eaf4ec;
+  --q-surface: #f7fcf8;
+  --q-surface2: #dcefe0;
+  --q-surface3: #cbe5d1;
+  --q-text: #10241a;
+  --q-text2: #3d5a47;
+  --q-muted: #5f7a66;
+  --q-border: #cfe4d5;
+  --q-border2: #b3d2bb;
+  --q-gold: #9a7a12;
+  --q-frozen: #3d6f9e;
+  --q-danger: #b42318;
+  --q-shadow: 0 12px 32px -14px rgba(20, 60, 40, 0.22);
+}
+
 /* ---------- accent themes ---------- */
 [data-accent="teal"] {
   --q-accent: #0d9488;
@@ -208,16 +242,49 @@
 
 /* Dark-mode accents are deliberately brightened above, so text sitting on an
    accent fill must be dark to stay legible (white on #2dd4bf is only ~1.9:1).
-   Velvet is a dark-family theme and follows the same rule. Declared after the
-   accent blocks so it wins on source order. */
+   Velvet and Midnight Blue are dark-family themes and follow the same rule.
+   Declared after the accent blocks so it wins on source order. */
 [data-mode="dark"],
-[data-mode="velvet"] {
+[data-mode="velvet"],
+[data-mode="midnight"] {
   --q-on-accent: #08130f;
 }
 [data-mode="dark"][data-accent="sapphire"],
-[data-mode="velvet"][data-accent="sapphire"] {
+[data-mode="velvet"][data-accent="sapphire"],
+[data-mode="midnight"][data-accent="sapphire"] {
   --q-accent: #3b82f6;
   --q-accent-strong: #2563eb;
+}
+
+/* The brightened accent values above are keyed on data-mode="dark", so a
+   dark-family reading theme has to repeat them for its own data-mode. */
+[data-mode="midnight"][data-accent="teal"] {
+  --q-accent: #2dd4bf;
+  --q-accent-strong: #14b8a6;
+}
+[data-mode="midnight"][data-accent="emerald"] {
+  --q-accent: #34d399;
+  --q-accent-strong: #10b981;
+}
+[data-mode="midnight"][data-accent="green"] {
+  --q-accent: #4ade80;
+  --q-accent-strong: #22c55e;
+}
+[data-mode="midnight"][data-accent="gold"] {
+  --q-accent: #e3b341;
+  --q-accent-strong: #c9a227;
+}
+[data-mode="midnight"][data-accent="blue"] {
+  --q-accent: #60a5fa;
+  --q-accent-strong: #3b82f6;
+}
+[data-mode="midnight"][data-accent="rose"] {
+  --q-accent: #fb7185;
+  --q-accent-strong: #f43f5e;
+}
+[data-mode="midnight"][data-accent="purple"] {
+  --q-accent: #a78bfa;
+  --q-accent-strong: #8b5cf6;
 }
 
 /* ---------- fonts ---------- */
@@ -611,4 +678,42 @@ button {
 }
 .shimmer {
   animation: q-shimmer 1.4s ease-in-out infinite;
+}
+
+/* ---------- dynamic reader layouts ----------
+   Granted by the 365-day Istiqamah milestone. ThemeManager only sets
+   data-assistant-layout while the unlock is held, so the default (no
+   attribute, or "classic") keeps the stock ayah layout untouched. */
+[data-assistant-layout="guided"] .ayah-row {
+  padding-block: 1.6rem;
+}
+[data-assistant-layout="guided"] .ayah-ar {
+  line-height: 2.75;
+}
+[data-assistant-layout="guided"] .ayah-tl {
+  margin-top: 1rem;
+  font-size: 14.5px;
+  line-height: 1.8;
+}
+[data-assistant-layout="guided"] .ayah-tr {
+  margin-top: 1rem;
+  font-size: 16.5px;
+  line-height: 1.9;
+}
+
+[data-assistant-layout="immersive"] .ayah-row {
+  padding-block: 0.85rem;
+}
+[data-assistant-layout="immersive"] .ayah-ar {
+  line-height: 2.15;
+}
+[data-assistant-layout="immersive"] .ayah-tl {
+  margin-top: 0.6rem;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+[data-assistant-layout="immersive"] .ayah-tr {
+  margin-top: 0.5rem;
+  font-size: 13.5px;
+  line-height: 1.6;
 }

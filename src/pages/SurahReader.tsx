@@ -16,6 +16,7 @@ import {
 } from '../store/slices/settingsSlice';
 import { setAccent, setMode } from '../store/slices/themeSlice';
 import { ACCENTS, DEFAULT_ARABIC_SCALE, scriptClassName } from '../lib/constants';
+import { isThemeSelectable } from '../lib/unlocks';
 import { clamp } from '../lib/utils';
 import { Icon } from '../components/ui/Icon';
 import { Slider, Toggle } from '../components/ui/controls';
@@ -497,25 +498,25 @@ function AyahBlock({
     <div
       ref={registerRef}
       onClick={onSelect}
-      className={`group relative scroll-mt-24 cursor-pointer border-b border-line px-3 py-5 transition-colors ${
+      className={`ayah-row group relative scroll-mt-24 cursor-pointer border-b border-line px-3 py-5 transition-colors ${
         sounding ? 'ayah-active' : selected ? 'bg-accent/6 ring-1 ring-accent/30' : 'hover:bg-surface'
       }`}
       data-ayah={index}
     >
       {showArabic && (
-        <p className={`${arClass} pr-8 text-right leading-[2.35] text-ink`} dir="rtl" style={{ fontSize: arFontPx }}>
+        <p className={`ayah-ar ${arClass} pr-8 text-right leading-[2.35] text-ink`} dir="rtl" style={{ fontSize: arFontPx }}>
           {ayah.ar}
           <span className="ayah-marker">{index + 1}</span>
         </p>
       )}
       {showTransliteration && ayah.tl && (
-        <p className="mt-4 pr-8 text-[14px] italic leading-relaxed text-ink2">
+        <p className="ayah-tl mt-4 pr-8 text-[14px] italic leading-relaxed text-ink2">
           <span className="mr-1.5 font-semibold not-italic text-accent">{index + 1}.</span>
           {ayah.tl}
         </p>
       )}
       {showTranslation && ayah.tr && (
-        <p className="mt-3 pr-8 text-[15px] leading-relaxed text-ink2">
+        <p className="ayah-tr mt-3 pr-8 text-[15px] leading-relaxed text-ink2">
           <span className="mr-1.5 font-semibold text-accent">{index + 1}.</span>
           {ayah.tr}
         </p>
@@ -833,13 +834,21 @@ function ReaderOptions({
   dispatch: ReturnType<typeof useAppDispatch>;
 }) {
   const theme = useAppSelector((state) => state.theme);
+  const streak = useAppSelector((state) => state.progress.progression.currentStreak);
   const navigate = useNavigate();
-  const previews: { mode: ThemeMode; label: string; background: string; surface: string; ink: string; muted: string; line: string }[] = [
+  const allPreviews: { mode: ThemeMode; label: string; background: string; surface: string; ink: string; muted: string; line: string }[] = [
     { mode: 'light', label: 'Light', background: '#f1f6f3', surface: '#ffffff', ink: '#142520', muted: '#6d7d77', line: '#dbe6e1' },
     { mode: 'dark', label: 'Dark', background: '#0a120f', surface: '#101d19', ink: '#e9f1ee', muted: '#8ba09a', line: '#1f332c' },
     { mode: 'system', label: 'Auto', background: 'linear-gradient(135deg, #f1f6f3 0 49%, #101d19 51% 100%)', surface: '#ffffff', ink: '#142520', muted: '#6d7d77', line: '#dbe6e1' },
     { mode: 'sepia', label: 'Sepia', background: '#f2e7cf', surface: '#fbf3e3', ink: '#3b3022', muted: '#786b58', line: '#d6c6a8' },
+    { mode: 'midnight', label: 'Midnight', background: '#070f1d', surface: '#0d1a2e', ink: '#e6eefb', muted: '#8296b8', line: '#1b2c48' },
+    { mode: 'emerald', label: 'Emerald', background: '#eaf4ec', surface: '#f7fcf8', ink: '#10241a', muted: '#5f7a66', line: '#cfe4d5' },
   ];
+  // The gated reading themes only appear once the 100-day milestone is held,
+  // unless one of them is the theme already in use.
+  const previews = allPreviews.filter((preview) =>
+    isThemeSelectable(preview.mode, streak, theme.mode === preview.mode),
+  );
 
   return (
     <Modal open={open} onClose={onClose} title="Reading settings" variant="frosted">
