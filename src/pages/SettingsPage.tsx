@@ -19,7 +19,7 @@ import { clearAllProgress, devAddStreakDays, devResetStreak, devSetStreak, setIs
 import { BADGE_TONES, ISTIQAMAH_MILESTONES, TIERS, isTierUnlocked, tierProgress } from '../lib/progression';
 import { db } from '../db/database';
 import { useStorageStats } from '../services/useDownloads';
-import { ACCENTS, APP_NAME, RECITERS, SCRIPT_STYLES } from '../lib/constants';
+import { ACCENTS, APP_NAME, APP_TAGLINE, RECITERS, SCRIPT_STYLES } from '../lib/constants';
 import { formatBytes } from '../lib/utils';
 import { PageHeader } from '../components/ui/common';
 import { Icon, type IconName } from '../components/ui/Icon';
@@ -229,6 +229,35 @@ export default function SettingsPage() {
             </option>
           ))}
         </select>
+      </Card>
+
+      {/* ---- Storage & downloads ---- */}
+      <Section title="Storage & Downloads" icon="download" />
+      <Card>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-ink">Downloaded recitations</div>
+            <div className="mt-0.5 text-xs text-mut">
+              {storage.count === 0
+                ? 'Nothing downloaded yet'
+                : `${storage.count} surah${storage.count === 1 ? '' : 's'} stored on this device`}
+            </div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="text-2xl font-bold tabular-nums text-ink">{formatBytes(storage.bytes)}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-mut">used</div>
+          </div>
+        </div>
+
+        <p className="mt-3 text-xs leading-relaxed text-mut">
+          {storage.count === 0
+            ? 'No recitations are stored yet. '
+            : `${formatBytes(storage.bytes)} used of downloaded recitations. `}
+          Qur’an text is cached as you read, so surahs you have already opened stay readable without a
+          connection. Audio is only stored when you download it, so it never fills your device on its
+          own.
+        </p>
+
         <button
           type="button"
           onClick={() => navigate('/downloads')}
@@ -236,12 +265,27 @@ export default function SettingsPage() {
         >
           <span className="inline-flex items-center gap-2 font-medium text-ink">
             <Icon name="download" size={16} className="text-accent" />
-            Offline downloads
+            Manage downloads
           </span>
-          <span className="text-xs tabular-nums text-mut">
-            {storage.count} file{storage.count === 1 ? '' : 's'} · {formatBytes(storage.bytes)}
+          <span className="inline-flex items-center gap-1 text-xs text-mut">
+            {storage.count === 0 ? 'Add surahs' : 'Add or remove surahs'}
+            <Icon name="forward" size={14} />
           </span>
         </button>
+
+        {storage.count > 0 && (
+          <button
+            type="button"
+            onClick={() => setConfirmClearAudio(true)}
+            className="mt-2 flex w-full items-center justify-between rounded-xl px-2 py-2 text-sm pressable"
+          >
+            <span className="inline-flex items-center gap-2 font-medium text-danger">
+              <Icon name="trash" size={16} />
+              Clear all downloaded audio
+            </span>
+            <span className="text-xs text-mut">{formatBytes(storage.bytes)}</span>
+          </button>
+        )}
       </Card>
 
       {/* ---- Reminders ---- */}
@@ -437,17 +481,6 @@ export default function SettingsPage() {
         </div>
         <button
           type="button"
-          onClick={() => setConfirmClearAudio(true)}
-          className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-sm pressable"
-        >
-          <span className="inline-flex items-center gap-2 font-medium text-danger">
-            <Icon name="trash" size={16} />
-            Clear all downloaded audio
-          </span>
-          <span className="text-xs text-mut">{formatBytes(storage.bytes)}</span>
-        </button>
-        <button
-          type="button"
           onClick={() => setConfirmResetProgress(true)}
           className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-sm pressable"
         >
@@ -465,15 +498,16 @@ export default function SettingsPage() {
           <MihrabLogo size={80} />
           <div className="text-center">
             <div className="text-sm font-semibold text-ink">{APP_NAME}</div>
-            <div className="text-[11px] text-mut">الفرقان · offline Qur’an</div>
+            <div className="text-[11px] text-mut">الفرقان · {APP_TAGLINE}</div>
           </div>
         </div>
         <div className="text-sm leading-relaxed text-mut">
           <p>
-            <b className="text-ink">{APP_NAME}</b> is an offline-first Qur’an app — read all 114
-            surahs (Arabic, translation & transliteration), build custom multi-surah playlists with
-            repeat counts, listen to multiple reciters, save recitations for offline listening, and
-            follow uplifting sayings — all without a connection once loaded.
+            <b className="text-ink">{APP_NAME}</b> is a Qur’an app for reading, listening and
+            learning — read all 114 surahs (Arabic, translation & transliteration), build custom
+            multi-surah playlists with repeat counts, listen to multiple reciters, save recitations
+            for offline listening, and follow uplifting sayings — all without a connection once
+            loaded.
           </p>
           <ul className="mt-2 space-y-1 text-xs">
             <li>· Qur’an text/translation: Tanzil.net via Al Quran Cloud (quran-uthmani, en.sahih, en.transliteration)</li>

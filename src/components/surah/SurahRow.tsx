@@ -14,9 +14,11 @@ interface SurahRowProps {
   showPlay?: boolean;
   isActive?: boolean;
   playState?: 'playing' | 'paused';
+  /** True when this surah's audio is stored on the device, false when it streams. */
+  downloaded?: boolean;
 }
 
-export function SurahRow({ meta, leading, trailing, onPlay, showPlay = false, isActive, playState }: SurahRowProps) {
+export function SurahRow({ meta, leading, trailing, onPlay, showPlay = false, isActive, playState, downloaded }: SurahRowProps) {
   const navigate = useNavigate();
 
   const rightIcon: IconName = playState === 'playing' ? 'pause' : 'play';
@@ -45,8 +47,19 @@ export function SurahRow({ meta, leading, trailing, onPlay, showPlay = false, is
         </div>
         <div className="mt-0.5 flex items-center justify-between gap-2">
           <span className="truncate text-xs text-mut">{meta.englishNameTranslation}</span>
-          <span className="shrink-0 text-[13px] text-ink2" style={{ direction: 'rtl' }}>
-            {meta.name}
+          <span className="flex shrink-0 items-center gap-1.5">
+            {downloaded !== undefined && (
+              <span
+                title={downloaded ? 'Audio saved on this device' : 'Audio streams online'}
+                aria-label={downloaded ? 'Audio saved on this device' : 'Audio streams online'}
+                className={downloaded ? 'text-accent' : 'text-mut'}
+              >
+                <Icon name={downloaded ? 'check' : 'cloud'} size={13} />
+              </span>
+            )}
+            <span className="text-[13px] text-ink2" style={{ direction: 'rtl' }}>
+              {meta.name}
+            </span>
           </span>
         </div>
       </div>

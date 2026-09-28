@@ -9,6 +9,8 @@ import { PageHeader, EmptyState, SkeletonRows, ErrorBlock } from '../components/
 import { Icon } from '../components/ui/Icon';
 import { setJuzCompleted } from '../store/slices/progressSlice';
 import { surahNumberToArabic } from '../lib/utils';
+import { useDownloadedSet } from '../services/useDownloads';
+import { todayKey } from '../lib/progression';
 import type { SurahMeta } from '../types';
 import { islamicQuoteOfTheDay } from '../data/quotes';
 
@@ -24,6 +26,9 @@ export default function BrowsePage() {
 
   const [tab, setTab] = useState<Tab>('surah');
   const [query, setQuery] = useState('');
+
+  // Which surahs are already stored for the reader's default reciter.
+  const downloaded = useDownloadedSet(defaultReciter);
 
   const q = query.trim().toLowerCase();
   const filtered = useMemo<SurahMeta[]>(() => {
@@ -43,8 +48,8 @@ export default function BrowsePage() {
     return juz.filter((j) => progress.juzCompleted[j.juz]).length;
   }, [juz, progress.juzCompleted]);
 
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const hasCheckedIn = !!progress.dailyActivity[todayKey];
+  const today = todayKey();
+  const hasCheckedIn = !!progress.dailyActivity[today];
   const checkInSurah = progress.lastPosition?.surah ?? 1;
   const dailyQuote = islamicQuoteOfTheDay(new Date());
   const streak = progress.progression.currentStreak;
@@ -161,6 +166,7 @@ export default function BrowsePage() {
                   meta={meta}
                   isActive={playing}
                   playState={playing ? (playerState.isPlaying ? 'playing' : 'paused') : undefined}
+                  downloaded={downloaded.has(meta.number)}
                   showPlay
                   onPlay={() => startPlay(meta)}
                 />

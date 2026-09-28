@@ -1,5 +1,5 @@
 import { useAppSelector } from '../../store';
-import { APP_NAME, APP_NAME_AR } from '../../lib/constants';
+import { APP_NAME, APP_NAME_AR, APP_TAGLINE } from '../../lib/constants';
 import { NavLink } from 'react-router-dom';
 import { Icon, type IconName } from '../ui/Icon';
 import { MihrabLogo } from '../ui/MihrabLogo';
@@ -54,7 +54,7 @@ export function Sidebar() {
         <div style={{ direction: 'rtl', textAlign: 'center' }} className="text-sm">
           بسم الله الرحمن الرحيم
         </div>
-        <div className="mt-1 text-center">Furqan · offline Qur’an</div>
+        <div className="mt-1 text-center">{APP_TAGLINE}</div>
       </div>
     </aside>
   );

@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Furqan — offline-first Quran app: reader, custom multi-surah playlists, audio player, sayings & quotes, progress tracking.",
+  "description": "Furqan Quran — read, listen and learn the Qur'an: reader, custom multi-surah playlists, audio player, sayings & quotes, progress tracking.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

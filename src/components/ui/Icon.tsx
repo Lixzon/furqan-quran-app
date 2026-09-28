@@ -45,6 +45,7 @@ export type IconName =
   | 'wifi'
   | 'chevronDown'
   | 'chevronRight'
+  | 'cloud'
   | 'snowflake'
   | 'user';
 
@@ -307,6 +308,11 @@ const ICONS: Record<IconName, ReactElement> = {
   ),
   chevronRight: (
     <path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+  ),
+  cloud: (
+    <S>
+      <path d="M6.5 18.5h11a3.5 3.5 0 0 0 0-7 5.5 5.5 0 0 0-10.6-1.6A3.9 3.9 0 0 0 6.5 18.5z" />
+    </S>
   ),
   snowflake: (
     <S>

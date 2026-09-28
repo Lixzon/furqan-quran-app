@@ -1,8 +1,8 @@
 import type { AccentId, Reciter, ScriptStyle } from '../types';
 
-export const APP_NAME = 'Furqan';
+export const APP_NAME = 'Furqan Quran';
 export const APP_NAME_AR = 'الفرقان';
-export const APP_TAGLINE = 'Offline Quran — read, listen, reflect';
+export const APP_TAGLINE = 'Read, Listen & Learn';
 
 export const MAX_PLAYLIST_ITEMS = 10;
 

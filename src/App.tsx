@@ -11,6 +11,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { Modal } from './components/ui/Modal';
 import { Icon } from './components/ui/Icon';
 import { RECITERS } from './lib/constants';
+import { APP_NAME, APP_TAGLINE } from './lib/constants';
 import { islamicQuoteOfTheDay } from './data/quotes';
 import { ProgressionHost } from './components/layout/ProgressionHost';
 
@@ -30,8 +31,8 @@ export default function App() {
 
   useEffect(() => {
     document.title = pathname.startsWith('/surah/')
-      ? 'Reading · Furqan'
-      : 'Furqan — Offline Qur’an';
+      ? `Reading · ${APP_NAME}`
+      : `${APP_NAME} — ${APP_TAGLINE}`;
   }, [pathname]);
 
   return (
@@ -119,7 +120,7 @@ function DefaultReciterOffer() {
 
   const reciter = RECITERS.find((item) => item.id === settings.defaultReciter) ?? RECITERS[0];
   return (
-    <Modal open={open} onClose={() => setOpen(false)} title="Offline recitation">
+    <Modal open={open} onClose={() => setOpen(false)} title="Download recitation">
       <p className="text-sm leading-relaxed text-mut">
         Download {reciter.label}’s complete recitation, approximately 700 MB, for offline listening. Best on Wi-Fi.
       </p>

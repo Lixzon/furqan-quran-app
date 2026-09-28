@@ -110,7 +110,7 @@ export default function DownloadsPage() {
   if (!quran.surahs) {
     return (
       <div className="page-enter">
-        <PageHeader title="Offline downloads" subtitle="Recitations stored on this device." />
+        <PageHeader title="Downloads" subtitle="Recitations stored on this device." />
         <EmptyState icon="download" title="Loading…" />
       </div>
     );
@@ -119,7 +119,7 @@ export default function DownloadsPage() {
   return (
     <div className="page-enter">
       <PageHeader
-        title="Offline downloads"
+        title="Downloads"
         subtitle="Store recitations on this device for listening without internet."
       />
 
