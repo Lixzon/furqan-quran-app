@@ -45,6 +45,8 @@
   --color-accentstrong: var(--q-accent-strong);
   --color-onaccent: var(--q-on-accent, #ffffff);
   --color-gold: var(--q-gold);
+  /* Ice tone for a day a Ruksah protected. */
+  --color-frozen: var(--q-frozen);
   --color-danger: var(--q-danger);
   --font-sans: var(--q-font-ui);
   --font-arabic: var(--q-font-arabic);
@@ -64,6 +66,7 @@
   --q-border: #dbe6e1;
   --q-border2: #c4d3cc;
   --q-gold: #b98a1e;
+  --q-frozen: #3b82c4;
   --q-danger: #dc2626;
   --q-shadow: 0 12px 32px -14px rgba(20, 60, 50, 0.28);
 }
@@ -78,6 +81,7 @@
   --q-border: #1f332c;
   --q-border2: #2d473d;
   --q-gold: #e3c15a;
+  --q-frozen: #7cc4f0;
   --q-danger: #f2605f;
   --q-shadow: 0 14px 36px -16px rgba(0, 0, 0, 0.72);
 }
@@ -92,6 +96,7 @@
   --q-border: #d8c9ac;
   --q-border2: #c8b795;
   --q-gold: #99712b;
+  --q-frozen: #3f6fa0;
   --q-danger: #b42318;
   --q-shadow: 0 12px 32px -14px rgba(60, 45, 25, 0.22);
 }
@@ -109,6 +114,7 @@
   --q-border: #2c2044;
   --q-border2: #3d2d5c;
   --q-gold: #e3c15a;
+  --q-frozen: #8fc7f5;
   --q-danger: #f2605f;
   --q-shadow: 0 14px 36px -16px rgba(0, 0, 0, 0.8);
 }
@@ -123,6 +129,7 @@
   --q-border: #e3d2a6;
   --q-border2: #d2bb85;
   --q-gold: #8a6410;
+  --q-frozen: #2f6ea8;
   --q-danger: #a12418;
   --q-shadow: 0 12px 32px -14px rgba(90, 70, 20, 0.28);
 }

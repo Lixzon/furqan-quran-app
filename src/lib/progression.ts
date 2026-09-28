@@ -94,6 +94,13 @@ export const ISTIQAMAH_MILESTONES = [25, 50, 75, 100];
 /** Total ayahs in the Qur'an, used for the yearly khatm estimate. */
 export const TOTAL_QURAN_AYAHS = 6236;
 
+/**
+ * Bumped whenever the rule for turning an instant into a day key changes.
+ * Version 1 was the UTC day; version 2 is the reader's local day. A stored
+ * state with no version predates this and was written under the UTC rule.
+ */
+export const DAY_KEY_VERSION = 2;
+
 export const emptyProgression: ProgressionState = {
   currentStreak: 0,
   highestStreak: 0,
@@ -106,6 +113,7 @@ export const emptyProgression: ProgressionState = {
   freezeNoticeFor: null,
   dailyGoalCelebratedDate: null,
   dailyListenMinutes: {},
+  dayKeyVersion: DAY_KEY_VERSION,
 };
 
 /** Field names used before the streak state was unified. */
@@ -116,6 +124,58 @@ interface LegacyProgression {
   claimedTiers?: number[];
   /** Missed-day consent prompt, dropped once freezes became automatic. */
   missedDayPromptedFor?: string | null;
+}
+
+/**
+ * Re-marks recent activity under the reader's local day.
+ *
+ * Before version 2 the ledger was keyed by the UTC day, so a reading taken in
+ * the small hours east of UTC (or late evening west of it) could be filed one
+ * day off. Left alone, that skew later reads as a phantom missed day and can
+ * silently spend a Ruksah. The activity log keeps real timestamps, so the
+ * correct local day can be re-derived from it.
+ *
+ * Additive only: marks are never removed. The log is capped and collapses
+ * repeated positions, so a missing entry is not proof that a day was empty —
+ * removing marks could destroy genuine history. A stale mark may therefore
+ * survive on a skewed day, which is cosmetic.
+ */
+export function withLocalDaysBackfilled(
+  dailyActivity: Record<string, boolean>,
+  activity: { at: number }[],
+): Record<string, boolean> {
+  const next = { ...dailyActivity };
+  for (const entry of activity) {
+    if (!Number.isFinite(entry?.at)) continue;
+    next[dateKey(new Date(entry.at))] = true;
+  }
+  return next;
+}
+
+/**
+ * Reconstructs the run of days ending on the latest recorded day at or before
+ * `today`. A day counts when it has activity, or when a Ruksah was spent on it,
+ * so freeze-protected days do not truncate the run.
+ */
+function runEndingAt(
+  dailyActivity: Record<string, boolean>,
+  freezeUsedDates: string[],
+  today: string,
+): { end: string | null; days: number } {
+  let end: string | null = null;
+  for (const key of [...Object.keys(dailyActivity), ...freezeUsedDates]) {
+    if (daysBetween(key, today) < 0) continue; // never anchor on a future day
+    if (end === null || daysBetween(end, key) > 0) end = key;
+  }
+  if (end === null) return { end: null, days: 0 };
+
+  let days = 0;
+  let cursor = end;
+  while (dailyActivity[cursor] || freezeUsedDates.includes(cursor)) {
+    days += 1;
+    cursor = shiftDateKey(cursor, -1);
+  }
+  return { end, days };
 }
 
 /**
@@ -147,18 +207,31 @@ export function migrateProgression(
   delete progression.missedDayPromptedFor;
 
   if (!progression.lastActiveDate) {
-    let run = 0;
-    let cursor = today;
-    while (dailyActivity[cursor]) {
-      run += 1;
-      cursor = shiftDateKey(cursor, -1);
+    // No anchor at all: rebuild the run from the ledger.
+    const run = runEndingAt(dailyActivity, progression.freezeUsedDates, today);
+    if (run.end) {
+      progression.currentStreak = run.days;
+      progression.lastActiveDate = run.end;
+      progression.highestStreak = Math.max(progression.highestStreak, run.days);
     }
-    if (run > 0) {
-      progression.currentStreak = run;
-      progression.lastActiveDate = today;
-      progression.highestStreak = Math.max(progression.highestStreak, run);
+  } else if ((source.dayKeyVersion ?? 1) < DAY_KEY_VERSION) {
+    // One-time repair for the UTC -> local day switch. Historical keys are left
+    // exactly as stored: rewriting them would be guesswork that could move or
+    // destroy a day of history. What the switch *can* break is the anchor — a
+    // reading logged under the old rule may sit one day off the local lattice,
+    // which would surface as a phantom missed day and silently spend a Ruksah.
+    // Re-deriving the run from the ledger settles the anchor onto the days that
+    // actually carry a mark. This depends on `withLocalDaysBackfilled` having
+    // already re-marked those days by local date.
+    const run = runEndingAt(dailyActivity, progression.freezeUsedDates, today);
+    if (run.end && run.days > 0) {
+      progression.lastActiveDate = run.end;
+      progression.currentStreak = run.days;
+      progression.highestStreak = Math.max(progression.highestStreak, run.days);
     }
   }
+
+  progression.dayKeyVersion = DAY_KEY_VERSION;
 
   return progression;
 }
@@ -222,15 +295,29 @@ export function countDailyActivity(progression: ProgressionState, today: string)
   return progression.currentStreak === 1 ? 'started' : 'continued';
 }
 
-/** ISO yyyy-mm-dd for a Date (local time, matching the activity log). */
+/**
+ * `yyyy-mm-dd` in the reader's own calendar.
+ *
+ * This must use the local date parts rather than `toISOString()`: the ISO form
+ * is UTC, so for a reader in Jakarta or Karachi the reading day would roll over
+ * mid-morning local time and a late-evening session could land on the wrong day.
+ */
 export function dateKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function todayKey(): string {
   return dateKey(new Date());
 }
 
+/**
+ * Shifts a day key by a number of days. This is pure calendar arithmetic on the
+ * key itself, not on an instant, so the UTC internals are correct and
+ * deliberate — do not "fix" them to local time.
+ */
 export function shiftDateKey(key: string, days: number): string {
   const [year, month, day] = key.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
@@ -280,6 +367,8 @@ export interface WeekDay {
   isToday: boolean;
   /** The day is later this week and has not arrived yet. */
   isFuture: boolean;
+  /** The day carries no activity of its own but a Ruksah covered it. */
+  frozen: boolean;
 }
 
 /** Weekday initials for a Monday-first week, matching the hub's "M T W T F S S". */
@@ -287,9 +376,15 @@ const MONDAY_FIRST_INITIALS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 /**
  * The current week, Monday through Sunday, so the strip always reads
- * "M T W T F S S". Days that have not arrived yet are marked as future.
+ * "M T W T F S S". Days that have not arrived yet are marked as future, and
+ * days a Ruksah protected are reported as `frozen` so the strip agrees with the
+ * streak counter instead of showing a bare gap.
  */
-export function weeklyStrip(dailyActivity: Record<string, boolean>, today: string): WeekDay[] {
+export function weeklyStrip(
+  dailyActivity: Record<string, boolean>,
+  freezeUsedDates: string[],
+  today: string,
+): WeekDay[] {
   const [year, month, day] = today.split('-').map(Number);
   const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay(); // 0 = Sunday
   const monday = shiftDateKey(today, -((weekday + 6) % 7));
@@ -297,12 +392,15 @@ export function weeklyStrip(dailyActivity: Record<string, boolean>, today: strin
   const strip: WeekDay[] = [];
   for (let index = 0; index < 7; index++) {
     const key = shiftDateKey(monday, index);
+    const done = Boolean(dailyActivity[key]);
     strip.push({
       key,
       label: MONDAY_FIRST_INITIALS[index],
-      done: Boolean(dailyActivity[key]),
+      done,
       isToday: key === today,
       isFuture: daysBetween(today, key) > 0,
+      // Activity always wins, so a day that was both read and frozen reads as done.
+      frozen: !done && freezeUsedDates.includes(key),
     });
   }
   return strip;

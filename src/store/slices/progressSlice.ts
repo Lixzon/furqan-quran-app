@@ -3,11 +3,13 @@ import type { ActivityEntry, ProgressState } from '../../types';
 import { loadState } from '../persist';
 import { KEYS } from '../persist';
 import {
+  DAY_KEY_VERSION,
   ISTIQAMAH_MILESTONES,
   countDailyActivity,
   emptyProgression,
   migrateProgression,
   todayKey,
+  withLocalDaysBackfilled,
 } from '../../lib/progression';
 
 const empty: ProgressState = {
@@ -26,11 +28,29 @@ const empty: ProgressState = {
 
 const stored = loadState<ProgressState>(KEYS.progress, empty);
 
+/**
+ * States written before version 2 keyed their days by UTC. Re-mark the recent
+ * activity by local day first, so the streak migration has correct days to
+ * settle onto.
+ */
+function withDayKeysMigrated(state: ProgressState): ProgressState {
+  if ((state.progression?.dayKeyVersion ?? 1) >= DAY_KEY_VERSION) return state;
+  return {
+    ...state,
+    dailyActivity: withLocalDaysBackfilled(state.dailyActivity ?? {}, state.activity ?? []),
+  };
+}
+
 // Normalise legacy field names (longestStreak/lastGoalDate/freezes/claimedTiers)
 // into the unified streak state on first load.
+const initialised = withDayKeysMigrated(stored);
 const initialState: ProgressState = {
-  ...stored,
-  progression: migrateProgression(stored.progression, stored.dailyActivity ?? {}, todayKey()),
+  ...initialised,
+  progression: migrateProgression(
+    initialised.progression,
+    initialised.dailyActivity ?? {},
+    todayKey(),
+  ),
 };
 
 function dateKey(at: number): string {
@@ -61,12 +81,12 @@ const progressSlice = createSlice({
     restoreProgress(_state, action: PayloadAction<ProgressState>) {
       // Merge over defaults and normalise legacy streak keys so backups written
       // before the streak state was unified still restore cleanly.
-      const restored = { ...empty, ...action.payload };
+      const merged = withDayKeysMigrated({ ...empty, ...action.payload });
       return {
-        ...restored,
+        ...merged,
         progression: migrateProgression(
           action.payload?.progression,
-          restored.dailyActivity ?? {},
+          merged.dailyActivity ?? {},
           todayKey(),
         ),
       };

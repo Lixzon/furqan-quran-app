@@ -10,6 +10,7 @@ import {
 } from '../../lib/progression';
 import { Icon } from './Icon';
 import { StreakFlame } from './StreakFlame';
+import { WeekStrip } from './WeekStrip';
 
 /**
  * Streak hub: the header flame plus its quick-view popover.
@@ -30,7 +31,7 @@ export function StreakHub() {
   // The streak's own definition of a counted day, so the flame and the number
   // can never disagree.
   const doneToday = progression.lastActiveDate === today;
-  const strip = weeklyStrip(dailyActivity, today);
+  const strip = weeklyStrip(dailyActivity, progression.freezeUsedDates, today);
   const upcoming = nextTier(progression.currentStreak);
   const toGo = upcoming ? Math.max(0, upcoming.days - progression.currentStreak) : 0;
 
@@ -93,6 +94,20 @@ export function StreakHub() {
             </span>
           </div>
 
+          {!doneToday && progression.currentStreak > 0 && (
+            <p
+              className={`mt-3 rounded-xl border px-3 py-2 text-[11px] leading-relaxed text-ink ${
+                progression.streakFreezes > 0
+                  ? 'border-frozen/35 bg-frozen/10'
+                  : 'border-danger/35 bg-danger/10'
+              }`}
+            >
+              {progression.streakFreezes > 0
+                ? '⚠️ No reading recorded today — a Ruksah will automatically protect your streak.'
+                : '⚠️ No Ruksah remaining! Read today to keep your streak alive.'}
+            </p>
+          )}
+
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="rounded-xl bg-surface2 px-3 py-2">
               <div className="text-[10px] font-semibold uppercase tracking-widest text-mut">Current</div>
@@ -112,24 +127,7 @@ export function StreakHub() {
 
           <div className="mt-4">
             <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-mut">This week</div>
-            <div className="flex items-center justify-between gap-1">
-              {strip.map((day) => (
-                <div key={day.key} className="flex flex-1 flex-col items-center gap-1">
-                  <span className="text-[10px] font-semibold text-mut">{day.label}</span>
-                  <span
-                    className={`flex h-7 w-7 items-center justify-center rounded-full border ${
-                      day.done
-                        ? 'border-accent bg-accent text-onaccent'
-                        : day.isFuture
-                          ? 'border-dashed border-line text-mut'
-                          : 'border-line2 text-mut'
-                    } ${day.isToday ? 'ring-2 ring-accent/40' : ''}`}
-                  >
-                    {day.done && <Icon name="check" size={13} />}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <WeekStrip days={strip} size="sm" />
           </div>
 
           <div className="mt-4 rounded-xl border border-accent/25 bg-accent/8 px-3 py-2">

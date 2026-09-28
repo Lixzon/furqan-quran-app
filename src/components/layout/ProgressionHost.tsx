@@ -14,6 +14,7 @@ import { push } from '../../store/slices/toastSlice';
 import { setAccent, setMode } from '../../store/slices/themeSlice';
 import { Modal } from '../ui/Modal';
 import { Icon } from '../ui/Icon';
+import { WeekStrip } from '../ui/WeekStrip';
 import {
   BADGE_TONES,
   TIERS,
@@ -122,7 +123,7 @@ export function ProgressionHost() {
 
   if (dailyGoalJustMet) {
     const quote = islamicQuoteOfTheDay(new Date());
-    const strip = weeklyStrip(progress.dailyActivity, today);
+    const strip = weeklyStrip(progress.dailyActivity, progression.freezeUsedDates, today);
     return (
       <Modal open onClose={() => dispatch(markDailyCelebrated({ date: today }))} title="Today is complete">
         <div className="text-center">
@@ -131,19 +132,8 @@ export function ProgressionHost() {
           <div className="text-xs font-semibold uppercase tracking-widest text-mut">day streak</div>
         </div>
 
-        <div className="mt-5 flex items-center justify-between gap-1">
-          {strip.map((day) => (
-            <div key={day.key} className="flex flex-1 flex-col items-center gap-1">
-              <span className="text-[10px] font-semibold text-mut">{day.label}</span>
-              <span
-                className={`flex h-8 w-8 items-center justify-center rounded-full border ${
-                  day.done ? 'border-accent bg-accent text-onaccent' : 'border-line2 text-mut'
-                } ${day.isToday ? 'ring-2 ring-accent/40' : ''}`}
-              >
-                {day.done && <Icon name="check" size={14} />}
-              </span>
-            </div>
-          ))}
+        <div className="mt-5">
+          <WeekStrip days={strip} />
         </div>
 
         <div className="mt-5 rounded-2xl border border-accent/25 bg-accent/8 p-3">

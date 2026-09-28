@@ -134,6 +134,11 @@ export interface ProgressionState {
   dailyGoalCelebratedDate: string | null;
   /** Minutes of recitation listened per ISO date. */
   dailyListenMinutes: Record<string, number>;
+  /**
+   * Which day-key rule wrote this state. 1 = UTC days (legacy), 2 = local days.
+   * Used to run the UTC -> local repair exactly once per install.
+   */
+  dayKeyVersion: number;
 }
 
 /* ---------------- quotes ---------------- */
