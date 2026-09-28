@@ -79,16 +79,17 @@ export const BADGE_TONES: Record<TierDefinition['badge'], string> = {
   master: '#f0c53f',
 };
 
-/** Max streak freezes a reader can hold. */
+/** Max Ruksah (streak freezes) a reader can hold. Running out is possible. */
 export const FREEZE_CAP = 2;
 
-/** Reading days required to earn one freeze. */
-export const FREEZE_EVERY_DAYS = 7;
+/** Ruksah are awarded once a full month of consistency has been kept. */
+export const FREEZE_AWARD_EVERY_DAYS = 30;
+
+/** Ruksah granted per award, subject to {@link FREEZE_CAP}. */
+export const FREEZE_AWARD_AMOUNT = 2;
 
 /** Milestones where the reader is invited to choose their next goal. */
 export const ISTIQAMAH_MILESTONES = [25, 50, 75, 100];
-
-export const FREEZE_STEP = 1;
 
 /** Total ayahs in the Qur'an, used for the yearly khatm estimate. */
 export const TOTAL_QURAN_AYAHS = 6236;
@@ -102,7 +103,7 @@ export const emptyProgression: ProgressionState = {
   unlockedTiers: [],
   istiqamahGoal: ISTIQAMAH_MILESTONES[0],
   celebratedMilestones: [],
-  missedDayPromptedFor: null,
+  freezeNoticeFor: null,
   dailyGoalCelebratedDate: null,
   dailyListenMinutes: {},
 };
@@ -113,6 +114,8 @@ interface LegacyProgression {
   lastGoalDate?: string | null;
   freezes?: number;
   claimedTiers?: number[];
+  /** Missed-day consent prompt, dropped once freezes became automatic. */
+  missedDayPromptedFor?: string | null;
 }
 
 /**
@@ -140,6 +143,8 @@ export function migrateProgression(
   delete progression.lastGoalDate;
   delete progression.freezes;
   delete progression.claimedTiers;
+  // The consent prompt is gone: Ruksah are now spent automatically.
+  delete progression.missedDayPromptedFor;
 
   if (!progression.lastActiveDate) {
     let run = 0;
@@ -165,29 +170,38 @@ export type StreakOutcome =
   | 'continued'
   /** First day, or a new run after a gap. */
   | 'started'
-  /** One day was missed and a Ruksah is available — ask before spending it. */
-  | 'missed-needs-freeze';
+  /** One day was missed and a Ruksah was spent automatically to bridge it. */
+  | 'freeze-used';
 
 /**
  * The single place streak maths happens. Called by every activity recorder
  * (`rememberRead`, `rememberListened`) and by `recordDailyActivity`.
  *
  * Mutates the passed state so it works for both Immer drafts and plain objects.
- * When a day was missed but a Ruksah is available it changes nothing and
- * reports `missed-needs-freeze`, so the reader can consent first.
+ *
+ * A Ruksah is spent automatically: when exactly one day was missed and the
+ * reader has one in stock, it is consumed to bridge that day so the streak
+ * survives without any prompt. The reader is told afterwards via
+ * `freezeNoticeFor`, which the streak hub turns into a notice.
  */
 export function countDailyActivity(progression: ProgressionState, today: string): StreakOutcome {
   if (progression.lastActiveDate === today) return 'already-counted';
 
   const yesterday = shiftDateKey(today, -1);
   const twoDaysAgo = shiftDateKey(today, -2);
+  let protectedDay: string | null = null;
 
   if (progression.lastActiveDate === null) {
     progression.currentStreak = 1;
   } else if (progression.lastActiveDate === yesterday) {
     progression.currentStreak += 1;
   } else if (progression.lastActiveDate === twoDaysAgo && progression.streakFreezes > 0) {
-    return 'missed-needs-freeze';
+    // A Ruksah covers exactly one missed day; longer gaps restart the run.
+    progression.streakFreezes -= 1;
+    if (!progression.freezeUsedDates.includes(yesterday)) progression.freezeUsedDates.push(yesterday);
+    progression.freezeNoticeFor = yesterday;
+    progression.currentStreak += 1;
+    protectedDay = yesterday;
   } else {
     progression.currentStreak = 1;
   }
@@ -195,29 +209,17 @@ export function countDailyActivity(progression: ProgressionState, today: string)
   progression.lastActiveDate = today;
   progression.highestStreak = Math.max(progression.highestStreak, progression.currentStreak);
 
-  // A full week of consistency earns one Ruksah.
-  if (progression.currentStreak % FREEZE_EVERY_DAYS === 0 && progression.streakFreezes < FREEZE_CAP) {
-    progression.streakFreezes += 1;
+  // A full month of consistency earns a fresh set of Ruksah, up to the cap.
+  if (
+    progression.currentStreak > 0 &&
+    progression.currentStreak % FREEZE_AWARD_EVERY_DAYS === 0 &&
+    progression.streakFreezes < FREEZE_CAP
+  ) {
+    progression.streakFreezes = Math.min(FREEZE_CAP, progression.streakFreezes + FREEZE_AWARD_AMOUNT);
   }
 
+  if (protectedDay) return 'freeze-used';
   return progression.currentStreak === 1 ? 'started' : 'continued';
-}
-
-/** Bridge a single missed day with a Ruksah. */
-export function consumeStreakFreeze(progression: ProgressionState, today: string): void {
-  if (progression.streakFreezes <= 0) return;
-  const yesterday = shiftDateKey(today, -1);
-  progression.streakFreezes -= 1;
-  if (!progression.freezeUsedDates.includes(yesterday)) progression.freezeUsedDates.push(yesterday);
-  progression.lastActiveDate = yesterday;
-  progression.missedDayPromptedFor = yesterday;
-}
-
-/** Restart the run after a missed day the reader chose not to freeze. */
-export function restartStreak(progression: ProgressionState, today: string): void {
-  progression.currentStreak = 1;
-  progression.lastActiveDate = today;
-  progression.highestStreak = Math.max(progression.highestStreak, 1);
 }
 
 /** ISO yyyy-mm-dd for a Date (local time, matching the activity log). */
@@ -276,19 +278,32 @@ export interface WeekDay {
   label: string;
   done: boolean;
   isToday: boolean;
+  /** The day is later this week and has not arrived yet. */
+  isFuture: boolean;
 }
 
+/** Weekday initials for a Monday-first week, matching the hub's "M T W T F S S". */
+const MONDAY_FIRST_INITIALS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
 /**
- * A seven-day strip ending today, labelled with weekday initials so the
- * sequence always reads in calendar order (Mon…Sun when today is Sunday).
+ * The current week, Monday through Sunday, so the strip always reads
+ * "M T W T F S S". Days that have not arrived yet are marked as future.
  */
 export function weeklyStrip(dailyActivity: Record<string, boolean>, today: string): WeekDay[] {
+  const [year, month, day] = today.split('-').map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay(); // 0 = Sunday
+  const monday = shiftDateKey(today, -((weekday + 6) % 7));
+
   const strip: WeekDay[] = [];
-  for (let offset = 6; offset >= 0; offset--) {
-    const key = shiftDateKey(today, -offset);
-    const [year, month, day] = key.split('-').map(Number);
-    const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
-    strip.push({ key, label: WEEKDAY_INITIALS[weekday], done: Boolean(dailyActivity[key]), isToday: key === today });
+  for (let index = 0; index < 7; index++) {
+    const key = shiftDateKey(monday, index);
+    strip.push({
+      key,
+      label: MONDAY_FIRST_INITIALS[index],
+      done: Boolean(dailyActivity[key]),
+      isToday: key === today,
+      isFuture: daysBetween(today, key) > 0,
+    });
   }
   return strip;
 }

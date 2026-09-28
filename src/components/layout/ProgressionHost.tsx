@@ -5,13 +5,12 @@ import {
   addListenMinute,
   claimTier,
   celebrateMilestone,
-  declineStreakFreeze,
-  dismissMissedDay,
+  clearFreezeNotice,
   markDailyCelebrated,
   recordDailyActivity,
   setIstiqamahGoal,
-  useStreakFreeze,
 } from '../../store/slices/progressSlice';
+import { push } from '../../store/slices/toastSlice';
 import { setAccent, setMode } from '../../store/slices/themeSlice';
 import { Modal } from '../ui/Modal';
 import { Icon } from '../ui/Icon';
@@ -21,7 +20,6 @@ import {
   earnedBadge,
   goalOptions,
   pendingMilestone,
-  shiftDateKey,
   todayKey,
   weeklyStrip,
   type TierDefinition,
@@ -51,25 +49,22 @@ export function ProgressionHost() {
     return () => window.clearInterval(timer);
   }, [isPlaying, today]);
 
-  const twoDaysAgo = shiftDateKey(today, -2);
-
-  /**
-   * Yesterday was missed when the last completed day was the day before
-   * yesterday. A Ruksah covers a single day, so longer gaps restart the streak.
-   */
-  const missedDay =
-    progression.lastActiveDate === twoDaysAgo &&
-    progression.streakFreezes > 0 &&
-    progression.missedDayPromptedFor !== twoDaysAgo
-      ? twoDaysAgo
-      : null;
-
-  // Count today only once the reader has decided about a pending Ruksah,
-  // otherwise counting today would reset the streak before the prompt appears.
   useEffect(() => {
-    if (missedDay) return;
     dispatch(recordDailyActivity({ today }));
-  }, [dispatch, today, progress.dailyActivity, missedDay]);
+  }, [dispatch, today, progress.dailyActivity]);
+
+  // A Ruksah spent automatically is reported once, then the flag is cleared.
+  const freezeNotice = progression.freezeNoticeFor;
+  useEffect(() => {
+    if (!freezeNotice) return;
+    dispatch(
+      push(
+        `A Ruksah protected your streak. You have ${progression.streakFreezes} left.`,
+        'info',
+      ),
+    );
+    dispatch(clearFreezeNotice());
+  }, [dispatch, freezeNotice, progression.streakFreezes]);
 
   const tierToCelebrate = useMemo(() => {
     const reached = TIERS.filter((tier) => progression.currentStreak >= tier.days);
@@ -87,42 +82,6 @@ export function ProgressionHost() {
     if (tier.theme?.mode) dispatch(setMode(tier.theme.mode));
     if (tier.theme?.accent) dispatch(setAccent(tier.theme.accent));
   };
-
-  if (missedDay) {
-    return (
-      <Modal open onClose={() => dispatch(dismissMissedDay({ date: missedDay }))} title="You missed yesterday">
-        <p className="text-sm leading-relaxed text-mut">
-          Yesterday passed without reading, so your <b className="text-ink">{progression.currentStreak}-day</b>{' '}
-          streak is at risk. Your last completed day was {missedDay}. Using a Ruksah (streak freeze)
-          preserves the streak as though yesterday had been completed.
-        </p>
-        <p className="mt-3 text-xs leading-relaxed text-mut">
-          Ruksah is a concession, not a shortcut. You have {progression.streakFreezes} freeze
-          {progression.streakFreezes === 1 ? '' : 's'} remaining, and earn one more for every full week of consistency.
-        </p>
-        <div className="mt-5 grid gap-2">
-          <button
-            type="button"
-            onClick={() => dispatch(useStreakFreeze({ today }))}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-onaccent pressable"
-          >
-            <Icon name="check" size={16} /> Use a Streak Freeze ({progression.streakFreezes} left)
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              dispatch(dismissMissedDay({ date: missedDay }));
-              // Declining the Ruksah restarts the run from today.
-              dispatch(declineStreakFreeze({ today }));
-            }}
-            className="rounded-full px-4 py-2 text-sm font-medium text-mut"
-          >
-            Not now
-          </button>
-        </div>
-      </Modal>
-    );
-  }
 
   if (tierToCelebrate) {
     return (

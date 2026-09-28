@@ -2,37 +2,24 @@ import { useAppSelector } from '../../store';
 import { BADGE_TONES, earnedBadge } from '../../lib/progression';
 
 /**
- * Header streak indicator.
+ * The flame itself, shared by the header hub.
  *
- * Reads the unified streak state (`progress.progression`) directly, so the
- * flame, the daily popup, the weekly strip, the dashboard and the tier list all
- * render from one source of truth.
+ * `lit` is the single visual switch: badge-tinted and glowing once today's
+ * reading goal has been met, flat grey until then. Presentational only —
+ * `StreakHub` owns the click target, the label and the popover.
  */
-export function StreakFlame() {
+export function StreakFlame({ lit }: { lit: boolean }) {
   const progression = useAppSelector((state) => state.progress.progression);
-  if (progression.currentStreak <= 0) return null;
-
   const badge = earnedBadge(progression.currentStreak);
-  const label =
-    `${progression.currentStreak}-day streak` +
-    (progression.streakFreezes > 0
-      ? `, ${progression.streakFreezes} streak freeze${progression.streakFreezes === 1 ? '' : 's'} available`
-      : '');
 
   return (
     <span
-      title={label}
-      aria-label={label}
-      className="inline-flex items-center gap-1 rounded-full bg-surface2 px-2.5 py-1 text-xs font-semibold tabular-nums text-ink"
+      className={`inline-flex items-center gap-1 text-sm font-semibold tabular-nums ${
+        lit ? 'streak-flame-on' : 'streak-flame-off'
+      }`}
+      style={lit ? { color: badge ? BADGE_TONES[badge] : 'var(--q-accent)' } : undefined}
     >
-      <svg
-        viewBox="0 0 24 24"
-        width={14}
-        height={14}
-        fill="currentColor"
-        aria-hidden="true"
-        style={{ color: badge ? BADGE_TONES[badge] : 'var(--q-accent)' }}
-      >
+      <svg viewBox="0 0 24 24" width={16} height={16} fill="currentColor" aria-hidden="true">
         <path d="M12 2c.7 3.2-1.1 4.6-2.6 6C7.7 9.5 6 11.2 6 14.2A6 6 0 0 0 18 14.2c0-1.9-.8-3.2-1.7-4.3-.4 1-1 1.7-1.8 2.1.5-2-.3-4.6-2.5-6.4z" />
       </svg>
       {progression.currentStreak}

@@ -509,6 +509,16 @@ button {
 }
 
 /* ---------- Istiqamah progression flair ---------- */
+/* Header flame: lit and glowing once today's goal is met, flat grey until then. */
+.streak-flame-on svg {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 60%, transparent));
+  animation: q-flame 2.6s ease-in-out infinite;
+  transform-origin: 50% 88%;
+}
+.streak-flame-off {
+  color: var(--q-muted);
+  opacity: 0.7;
+}
 .flame-badge svg {
   filter: drop-shadow(0 6px 14px color-mix(in srgb, currentColor 45%, transparent));
   animation: q-flame 2.6s ease-in-out infinite;

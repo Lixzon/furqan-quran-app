@@ -125,8 +125,11 @@ export interface ProgressionState {
   istiqamahGoal: number;
   /** Milestone thresholds already offered. */
   celebratedMilestones: number[];
-  /** Missed-day prompt already shown for this date. */
-  missedDayPromptedFor: string | null;
+  /**
+   * Date a Ruksah was spent on, awaiting the "your streak was protected"
+   * notice. Cleared once the notice has been shown.
+   */
+  freezeNoticeFor: string | null;
   /** Daily completion popup already shown for this date. */
   dailyGoalCelebratedDate: string | null;
   /** Minutes of recitation listened per ISO date. */

@@ -4,11 +4,9 @@ import { loadState } from '../persist';
 import { KEYS } from '../persist';
 import {
   ISTIQAMAH_MILESTONES,
-  consumeStreakFreeze,
   countDailyActivity,
   emptyProgression,
   migrateProgression,
-  restartStreak,
   todayKey,
 } from '../../lib/progression';
 
@@ -120,18 +118,12 @@ const progressSlice = createSlice({
       countDailyActivity(state.progression, today);
     },
 
-    /** Spend a Ruksah to protect the streak across a single missed day. */
-    useStreakFreeze(state, action: PayloadAction<{ today: string }>) {
-      consumeStreakFreeze(state.progression, action.payload.today);
-    },
-
-    /** The reader declined the Ruksah: start a fresh run from today. */
-    declineStreakFreeze(state, action: PayloadAction<{ today: string }>) {
-      restartStreak(state.progression, action.payload.today);
-    },
-
-    dismissMissedDay(state, action: PayloadAction<{ date: string }>) {
-      state.progression.missedDayPromptedFor = action.payload.date;
+    /**
+     * The streak was protected by a Ruksah; the reader has been told, so the
+     * pending notice can be cleared.
+     */
+    clearFreezeNotice(state) {
+      state.progression.freezeNoticeFor = null;
     },
 
     markDailyCelebrated(state, action: PayloadAction<{ date: string }>) {
@@ -199,9 +191,7 @@ export const {
   clearAllProgress,
   recordQuoteView,
   recordDailyActivity,
-  useStreakFreeze,
-  declineStreakFreeze,
-  dismissMissedDay,
+  clearFreezeNotice,
   markDailyCelebrated,
   claimTier,
   setIstiqamahGoal,

@@ -4,6 +4,7 @@ import { Outlet } from 'react-router-dom';
 import { useAppSelector } from '../../store';
 import { Sidebar, MobileNav } from './nav';
 import { MiniPlayer } from './MiniPlayer';
+import { TopBar } from './TopBar';
 
 export function AppLayout() {
   const readingMode = useAppSelector((s) => s.settings.readingMode);
@@ -18,8 +19,9 @@ export function AppLayout() {
     <div className="min-h-dvh bg-canvas text-ink">
       {!readingMode && <Sidebar />}
       <div className={readingMode ? '' : 'md:pl-60'}>
+        <TopBar />
         <main
-          className={`safe-t mx-auto w-full max-w-3xl px-4 pt-6 ${readingMode ? 'layout-bottom-reading' : 'layout-bottom-default'}`}
+          className={`mx-auto w-full max-w-3xl px-4 ${readingMode ? 'safe-t pt-6' : 'pt-4'} ${readingMode ? 'layout-bottom-reading' : 'layout-bottom-default'}`}
         >
           <Outlet />
         </main>
