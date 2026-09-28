@@ -172,8 +172,12 @@ body,
 #root {
   height: 100%;
 }
-button {
+button,
+[role='button'] {
   touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 @media (pointer: coarse) {
   button {

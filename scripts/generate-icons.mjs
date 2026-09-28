@@ -172,6 +172,7 @@ async function run() {
     ['icon-192.png', 192, 0.8, false],
     ['icon-512.png', 512, 0.8, false],
     ['maskable-512.png', 512, 0.58, true],
+    ['maskable-192.png', 192, 0.58, true],
     ['apple-touch-icon.png', 180, 0.8, false],
   ];
   for (const [name, size, scale, maskable] of jobs) {

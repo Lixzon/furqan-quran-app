@@ -47,9 +47,18 @@ class PlayerController {
         store.dispatch(patch({ duration: el.duration }));
       }
     });
-    el.addEventListener('play', () => store.dispatch(patch({ isPlaying: true, buffering: false })));
-    el.addEventListener('playing', () => store.dispatch(patch({ isPlaying: true, buffering: false })));
-    el.addEventListener('pause', () => store.dispatch(patch({ isPlaying: false, buffering: false })));
+    el.addEventListener('play', () => {
+      store.dispatch(patch({ isPlaying: true, buffering: false }));
+      this.syncPlaybackState('playing');
+    });
+    el.addEventListener('playing', () => {
+      store.dispatch(patch({ isPlaying: true, buffering: false }));
+      this.syncPlaybackState('playing');
+    });
+    el.addEventListener('pause', () => {
+      store.dispatch(patch({ isPlaying: false, buffering: false }));
+      this.syncPlaybackState('paused');
+    });
     el.addEventListener('waiting', () => store.dispatch(patch({ buffering: true })));
     el.addEventListener('canplay', () => store.dispatch(patch({ buffering: false })));
     el.addEventListener('ended', () => this.onEnded());
@@ -191,7 +200,24 @@ class PlayerController {
     ms.setActionHandler('seekto', (details) => {
       if (details.seekTime !== undefined) this.seek(details.seekTime);
     });
+    ms.setActionHandler('seekbackward', (details) => {
+      this.seek(this.getState().currentTime - (details.seekOffset ?? 10));
+    });
+    ms.setActionHandler('seekforward', (details) => {
+      this.seek(this.getState().currentTime + (details.seekOffset ?? 10));
+    });
     ms.setActionHandler('stop', () => this.stop());
+  }
+
+  /** Reflect transport state to the OS (lock screen, notification shade, Bluetooth). */
+  private syncPlaybackState(state: 'none' | 'paused' | 'playing'): void {
+    const ms = typeof navigator !== 'undefined' ? navigator.mediaSession : undefined;
+    if (!ms) return;
+    try {
+      ms.playbackState = state;
+    } catch {
+      /* not supported on this platform */
+    }
   }
 
   /* ------------------------------------------- timing / highlight ---- */
@@ -469,6 +495,7 @@ class PlayerController {
     }
     el.pause();
     el.currentTime = 0;
+    this.syncPlaybackState('none');
     this.revokeUrl();
     this.patch({
       isPlaying: false,

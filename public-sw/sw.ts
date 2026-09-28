@@ -1,7 +1,7 @@
 import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
 import { registerRoute, NavigationRoute, setCatchHandler } from 'workbox-routing';
 import { matchPrecache } from 'workbox-precaching';
-import { CacheFirst } from 'workbox-strategies';
+import { StaleWhileRevalidate } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 
 // Furqan service worker (injectManifest build — bundled by Vite).
@@ -27,11 +27,13 @@ setCatchHandler(async ({ request }) => {
   return Response.error();
 });
 
-// Bundled Qur’an JSON (large, immutable) — cache first after the first visit.
+// Bundled Qur’an JSON. The install-time precache above already stores the full
+// offline set; this route keeps any non-precached text fresh with
+// stale-while-revalidate so previously opened surahs stay readable offline.
 registerRoute(
   ({ url }) => url.pathname.startsWith('/data/'),
-  new CacheFirst({
-    cacheName: 'quran-data',
+  new StaleWhileRevalidate({
+    cacheName: 'quran-data-v2',
     plugins: [
       new ExpirationPlugin({ maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 365 }),
     ],

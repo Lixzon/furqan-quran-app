@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "verify:pwa": "node scripts/verify-pwa.mjs",
     "preview": "vite preview",
     "data:fetch": "node scripts/fetch-quran.mjs && node scripts/normalize-basmala.mjs",
     "data:timing": "node scripts/fetch-audio-timing.mjs",
