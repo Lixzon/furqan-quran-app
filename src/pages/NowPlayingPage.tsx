@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store';
 import { player } from '../audio/controller';
@@ -28,6 +28,8 @@ export default function NowPlayingPage() {
   const [queueOpen, setQueueOpen] = useState(false);
   const [dlProgress, setDlProgress] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [previousArtwork, setPreviousArtwork] = useState<number | null>(null);
+  const previousSurahRef = useRef(p.surah);
   const storage = useStorageStats();
 
   const meta = p.surah ? quran.surahById(p.surah) : undefined;
@@ -39,6 +41,14 @@ export default function NowPlayingPage() {
     const t = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(t);
   }, [p.sleepTimer]);
+
+  useEffect(() => {
+    if (previousSurahRef.current === p.surah) return;
+    setPreviousArtwork(previousSurahRef.current);
+    previousSurahRef.current = p.surah;
+    const timer = window.setTimeout(() => setPreviousArtwork(null), 360);
+    return () => window.clearTimeout(timer);
+  }, [p.surah]);
 
   const queueEntries = useMemo(() => {
     return p.order.map((queueIdx, pos) => ({
@@ -115,7 +125,10 @@ export default function NowPlayingPage() {
       </div>
       {/* artwork */}
       <div className={`now-playing-art relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent to-accentstrong p-6 text-onaccent shadow-card ${p.isPlaying ? 'now-playing-art-active' : ''}`}>
-        <SurahArtwork surah={p.surah} className="opacity-90" />
+        {previousArtwork !== null && (
+          <SurahArtwork key={`previous-${previousArtwork}`} surah={previousArtwork} className="now-playing-art-out opacity-90" />
+        )}
+        <SurahArtwork key={`current-${p.surah}`} surah={p.surah} className="now-playing-art-in opacity-90" />
         <div className="now-playing-wash pointer-events-none absolute inset-0" />
         <div className="relative z-10">
           <div className="flex items-start justify-between">

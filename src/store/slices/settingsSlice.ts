@@ -13,6 +13,8 @@ const initialState: SettingsState = loadState<SettingsState>(KEYS.settings, {
   readingMode: false,
   defaultReciter: DEFAULT_RECITER,
   followAudio: true,
+  hasOfferedDefaultReciterDownload: false,
+  wifiDownloadPending: false,
   notifications: {
     daily: false,
     fridayKahf: false,
@@ -25,6 +27,9 @@ const settingsSlice = createSlice({
   name: 'settings',
   initialState,
   reducers: {
+    restoreSettings(_state, action: PayloadAction<SettingsState>) {
+      return action.payload;
+    },
     setShowArabic(state, action: PayloadAction<boolean>) {
       state.showArabic = action.payload;
     },
@@ -49,6 +54,12 @@ const settingsSlice = createSlice({
     setFollowAudio(state, action: PayloadAction<boolean>) {
       state.followAudio = action.payload;
     },
+    setDefaultReciterOfferSeen(state) {
+      state.hasOfferedDefaultReciterDownload = true;
+    },
+    setWifiDownloadPending(state, action: PayloadAction<boolean>) {
+      state.wifiDownloadPending = action.payload;
+    },
     setNotificationPreference(
       state,
       action: PayloadAction<{ key: 'daily' | 'fridayKahf' | 'nightlyMulk'; enabled: boolean }>,
@@ -62,6 +73,7 @@ const settingsSlice = createSlice({
 });
 
 export const {
+  restoreSettings,
   setShowArabic,
   setShowTransliteration,
   setShowTranslation,
@@ -70,6 +82,8 @@ export const {
   setReadingMode,
   setDefaultReciter,
   setFollowAudio,
+  setDefaultReciterOfferSeen,
+  setWifiDownloadPending,
   setNotificationPreference,
   setReminderTime,
 } = settingsSlice.actions;

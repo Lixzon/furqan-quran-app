@@ -7,22 +7,20 @@ import { useQuran } from '../data/QuranProvider';
 import { rememberRead } from '../store/slices/progressSlice';
 import {
   setArabicFontScale,
-  setDefaultReciter,
-  setFollowAudio,
   setReadingMode,
-  setScript,
   setShowArabic,
   setShowTransliteration,
   setShowTranslation,
 } from '../store/slices/settingsSlice';
-import { SCRIPT_STYLES, scriptClassName, RECITERS } from '../lib/constants';
+import { setAccent, setMode } from '../store/slices/themeSlice';
+import { ACCENTS, DEFAULT_ARABIC_SCALE, scriptClassName } from '../lib/constants';
 import { clamp } from '../lib/utils';
 import { Icon } from '../components/ui/Icon';
-import { Segmented, Slider, Toggle } from '../components/ui/controls';
+import { Slider, Toggle } from '../components/ui/controls';
 import { Modal } from '../components/ui/Modal';
 import { SurahArtwork } from '../components/ui/SurahArtwork';
 import { ErrorBlock, SkeletonRows } from '../components/ui/common';
-import type { AyahData, SettingsState, SurahFull } from '../types';
+import type { AyahData, SettingsState, SurahFull, ThemeMode } from '../types';
 
 export default function SurahReader() {
   const { number } = useParams();
@@ -50,6 +48,13 @@ export default function SurahReader() {
   const refs = useRef(new Map<number, HTMLDivElement>());
   const initTarget = useRef<number | null>(null);
   const bookPageRef = useRef(0);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--q-reader-bar-h', '64px');
+    return () => {
+      document.documentElement.style.removeProperty('--q-reader-bar-h');
+    };
+  }, []);
 
   const updateBookPage = useCallback((page: number) => {
     bookPageRef.current = page;
@@ -269,12 +274,13 @@ export default function SurahReader() {
         backLabel="Qur’an"
         onBack={() => navigate('/')}
         center={
-          <label className="flex min-w-0 flex-1 items-center justify-center gap-1 text-sm font-semibold text-ink">
+          <label className="flex min-w-0 max-w-full items-center justify-center gap-1 text-sm font-semibold text-ink">
             <select
               value={surah.number}
               onChange={(event) => navigate(`/surah/${event.target.value}`)}
               aria-label="Choose surah"
               className="max-w-[10rem] truncate appearance-none bg-transparent text-center text-sm font-semibold text-ink focus:outline-none"
+              style={{ textOverflow: 'ellipsis' }}
             >
               {(surahs ?? [surah]).map((item) => (
                 <option key={item.number} value={item.number}>
@@ -310,7 +316,7 @@ export default function SurahReader() {
         }
       />
 
-      <div className="relative mt-3 mb-3 overflow-hidden rounded-3xl border border-line bg-surface/70 px-4 py-3 text-center shadow-card backdrop-blur-sm">
+      <div className="reader-surah-hero relative mt-3 mb-3 overflow-hidden rounded-3xl border border-line bg-surface/70 px-4 py-3 text-center shadow-card backdrop-blur-sm">
         <SurahArtwork surah={surah.number} className="opacity-70" />
         <div className="relative">
         <div className="text-xs font-medium uppercase tracking-widest text-mut">
@@ -372,21 +378,16 @@ export default function SurahReader() {
       <ReaderBottomBar
         viewMode={viewMode}
         onViewModeChange={changeViewMode}
-        isPlaying={isActiveSession && playerState.isPlaying}
+        hasActiveSession={playerState.surah !== null}
+        readingMode={settings.readingMode}
         onPlay={handlePlay}
         repeat={readerRepeat}
         shuffle={playerState.mode === 'shuffle'}
-        playbackRate={playerState.playbackRate}
         onRepeat={() => {
           const next = readerRepeat === 'off' ? 'one' : readerRepeat === 'one' ? 'all' : 'off';
           player.setRepeat(next);
         }}
         onShuffle={() => player.setMode(playerState.mode === 'shuffle' ? 'order' : 'shuffle')}
-        onPlaybackRate={() => {
-          const rates = [0.5, 1, 1.5, 2];
-          const next = rates[(rates.indexOf(playerState.playbackRate) + 1) % rates.length];
-          player.setPlaybackRate(next);
-        }}
       />
 
       {/* reader options modal */}
@@ -665,12 +666,13 @@ function ReaderBar({
         <Icon name="back" size={18} />
         {backLabel}
       </button>
-      {center ?? <div className="flex-1" />}
-      <div className="flex-1" />
+      <div className="min-w-0 flex-1 text-center">
+        {center ?? <div className="h-5 w-full" />}
+      </div>
       {actions}
       <button
         type="button"
-        aria-label="Reader options"
+        aria-label="Reading settings"
         onClick={onOptions}
         className="pressable rounded-full p-2 text-mut hover:bg-surface2 hover:text-ink"
       >
@@ -683,60 +685,58 @@ function ReaderBar({
 function ReaderBottomBar({
   viewMode,
   onViewModeChange,
-  isPlaying,
+  hasActiveSession,
+  readingMode,
   onPlay,
   repeat,
   shuffle,
-  playbackRate,
   onRepeat,
   onShuffle,
-  onPlaybackRate,
 }: {
   viewMode: 'list' | 'book';
   onViewModeChange: (mode: 'list' | 'book') => void;
-  isPlaying: boolean;
+  hasActiveSession: boolean;
+  readingMode: boolean;
   onPlay: () => void;
   repeat: 'off' | 'one' | 'all';
   shuffle: boolean;
-  playbackRate: number;
   onRepeat: () => void;
   onShuffle: () => void;
-  onPlaybackRate: () => void;
 }) {
   return (
-    <div className="safe-b sticky bottom-0 z-20 mt-5 border-t border-line bg-base/90 px-1 py-3 backdrop-blur">
-      <div className="mb-2 flex items-center justify-center gap-2">
-        <button type="button" onClick={onShuffle} aria-label={shuffle ? 'Turn shuffle off' : 'Turn shuffle on'} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium ${shuffle ? 'bg-accent/15 text-accent' : 'text-mut hover:text-ink'}`}>
-          <Icon name="shuffle" size={14} /> {shuffle ? 'Shuffle on' : 'Shuffle'}
+    <div className={`reader-pill-position pointer-events-none ${readingMode ? 'reader-pill-position-reading' : ''}`}>
+      <div className="pointer-events-auto mx-auto flex w-fit max-w-full items-center gap-2 rounded-full border border-line/60 bg-surface/85 px-2 py-2 shadow-card backdrop-blur-xl">
+        <div className="flex rounded-full bg-surface2 p-1">
+          {(['list', 'book'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => onViewModeChange(mode)}
+              aria-pressed={viewMode === mode}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold capitalize ${viewMode === mode ? 'bg-accent/15 text-accent' : 'text-mut'}`}
+            >
+              <Icon name={mode} size={15} /> {mode}
+            </button>
+          ))}
+        </div>
+        <span aria-hidden="true" className="h-6 w-px bg-line" />
+        <button type="button" onClick={onShuffle} aria-label={shuffle ? 'Turn shuffle off' : 'Turn shuffle on'} title={shuffle ? 'Shuffle on' : 'Shuffle off'} aria-pressed={shuffle} className={`pressable rounded-full p-2 ${shuffle ? 'bg-accent/15 text-accent' : 'text-mut hover:bg-surface2'}`}>
+          <Icon name="shuffle" size={18} />
         </button>
-        <button type="button" onClick={onRepeat} aria-label={`Repeat ${repeat}`} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium ${repeat !== 'off' ? 'bg-accent/15 text-accent' : 'text-mut hover:text-ink'}`}>
-          <Icon name={repeat === 'one' ? 'repeatOne' : 'repeat'} size={14} /> {repeat === 'one' ? 'Repeat one' : repeat === 'all' ? 'Repeat all' : 'Repeat off'}
+        <button type="button" onClick={onRepeat} aria-label={`Repeat ${repeat}`} title={`Repeat ${repeat}`} aria-pressed={repeat !== 'off'} className={`pressable rounded-full p-2 ${repeat !== 'off' ? 'bg-accent/15 text-accent' : 'text-mut hover:bg-surface2'}`}>
+          <Icon name={repeat === 'one' ? 'repeatOne' : 'repeat'} size={18} />
         </button>
-        <button type="button" onClick={onPlaybackRate} aria-label={`Playback speed ${playbackRate} times`} className="rounded-full px-2.5 py-1.5 text-xs font-medium text-mut hover:bg-surface2 hover:text-ink">
-          {playbackRate}x
-        </button>
-      </div>
-      <div className="flex items-center justify-between">
-      <div className="flex rounded-xl bg-surface2 p-1">
-        {(['list', 'book'] as const).map((mode) => (
+        {!hasActiveSession && (
           <button
-            key={mode}
             type="button"
-            onClick={() => onViewModeChange(mode)}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold capitalize ${viewMode === mode ? 'bg-surface text-accent shadow-sm' : 'text-mut'}`}
+            onClick={onPlay}
+            aria-label="Play from active ayah"
+            title="Play"
+            className="pressable flex h-10 w-10 items-center justify-center rounded-full bg-accent text-onaccent shadow-card"
           >
-            <Icon name={mode} size={15} /> {mode}
+            <Icon name="play" size={19} />
           </button>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={onPlay}
-        aria-label={isPlaying ? 'Pause playback' : 'Play from active ayah'}
-        className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-onaccent shadow-card pressable"
-      >
-        <Icon name={isPlaying ? 'pause' : 'play'} size={21} />
-      </button>
+        )}
       </div>
     </div>
   );
@@ -780,80 +780,87 @@ function ReaderOptions({
   settings: SettingsState;
   dispatch: ReturnType<typeof useAppDispatch>;
 }) {
+  const theme = useAppSelector((state) => state.theme);
+  const navigate = useNavigate();
+  const previews: { mode: ThemeMode; label: string; background: string; surface: string; ink: string; muted: string; line: string }[] = [
+    { mode: 'light', label: 'Light', background: '#f1f6f3', surface: '#ffffff', ink: '#142520', muted: '#6d7d77', line: '#dbe6e1' },
+    { mode: 'dark', label: 'Dark', background: '#0a120f', surface: '#101d19', ink: '#e9f1ee', muted: '#8ba09a', line: '#1f332c' },
+    { mode: 'system', label: 'Auto', background: 'linear-gradient(135deg, #f1f6f3 0 49%, #101d19 51% 100%)', surface: '#ffffff', ink: '#142520', muted: '#6d7d77', line: '#dbe6e1' },
+  ];
+
   return (
-    <Modal open={open} onClose={onClose} title="Reader options" size="sm">
-      <SectionLabel>Show lines</SectionLabel>
-      <div className="divide-y divide-line">
-        <OptionRow
-          label="Arabic text"
-          hint="The original Qur’anic script"
-          control={<Toggle checked={settings.showArabic} onChange={(v) => dispatch(setShowArabic(v))} label="Arabic text" />}
-        />
-        <OptionRow
-          label="Transliteration"
-          hint="Pronunciation in Latin letters"
-          control={
-            <Toggle checked={settings.showTransliteration} onChange={(v) => dispatch(setShowTransliteration(v))} label="Transliteration" />
-          }
-        />
-        <OptionRow
-          label="English translation"
-          hint="Sahih International"
-          control={<Toggle checked={settings.showTranslation} onChange={(v) => dispatch(setShowTranslation(v))} label="English translation" />}
-        />
+    <Modal open={open} onClose={onClose} title="Reading settings" variant="frosted">
+      <SectionLabel>Appearance</SectionLabel>
+      <div className="grid grid-cols-3 gap-2 py-2">
+        {previews.map((preview) => {
+          const selected = theme.mode === preview.mode;
+          return (
+            <button
+              key={preview.mode}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => dispatch(setMode(preview.mode))}
+              className={`relative min-w-0 rounded-xl border p-1.5 text-left ${selected ? 'border-accent ring-2 ring-accent/40' : 'border-line'}`}
+            >
+              <div className="flex aspect-[4/5] flex-col overflow-hidden rounded-lg p-1.5" style={{ background: preview.background, color: preview.ink }}>
+                <div className="flex-1 rounded-md border p-1.5" style={{ backgroundColor: preview.surface, borderColor: preview.line }}>
+                  <div dir="rtl" className="text-[9px] leading-relaxed">بِسْمِ اللَّهِ الرَّحْمَٰنِ</div>
+                  <div className="mt-1 h-1 rounded-full" style={{ backgroundColor: preview.muted, opacity: 0.5 }} />
+                  <div className="mt-1 h-1 w-4/5 rounded-full" style={{ backgroundColor: preview.muted, opacity: 0.35 }} />
+                </div>
+              </div>
+              <span className="mt-1 block text-center text-[11px] font-medium text-ink">{preview.label}</span>
+              {selected && <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-onaccent"><Icon name="check" size={12} /></span>}
+            </button>
+          );
+        })}
       </div>
 
-      <SectionLabel>Arabic script style</SectionLabel>
-      <div className="py-2">
-        <Segmented
-          value={settings.script}
-          onChange={(v) => dispatch(setScript(v))}
-          options={SCRIPT_STYLES.map((s) => ({ value: s.id, label: s.label }))}
-        />
+      <div className="mt-2 flex items-center justify-between">
+        <SectionLabel>Accent</SectionLabel>
+        <div className="flex items-center gap-2">
+          {ACCENTS.map((accent) => {
+            const selected = theme.accent === accent.id;
+            return (
+              <button
+                key={accent.id}
+                type="button"
+                aria-label={`${accent.label} accent`}
+                aria-pressed={selected}
+                title={accent.label}
+                onClick={() => dispatch(setAccent(accent.id))}
+                className={`flex h-7 w-7 items-center justify-center rounded-full ${selected ? 'ring-2 ring-ink ring-offset-2 ring-offset-surface' : ''}`}
+                style={{ backgroundColor: accent.swatch }}
+              >
+                {selected && <Icon name="check" size={14} className="text-white" />}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <SectionLabel>Arabic text size</SectionLabel>
+      <SectionLabel>Text size</SectionLabel>
       <div className="flex items-center gap-3 py-2">
         <span className="text-xs text-mut">A</span>
-        <Slider
-          min={1}
-          max={3}
-          step={0.05}
-          value={settings.arabicFontScale}
-          onChange={(v) => dispatch(setArabicFontScale(v))}
-          ariaLabel="Arabic text size"
-        />
+        <Slider min={1} max={3} step={0.05} value={settings.arabicFontScale} onChange={(value) => dispatch(setArabicFontScale(value))} ariaLabel="Arabic text size" />
         <span className="text-base text-ink">A</span>
+        <button type="button" onClick={() => dispatch(setArabicFontScale(DEFAULT_ARABIC_SCALE))} className="shrink-0 rounded-full px-2 py-1 text-xs font-medium text-accent hover:bg-accent/10">Reset</button>
+      </div>
+      <div className="overflow-hidden rounded-xl bg-surface2 px-3 py-2 text-center text-ink" dir="rtl">
+        <span className="ar-uthmani leading-relaxed" style={{ fontSize: `${Math.round(20 * settings.arabicFontScale)}px` }}>بِسْمِ ٱللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</span>
       </div>
 
-      <SectionLabel>Reading</SectionLabel>
+      <SectionLabel>Show lines</SectionLabel>
       <div className="divide-y divide-line">
-        <OptionRow
-          label="Follow playback"
-          hint="Auto-scroll & highlight the ayah being recited"
-          control={<Toggle checked={settings.followAudio} onChange={(v) => dispatch(setFollowAudio(v))} label="Follow playback" />}
-        />
-        <OptionRow
-          label="Focus mode"
-          hint="Hide the app navigation for a cleaner page"
-          control={<Toggle checked={settings.readingMode} onChange={(v) => dispatch(setReadingMode(v))} label="Focus mode" />}
-        />
+        <OptionRow label="Arabic" control={<Toggle checked={settings.showArabic} onChange={(value) => dispatch(setShowArabic(value))} label="Arabic" />} />
+        <OptionRow label="Transliteration" control={<Toggle checked={settings.showTransliteration} onChange={(value) => dispatch(setShowTransliteration(value))} label="Transliteration" />} />
+        <OptionRow label="Translation" control={<Toggle checked={settings.showTranslation} onChange={(value) => dispatch(setShowTranslation(value))} label="Translation" />} />
+        <OptionRow label="Focus mode" control={<Toggle checked={settings.readingMode} onChange={(value) => dispatch(setReadingMode(value))} label="Focus mode" />} />
       </div>
 
-      <SectionLabel>Reciter for playback</SectionLabel>
-      <div className="py-2">
-        <select
-          value={settings.defaultReciter}
-          onChange={(e) => dispatch(setDefaultReciter(e.target.value))}
-          className="w-full rounded-xl border border-line bg-surface2 px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
-        >
-          {RECITERS.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.label} · {r.arabicName}
-            </option>
-          ))}
-        </select>
-      </div>
+      <button type="button" onClick={() => { onClose(); navigate('/settings'); }} className="mt-3 w-full border-t border-line pt-3 text-left text-sm font-semibold text-accent">
+        More settings <Icon name="forward" size={15} className="ml-1 inline" />
+      </button>
     </Modal>
   );
 }

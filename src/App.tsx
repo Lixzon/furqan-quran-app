@@ -1,10 +1,16 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import { useAppSelector } from './store';
+import { useAppDispatch } from './store';
+import { setDefaultReciterOfferSeen, setWifiDownloadPending } from './store/slices/settingsSlice';
 import { QuranProvider } from './data/QuranProvider';
 import { ThemeManager } from './components/layout/ThemeManager';
 import { AppLayout } from './components/layout/AppLayout';
 import { ToastHost } from './components/ui/ToastHost';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { Modal } from './components/ui/Modal';
+import { Icon } from './components/ui/Icon';
+import { RECITERS } from './lib/constants';
 
 import BrowsePage from './pages/BrowsePage';
 import SurahReader from './pages/SurahReader';
@@ -26,25 +32,114 @@ export default function App() {
   }, [pathname]);
 
   return (
-    <QuranProvider>
-      <ThemeManager />
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route index element={<BrowsePage />} />
-          <Route path="surah/:number" element={<SurahReader />} />
-          <Route path="playlists" element={<PlaylistsPage />} />
-          <Route path="playlist/:id" element={<PlaylistDetailPage />} />
-          <Route path="player" element={<NowPlayingPage />} />
-          <Route path="quotes" element={<QuotesPage />} />
-          <Route path="progress" element={<ProgressPage />} />
-          <Route path="downloads" element={<DownloadsPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-      <ToastHost />
-      <ReminderHost />
-    </QuranProvider>
+    <ErrorBoundary>
+      <QuranProvider>
+        <ThemeManager />
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route index element={<BrowsePage />} />
+            <Route path="surah/:number" element={<SurahReader />} />
+            <Route path="playlists" element={<PlaylistsPage />} />
+            <Route path="playlist/:id" element={<PlaylistDetailPage />} />
+            <Route path="player" element={<NowPlayingPage />} />
+            <Route path="quotes" element={<QuotesPage />} />
+            <Route path="progress" element={<ProgressPage />} />
+            <Route path="downloads" element={<DownloadsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+        <ToastHost />
+        <ReminderHost />
+        <DefaultReciterOffer />
+      </QuranProvider>
+    </ErrorBoundary>
+  );
+}
+
+interface NetworkInformation extends EventTarget {
+  type?: string;
+}
+
+function DefaultReciterOffer() {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const settings = useAppSelector((s) => s.settings);
+  const [open, setOpen] = useState(false);
+  const deferredThisSession = useRef(false);
+
+  useEffect(() => {
+    if (settings.wifiDownloadPending) {
+      const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
+      if (!connection || typeof connection.type !== 'string' || connection.type === 'unknown') {
+        if (deferredThisSession.current) return;
+        dispatch(setWifiDownloadPending(false));
+        setOpen(true);
+        return;
+      }
+
+      const startWhenOnWifi = () => {
+        if (connection.type !== 'wifi') return;
+        dispatch(setWifiDownloadPending(false));
+        navigate('/downloads?downloadAll=1');
+      };
+      startWhenOnWifi();
+      if (connection.type !== 'wifi') {
+        connection.addEventListener('change', startWhenOnWifi);
+        return () => connection.removeEventListener('change', startWhenOnWifi);
+      }
+      return;
+    }
+
+    if (!settings.hasOfferedDefaultReciterDownload) {
+      dispatch(setDefaultReciterOfferSeen());
+      setOpen(true);
+    }
+  }, [dispatch, navigate, settings.hasOfferedDefaultReciterDownload, settings.wifiDownloadPending]);
+
+  const startDownload = () => {
+    dispatch(setWifiDownloadPending(false));
+    setOpen(false);
+    navigate('/downloads?downloadAll=1');
+  };
+
+  const deferToWifi = () => {
+    const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
+    if (!connection || typeof connection.type !== 'string' || connection.type === 'unknown') {
+      deferredThisSession.current = true;
+    }
+    dispatch(setWifiDownloadPending(true));
+    setOpen(false);
+  };
+
+  const reciter = RECITERS.find((item) => item.id === settings.defaultReciter) ?? RECITERS[0];
+  return (
+    <Modal open={open} onClose={() => setOpen(false)} title="Offline recitation">
+      <p className="text-sm leading-relaxed text-mut">
+        Download {reciter.label}’s complete recitation, approximately 700 MB, for offline listening. Best on Wi-Fi.
+      </p>
+      <div className="mt-5 grid gap-2">
+        <button
+          type="button"
+          onClick={startDownload}
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-onaccent pressable"
+        >
+          <Icon name="download" size={16} />
+          Download now
+        </button>
+        <button
+          type="button"
+          onClick={deferToWifi}
+          className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface2 px-4 py-2.5 text-sm font-semibold text-ink pressable"
+        >
+          <Icon name="wifi" size={16} />
+          Only on Wi-Fi
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="rounded-full px-4 py-2 text-sm font-medium text-mut">
+          Not now
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -61,13 +156,37 @@ function ReminderHost() {
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
       const reminderMinutes = (hour || 0) * 60 + (minute || 0);
       const show = (key: string, title: string, body: string, path: string) => {
-        if (localStorage.getItem(`furqan:reminder:${key}:${date}`)) return;
-        const notification = new Notification(title, { body, tag: `furqan-${key}` });
-        notification.onclick = () => {
-          window.focus();
-          window.location.href = path;
+        try {
+          if (localStorage.getItem(`furqan:reminder:${key}:${date}`)) return;
+        } catch {
+          return;
+        }
+
+        const notify = async () => {
+          try {
+            const options = { body, tag: `furqan-${key}` };
+            const registration = await navigator.serviceWorker?.getRegistration();
+            if (registration) {
+              if (!registration.active) return;
+              await registration.showNotification(title, options);
+            } else {
+              const notification = new Notification(title, options);
+              notification.onclick = () => {
+                window.focus();
+                window.location.href = path;
+              };
+            }
+          } catch {
+            // Notifications may be unavailable in restricted browser contexts.
+          }
         };
-        localStorage.setItem(`furqan:reminder:${key}:${date}`, '1');
+        void notify();
+
+        try {
+          localStorage.setItem(`furqan:reminder:${key}:${date}`, '1');
+        } catch {
+          // ignore storage failures when the browser blocks writes
+        }
       };
 
       if (currentMinutes < reminderMinutes) return;

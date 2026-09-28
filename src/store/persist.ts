@@ -37,4 +37,5 @@ export const KEYS = {
   settings: 'settings',
   playlists: 'playlists',
   progress: 'progress',
+  favorites: 'favorites',
 } as const;

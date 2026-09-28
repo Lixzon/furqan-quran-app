@@ -545,6 +545,13 @@ class PlayerController {
     this.savePrefs();
   }
 
+  cyclePlaybackRate(): void {
+    const rates = [0.5, 1, 1.5, 2];
+    const current = this.getState().playbackRate;
+    const next = rates[(rates.indexOf(current) + 1) % rates.length];
+    this.setPlaybackRate(next);
+  }
+
   setMuted(m: boolean): void {
     const el = this.ensureEl();
     el.muted = m;

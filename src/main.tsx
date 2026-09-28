@@ -15,6 +15,10 @@ try {
   /* SW not available in dev – ignore */
 }
 
+if (navigator.storage?.persist) {
+  navigator.storage.persist().catch(() => {});
+}
+
 // Initialise the audio controller + media session (no audio starts here).
 player.initialize();
 

@@ -13,6 +13,9 @@ const themeSlice = createSlice({
   name: 'theme',
   initialState,
   reducers: {
+    restoreTheme(_state, action: PayloadAction<ThemeState>) {
+      return action.payload;
+    },
     setMode(state, action: PayloadAction<ThemeMode>) {
       state.mode = action.payload;
     },
@@ -22,5 +25,5 @@ const themeSlice = createSlice({
   },
 });
 
-export const { setMode, setAccent } = themeSlice.actions;
+export const { restoreTheme, setMode, setAccent } = themeSlice.actions;
 export default themeSlice.reducer;

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store';
 import { push } from '../store/slices/toastSlice';
@@ -24,6 +24,7 @@ import { PageHeader } from '../components/ui/common';
 import { Icon, type IconName } from '../components/ui/Icon';
 import { Segmented, Slider, Toggle } from '../components/ui/controls';
 import { Modal } from '../components/ui/Modal';
+import { createBackupJson, parseBackupJson, restoreBackup, type FurqanBackup } from '../lib/backup';
 
 /* beforeinstallprompt is a Chromium-only event */
 interface BeforeInstallPromptEvent extends Event {
@@ -36,7 +37,11 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const theme = useAppSelector((s) => s.theme);
   const settings = useAppSelector((s) => s.settings);
+  const progress = useAppSelector((s) => s.progress);
+  const playlists = useAppSelector((s) => s.playlists);
+  const favorites = useAppSelector((s) => s.favorites.items);
   const storage = useStorageStats();
+  const backupInputRef = useRef<HTMLInputElement>(null);
 
   const [confirmClearAudio, setConfirmClearAudio] = useState(false);
   const [confirmResetProgress, setConfirmResetProgress] = useState(false);
@@ -44,6 +49,43 @@ export default function SettingsPage() {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>(() =>
     typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
   );
+  const [pendingBackup, setPendingBackup] = useState<FurqanBackup | null>(null);
+
+  const exportBackup = () => {
+    try {
+      const blob = new Blob([createBackupJson()], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `furqan-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      dispatch(push('Your Furqan backup is ready.', 'success'));
+    } catch {
+      dispatch(push('Could not create a backup file.', 'error'));
+    }
+  };
+
+  const importBackup = async (file?: File) => {
+    if (!file) return;
+    try {
+      const backup = parseBackupJson(await file.text());
+      const progressMaps = [progress.lastRead, progress.lastListened, progress.surahCompleted,
+        progress.juzCompleted, progress.dailyActivity, progress.ayahsReached, progress.milestones];
+      const hasUserData = progress.lastPosition !== null || progress.activity.length > 0 ||
+        progress.quoteHistory.length > 0 || progressMaps.some((records) => Object.keys(records).length > 0) ||
+        favorites.length > 0 || playlists.playlists.some((playlist) =>
+          playlist.createdAt > 0 || playlist.name !== 'My Playlist' || playlist.items.length > 0);
+      if (hasUserData) {
+        setPendingBackup(backup);
+        return;
+      }
+      restoreBackup(backup);
+      dispatch(push('Your data has been restored.', 'success'));
+    } catch (error) {
+      dispatch(push(error instanceof Error ? error.message : 'Could not read this backup file.', 'error'));
+    }
+  };
 
   const toggleNotification = async (key: 'daily' | 'fridayKahf' | 'nightlyMulk', enabled: boolean) => {
     if (!enabled) {
@@ -216,6 +258,37 @@ export default function SettingsPage() {
       {/* ---- Data ---- */}
       <Section title="Data" icon="settings" />
       <Card>
+        <p className="mb-3 text-xs leading-relaxed text-mut">
+          Keep a copy in case you get a new phone or reinstall Furqan. Downloaded audio is not included and can be saved again.
+        </p>
+        <div className="mb-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={exportBackup}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-onaccent pressable"
+          >
+            <Icon name="download" size={16} />
+            Back up your data
+          </button>
+          <button
+            type="button"
+            onClick={() => backupInputRef.current?.click()}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-line bg-surface2 px-4 py-2.5 text-sm font-semibold text-ink pressable"
+          >
+            <Icon name="refresh" size={16} />
+            Restore backup
+          </button>
+          <input
+            ref={backupInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="sr-only"
+            onChange={(event) => {
+              void importBackup(event.target.files?.[0]);
+              event.target.value = '';
+            }}
+          />
+        </div>
         <button
           type="button"
           onClick={() => setConfirmClearAudio(true)}
@@ -323,6 +396,33 @@ export default function SettingsPage() {
             className="rounded-full bg-danger px-5 py-2 text-sm font-semibold text-white"
           >
             Reset
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={pendingBackup !== null} onClose={() => setPendingBackup(null)} title="Replace your data?">
+        <p className="text-sm leading-relaxed text-mut">
+          This will replace your current progress, settings, theme and playlists with the contents of this backup. Continue?
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setPendingBackup(null)}
+            className="rounded-full px-4 py-2 text-sm font-medium text-mut hover:bg-surface2"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!pendingBackup) return;
+              restoreBackup(pendingBackup);
+              setPendingBackup(null);
+              dispatch(push('Your data has been restored.', 'success'));
+            }}
+            className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-onaccent"
+          >
+            Restore data
           </button>
         </div>
       </Modal>

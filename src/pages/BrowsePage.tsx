@@ -10,6 +10,7 @@ import { Icon } from '../components/ui/Icon';
 import { setJuzCompleted } from '../store/slices/progressSlice';
 import { surahNumberToArabic } from '../lib/utils';
 import type { SurahMeta } from '../types';
+import { QUOTES, quoteOfTheDayIndex } from '../data/quotes';
 
 type Tab = 'surah' | 'juz';
 
@@ -43,6 +44,7 @@ export default function BrowsePage() {
   }, [juz, progress.juzCompleted]);
 
   const todayKey = new Date().toISOString().slice(0, 10);
+  const welcomeQuote = QUOTES[quoteOfTheDayIndex(new Date())] ?? QUOTES[0];
   const hasCheckedIn = !!progress.dailyActivity[todayKey];
   const checkInSurah = progress.lastPosition?.surah ?? 1;
 
@@ -68,6 +70,20 @@ export default function BrowsePage() {
       <div className="mb-4 text-center">
         <div className="ar-uthmani text-2xl leading-relaxed text-ink" style={{ direction: 'rtl' }}>
           بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+        </div>
+      </div>
+
+      <div className="mb-4 rounded-2xl bg-gradient-to-br from-accent to-accentstrong p-4 text-onaccent shadow-card">
+        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest opacity-90">
+          <Icon name="quote" size={14} />
+          A saying for today
+        </div>
+        <p className="mt-2 text-sm font-medium leading-relaxed">“{welcomeQuote.text}”</p>
+        <div className="mt-2 flex items-end justify-between gap-3">
+          <p className="text-xs opacity-90">{welcomeQuote.by} · {welcomeQuote.source}</p>
+          <button type="button" onClick={() => navigate('/quotes')} aria-label="Explore sayings and duas" className="shrink-0 rounded-full bg-white/20 p-2 pressable">
+            <Icon name="forward" size={16} />
+          </button>
         </div>
       </div>
 

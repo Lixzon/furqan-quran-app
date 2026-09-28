@@ -12,6 +12,7 @@ export type IconName =
   | 'mute'
   | 'timer'
   | 'download'
+  | 'clipboard'
   | 'trash'
   | 'check'
   | 'close'
@@ -126,6 +127,13 @@ const ICONS: Record<IconName, ReactElement> = {
       <path d="M12 3v12" />
       <path d="m7 10 5 5 5-5" />
       <path d="M4 21h16" />
+    </S>
+  ),
+  clipboard: (
+    <S>
+      <rect x="8" y="4" width="12" height="16" rx="2" />
+      <path d="M16 4V3a1 1 0 0 0-1-1H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1" />
+      <path d="M11 9h6M11 13h6" />
     </S>
   ),
   trash: (

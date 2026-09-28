@@ -7,6 +7,7 @@ import playlistReducer from './slices/playlistSlice';
 import progressReducer from './slices/progressSlice';
 import playerReducer from './slices/playerSlice';
 import toastReducer from './slices/toastSlice';
+import favoritesReducer from './slices/favoritesSlice';
 
 import { saveState, KEYS } from './persist';
 
@@ -18,6 +19,7 @@ export const store = configureStore({
     progress: progressReducer,
     player: playerReducer,
     toast: toastReducer,
+    favorites: favoritesReducer,
   },
 });
 
@@ -37,6 +39,7 @@ store.subscribe(() => {
     [KEYS.settings, s.settings],
     [KEYS.playlists, s.playlists],
     [KEYS.progress, s.progress],
+    [KEYS.favorites, s.favorites],
   ];
   for (const [key, value] of writers) {
     let next: string;

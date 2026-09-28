@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useAppDispatch, useAppSelector } from '../store';
 import { push } from '../store/slices/toastSlice';
@@ -15,6 +16,7 @@ import { Modal } from '../components/ui/Modal';
 export default function DownloadsPage() {
   const dispatch = useAppDispatch();
   const quran = useQuran();
+  const [searchParams, setSearchParams] = useSearchParams();
   const defaultReciter = useAppSelector((s) => s.settings.defaultReciter);
   const [reciter, setReciter] = useState(defaultReciter);
   const [busy, setBusy] = useState<Record<number, number>>({});
@@ -22,6 +24,7 @@ export default function DownloadsPage() {
   const [confirmDownloadAll, setConfirmDownloadAll] = useState(false);
   const [allProgress, setAllProgress] = useState<{ completed: number; total: number }>({ completed: 0, total: 0 });
   const [confirmClear, setConfirmClear] = useState<'all' | null>(null);
+  const autoStartConsumed = useRef(false);
 
   const rows = useLiveQuery(
     async () => db.audio.where('reciter').equals(reciter).toArray(),
@@ -31,16 +34,7 @@ export default function DownloadsPage() {
   const sizeBySurah = new Map(stored.map((s: StoredAudio) => [s.surah, s.size]));
   const downloadedCount = stored.length;
   const totalBytes = stored.reduce((s, x) => s + x.size, 0);
-
-  if (!quran.surahs) {
-    return (
-      <div className="page-enter">
-        <PageHeader title="Offline downloads" subtitle="Recitations stored on this device." />
-        <EmptyState icon="download" title="Loading…" />
-      </div>
-    );
-  }
-  const allSurahs = quran.surahs;
+  const allSurahs = quran.surahs ?? [];
 
   const pickReciter = (id: string) => {
     setReciter(id);
@@ -102,6 +96,25 @@ export default function DownloadsPage() {
       ),
     );
   };
+
+  useEffect(() => {
+    if (searchParams.get('downloadAll') !== '1' || allSurahs.length === 0 || autoStartConsumed.current) return;
+    autoStartConsumed.current = true;
+    setSearchParams((current) => {
+      current.delete('downloadAll');
+      return current;
+    }, { replace: true });
+    void downloadAll();
+  }, [allSurahs.length, downloadAll, searchParams, setSearchParams]);
+
+  if (!quran.surahs) {
+    return (
+      <div className="page-enter">
+        <PageHeader title="Offline downloads" subtitle="Recitations stored on this device." />
+        <EmptyState icon="download" title="Loading…" />
+      </div>
+    );
+  }
 
   return (
     <div className="page-enter">

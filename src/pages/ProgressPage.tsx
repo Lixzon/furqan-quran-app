@@ -215,7 +215,7 @@ export default function ProgressPage() {
                 className={`pressable flex aspect-square flex-col items-center justify-center rounded-2xl border text-sm transition-colors ${
                   done
                     ? 'border-accent bg-accent text-onaccent'
-                    : 'border-line bg-surface text-accent hover:border-accent/50'
+                    : 'border-accent/25 bg-accent/8 text-ink hover:border-accent/50'
                 }`}
               >
                 <span className="text-base font-bold">{j}</span>

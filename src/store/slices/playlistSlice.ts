@@ -33,6 +33,9 @@ const playlistSlice = createSlice({
   name: 'playlists',
   initialState,
   reducers: {
+    restorePlaylists(_state, action: PayloadAction<PlaylistState>) {
+      return action.payload;
+    },
     createPlaylist: {
       reducer(state, action: PayloadAction<Playlist>) {
         state.playlists.push(action.payload);
@@ -106,6 +109,7 @@ const playlistSlice = createSlice({
 });
 
 export const {
+  restorePlaylists,
   createPlaylist,
   renamePlaylist,
   deletePlaylist,

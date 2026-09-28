@@ -39,6 +39,9 @@ const progressSlice = createSlice({
   name: 'progress',
   initialState,
   reducers: {
+    restoreProgress(_state, action: PayloadAction<ProgressState>) {
+      return action.payload;
+    },
     /** remember where the user left off in a surah (ayah = numberInSurah) */
     rememberRead(state, action: PayloadAction<{ surah: number; ayah: number; name?: string }>) {
       const { surah, ayah, name = `Surah ${surah}` } = action.payload;
@@ -87,6 +90,7 @@ const progressSlice = createSlice({
 });
 
 export const {
+  restoreProgress,
   rememberRead,
   rememberListened,
   markListened,

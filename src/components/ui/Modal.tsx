@@ -12,6 +12,7 @@ export function Modal({
   footer,
   dismissable = true,
   size = 'md',
+  variant = 'default',
 }: {
   open: boolean;
   onClose: () => void;
@@ -20,6 +21,7 @@ export function Modal({
   footer?: ReactNode;
   dismissable?: boolean;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  variant?: 'default' | 'frosted';
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -51,6 +53,15 @@ export function Modal({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose, dismissable]);
 
+  useEffect(() => {
+    if (!open || variant !== 'frosted') return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open, variant]);
+
   if (!open) return null;
   const widths: Record<string, string> = {
     sm: 'max-w-sm',
@@ -58,6 +69,43 @@ export function Modal({
     lg: 'max-w-lg',
     xl: 'max-w-2xl',
   };
+
+  if (variant === 'frosted') {
+    const frostedWidth = size === 'md' ? 'max-w-sm' : widths[size];
+    return createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          className="frosted-overlay absolute inset-0 bg-black/30 backdrop-blur-md anim-fade"
+          onClick={() => (dismissable ? onClose() : undefined)}
+          aria-hidden="true"
+        />
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          className={`frosted-panel relative w-full ${frostedWidth} max-h-[80vh] overflow-hidden rounded-3xl border border-white/10 bg-surface/80 shadow-card backdrop-blur-2xl anim-pop-center`}
+        >
+          <div className="flex items-center justify-between border-b border-line/80 px-5 py-4">
+            <div className="text-base font-semibold text-ink">{title}</div>
+            {dismissable && (
+              <button
+                ref={closeButtonRef}
+                type="button"
+                aria-label="Close"
+                onClick={onClose}
+                className="pressable rounded-full p-1.5 text-mut hover:bg-surface2 hover:text-ink"
+              >
+                <Icon name="close" size={20} />
+              </button>
+            )}
+          </div>
+          <div className="thin-scroll max-h-[calc(80vh-7rem)] overflow-y-auto px-5 py-4">{children}</div>
+          {footer && <div className="border-t border-line/80 px-5 py-3">{footer}</div>}
+        </div>
+      </div>,
+      document.body,
+    );
+  }
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">

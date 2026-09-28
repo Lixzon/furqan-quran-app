@@ -234,6 +234,63 @@ button {
 .safe-t {
   padding-top: env(safe-area-inset-top, 0px);
 }
+.mini-player-default {
+  bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 8px);
+}
+.mini-player-reading {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+}
+.mini-player-reader {
+  bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 8px + var(--q-reader-bar-h, 0px));
+}
+.mini-player-reader-reading {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px + var(--q-reader-bar-h, 0px));
+}
+.reader-pill-position {
+  position: fixed;
+  z-index: 30;
+  right: 12px;
+  bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 8px);
+  left: 12px;
+}
+.reader-pill-position-reading {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+}
+.layout-bottom-default {
+  padding-bottom: 14rem;
+}
+.layout-bottom-reading {
+  padding-bottom: 11rem;
+}
+@media (max-width: 380px) {
+  .mini-player-artwork {
+    display: none;
+  }
+}
+@media (min-width: 768px) {
+  .mini-player-default,
+  .mini-player-reading {
+    bottom: 12px;
+  }
+  .mini-player-reader {
+    bottom: calc(12px + var(--q-reader-bar-h, 0px));
+  }
+  .mini-player-reader-reading {
+    bottom: calc(12px + var(--q-reader-bar-h, 0px));
+  }
+  .reader-pill-position,
+  .reader-pill-position-reading {
+    right: 12px;
+    bottom: 12px;
+    left: calc(240px + 12px);
+  }
+  .layout-bottom-default {
+    padding-bottom: 11rem;
+  }
+  .layout-bottom-reading {
+    padding-bottom: 8rem;
+  }
+}
 
 /* ---------- animations ---------- */
 @keyframes q-fade-up {
@@ -282,12 +339,50 @@ button {
 .anim-pop {
   animation: q-pop 0.2s ease both;
 }
+.anim-pop-center {
+  animation: q-pop-center 0.19s cubic-bezier(0.2, 0.75, 0.3, 1) both;
+  transform-origin: center;
+}
+@keyframes q-pop-center {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+.frosted-overlay {
+  -webkit-backdrop-filter: blur(12px);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .frosted-overlay {
+    background-color: rgba(0, 0, 0, 0.62);
+  }
+  .frosted-panel {
+    background-color: color-mix(in srgb, var(--q-surface) 95%, transparent);
+  }
+}
 
 /* ---------- layered artwork and restrained motion ---------- */
 .now-playing-wash {
   background:
     radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--q-gold) 30%, transparent), transparent 38%),
     radial-gradient(circle at 82% 78%, color-mix(in srgb, var(--q-accent-strong) 55%, transparent), transparent 52%);
+}
+.reader-surah-hero {
+  background-image:
+    radial-gradient(circle at 15% 15%, color-mix(in srgb, var(--q-gold) 18%, transparent), transparent 42%),
+    radial-gradient(circle at 85% 82%, color-mix(in srgb, var(--q-accent) 16%, transparent), transparent 48%);
+}
+.now-playing-art-in {
+  animation: q-art-in 0.36s ease both;
+}
+.now-playing-art-out {
+  animation: q-art-out 0.36s ease both;
+}
+@keyframes q-art-in {
+  from { opacity: 0; }
+  to { opacity: 0.9; }
+}
+@keyframes q-art-out {
+  from { opacity: 0.9; }
+  to { opacity: 0; }
 }
 .now-playing-art-active::after {
   position: absolute;

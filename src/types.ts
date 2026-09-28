@@ -167,6 +167,8 @@ export interface SettingsState {
   readingMode: boolean; // distraction free
   defaultReciter: string;
   followAudio: boolean; // auto-scroll/highlight reader to the playing ayah
+  hasOfferedDefaultReciterDownload: boolean;
+  wifiDownloadPending: boolean;
   notifications: {
     daily: boolean;
     fridayKahf: boolean;
