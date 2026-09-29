@@ -24,6 +24,15 @@ export function saveState(key: string, value: unknown): void {
   }
 }
 
+/** Whether a slice has ever been written, as opposed to holding its defaults. */
+export function hasState(key: string): boolean {
+  try {
+    return localStorage.getItem(PREFIX + key) !== null;
+  } catch {
+    return false;
+  }
+}
+
 export function removeState(key: string): void {
   try {
     localStorage.removeItem(PREFIX + key);
@@ -38,5 +47,6 @@ export const KEYS = {
   playlists: 'playlists',
   progress: 'progress',
   favorites: 'favorites',
+  likes: 'likes',
   bookmarks: 'bookmarks',
 } as const;

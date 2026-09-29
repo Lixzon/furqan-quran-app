@@ -680,6 +680,72 @@ button {
   animation: q-shimmer 1.4s ease-in-out infinite;
 }
 
+/* ---------- voice search ---------- */
+/* Pulsing halo behind the microphone button while a session is live. */
+@keyframes q-mic-halo {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--q-accent) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 22px color-mix(in srgb, var(--q-accent) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--q-accent) 0%, transparent);
+  }
+}
+.mic-listening {
+  animation: q-mic-halo 1.7s ease-out infinite;
+}
+@keyframes q-mic-ripple {
+  from {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+.mic-ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 2px solid var(--q-accent);
+  animation: q-mic-ripple 1.9s ease-out infinite;
+}
+.mic-ripple-delay {
+  animation-delay: 0.65s;
+}
+
+/* Matched recitation inside a search result. */
+.search-hit {
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--q-accent) 28%, transparent);
+  box-shadow: inset 0 -0.55em 0 color-mix(in srgb, var(--q-accent) 14%, transparent);
+  color: inherit;
+}
+
+/* ---------- likes ---------- */
+/* The heart icon ships with fill="none"; a CSS rule beats that presentation
+   attribute, so a liked heart can be filled without a second icon. */
+.heart-filled path {
+  fill: currentColor;
+}
+@keyframes q-heart-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.heart-pop {
+  animation: q-heart-pop 0.34s ease;
+}
+
 /* ---------- dynamic reader layouts ----------
    Granted by the 365-day Istiqamah milestone. ThemeManager only sets
    data-assistant-layout while the unlock is held, so the default (no

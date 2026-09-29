@@ -60,48 +60,39 @@ function buildAudioUrl(reciterId, chapterNumber, fileName) {
   return `${base}/${reciterId}/${fileName}`;
 }
 
+/**
+ * Per-ayah timings for one chapter.
+ *
+ * Quran.com exposes them on the chapter-recitation endpoint:
+ *   GET /chapter_recitations/{reciterId}/{chapter}?segments=true
+ *   → { audio_file: { audio_url, timestamps: [{ verse_key, timestamp_from, timestamp_to }] } }
+ * where the times are milliseconds from the start of that audio file.
+ *
+ * The old code called /recitations/{id}/by_chapter/{n}, which only returns
+ * { verse_key, url } pairs with no timings at all — so every chapter was
+ * skipped and public/data/timing/ stayed empty, leaving the app on its
+ * proportional fallback. Times are written in SECONDS because
+ * HTMLAudioElement.currentTime is compared against them directly.
+ */
 async function fetchChapterTimestamps(reciterId, chapterNumber) {
-  const endpoints = [
-    `${API}/recitations/${reciterId}/by_chapter/${chapterNumber}?segments=true`,
-    `${API}/recitations/${reciterId}/by_chapter/${chapterNumber}`,
-  ];
+  const data = await fetchJson(`${API}/chapter_recitations/${reciterId}/${chapterNumber}?segments=true`);
+  const file = data.audio_file ?? {};
+  const rows = Array.isArray(file.timestamps) ? file.timestamps : [];
 
-  for (const url of endpoints) {
-    try {
-      const data = await fetchJson(url);
-      const audioFiles = data.audio_files ?? [];
-      const timestamps = [];
-
-      for (const file of audioFiles) {
-        if (!file || !file.verse_key) continue;
-        const start = Number(file.timestamp_from ?? file.start ?? file.timestamp_start ?? file.start_time);
-        const end = Number(file.timestamp_to ?? file.end ?? file.timestamp_end ?? file.end_time);
-        if (Number.isFinite(start) || Number.isFinite(end)) {
-          timestamps.push({
-            start: Number.isFinite(start) ? start : 0,
-            end: Number.isFinite(end) ? end : (Number.isFinite(start) ? start : 0),
-          });
-        }
-      }
-
-      if (timestamps.length > 0) {
-        return {
-          chapter: chapterNumber,
-          reciterId,
-          audioFiles,
-          timestamps,
-        };
-      }
-    } catch {
-      // continue to the next candidate endpoint if this shape is unavailable
-    }
-  }
+  const timestamps = rows
+    .slice()
+    .sort((a, b) => (Number(a.timestamp_from) || 0) - (Number(b.timestamp_from) || 0))
+    .map((row) => ({
+      start: (Number(row.timestamp_from) || 0) / 1000,
+      end: (Number(row.timestamp_to) || 0) / 1000,
+    }))
+    .filter((segment) => segment.end > segment.start);
 
   return {
     chapter: chapterNumber,
     reciterId,
-    audioFiles: [],
-    timestamps: [],
+    audioUrl: typeof file.audio_url === 'string' ? file.audio_url : null,
+    timestamps,
   };
 }
 
@@ -127,23 +118,18 @@ async function run() {
       try {
         const chapter = await fetchChapterTimestamps(reciterId, surah);
         if (chapter.timestamps.length === 0) {
-          console.log(`SKIP: ${item.id} surah ${surah} — no timestamp payload exposed by Quran.com in this environment.`);
+          console.log(`SKIP: ${item.id} surah ${surah} — Quran.com exposed no timings for this chapter.`);
           continue;
         }
-
-        const audioUrl = Array.isArray(chapter.audioFiles) && chapter.audioFiles[0]?.url
-          ? (() => {
-              const raw = chapter.audioFiles[0].url;
-              if (/^https?:\/\//i.test(raw)) return raw;
-              return raw.startsWith('/') ? `https://download.quranicaudio.com${raw}` : `https://download.quranicaudio.com/quran/${raw}`;
-            })()
-          : null;
 
         const payload = {
           reciterId: item.id,
           surah,
-          audioUrl,
-          timestamps: chapter.timestamps.map((segment) => ({ start: Number(segment.start), end: Number(segment.end) })),
+          audioUrl: chapter.audioUrl,
+          // Last boundary = file length; the player checks it against the
+          // duration it actually loaded before trusting these boundaries.
+          durationSeconds: chapter.timestamps[chapter.timestamps.length - 1].end,
+          timestamps: chapter.timestamps,
         };
 
         const file = join(dir, `${surah}.json`);

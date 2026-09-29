@@ -12,6 +12,7 @@ import {
   setReadingMode,
   setDefaultReciter,
   setFollowAudio,
+  setAudioSyncOffset,
   setAssistantLayout,
   setNotificationPreference,
   setReminderTime,
@@ -414,6 +415,37 @@ export default function SettingsPage() {
             </option>
           ))}
         </select>
+
+        <div className="mt-4">
+          <div className="mb-1 flex items-center justify-between text-xs font-medium text-mut">
+            <span>Highlight sync offset</span>
+            <span className="tabular-nums">
+              {settings.audioSyncOffsetMs === 0 ? 'Off' : `${(settings.audioSyncOffsetMs / 1000).toFixed(2)}s`}
+            </span>
+          </div>
+          <Slider
+            min={-5000}
+            max={5000}
+            step={250}
+            value={settings.audioSyncOffsetMs}
+            onChange={(v) => dispatch(setAudioSyncOffset(v))}
+            ariaLabel="Highlight sync offset"
+          />
+          <p className="mt-1 text-[11px] leading-relaxed text-mut">
+            Nudges the verse highlight and auto-scroll against the recitation. Move it negative
+            (e.g. −2.50s) when a verse lights up before you hear it; move it positive when the
+            highlight trails behind the reciter. Start at 0 — reciters and renditions differ.
+          </p>
+          {settings.audioSyncOffsetMs !== 0 && (
+            <button
+              type="button"
+              onClick={() => dispatch(setAudioSyncOffset(0))}
+              className="mt-2 rounded-full border border-line bg-surface2 px-3 py-1.5 text-xs font-semibold text-mut pressable hover:text-ink"
+            >
+              Reset offset
+            </button>
+          )}
+        </div>
       </Card>
 
       {/* ---- Storage & downloads ---- */}

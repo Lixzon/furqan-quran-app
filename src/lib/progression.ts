@@ -114,6 +114,7 @@ export const emptyProgression: ProgressionState = {
   dailyGoalCelebratedDate: null,
   dailyListenMinutes: {},
   dayKeyVersion: DAY_KEY_VERSION,
+  counters: { shares: 0, copies: 0 },
 };
 
 /** Field names used before the streak state was unified. */
@@ -196,6 +197,11 @@ export function migrateProgression(
     lastActiveDate: source.lastActiveDate ?? source.lastGoalDate ?? null,
     streakFreezes: source.streakFreezes ?? source.freezes ?? 0,
     unlockedTiers: source.unlockedTiers ?? source.claimedTiers ?? [],
+    // Counters are per-action tallies, so a partial or missing record reads as zero.
+    counters: {
+      shares: Math.max(0, source.counters?.shares ?? 0),
+      copies: Math.max(0, source.counters?.copies ?? 0),
+    },
   } as ProgressionState & LegacyProgression;
 
   // Drop the pre-unification keys so a single set of fields is ever persisted.

@@ -3,13 +3,25 @@ import { patch, type PlayerState } from '../store/slices/playerSlice';
 import { push } from '../store/slices/toastSlice';
 import { markListened, rememberListened } from '../store/slices/progressSlice';
 import { reciterById } from '../lib/constants';
-import { getSurahTimingData, resolveAudioSourceUrl } from '../lib/audioTiming';
+import { getSurahTimingData, resolveAudioSourceUrl, type TimingSegment } from '../lib/audioTiming';
 import { isAudioDownloaded, getDownloadedAudioUrl, getRangedAudioUrl } from '../services/audioStore';
-import { getSurahMetaList } from '../lib/dataClient';
+import { getSurah, getSurahMetaList } from '../lib/dataClient';
 import { buildAyahFractions, buildExpandedQueue, clampIndex, shuffleIndices } from '../lib/queue';
 import type { Playlist, SurahMeta } from '../types';
 
 const PLAYER_PREFS = 'furqan:player';
+
+/** How often the highlight is re-resolved while playing. `timeupdate` is
+ *  throttled to ~4 Hz on desktop and as low as 1 Hz on some mobile builds,
+ *  which lets the highlight cross a verse boundary late. */
+const TIMELINE_SAMPLE_MS = 200;
+
+/** A timing table describes one exact rendition. If the loaded file differs in
+ *  length by more than this, the table belongs to another edit and is dropped. */
+const MAX_TIMING_DRIFT = 0.02;
+
+/** Bounds for the user-adjustable highlight offset. */
+const MAX_SYNC_OFFSET_MS = 5000;
 
 interface PlayerPrefs {
   volume: number;
@@ -27,6 +39,17 @@ class PlayerController {
   private loadToken = 0;
   private fallbackToken = 0;
   private realTiming: Array<{ start: number; end: number }> | null = null;
+  private timelineTimer: number | null = null;
+  /** Milliseconds added to the audio clock before resolving the ayah index.
+   *  Negative values delay the highlight, positive values advance it. */
+  private syncOffsetMs = 0;
+  /** Character-length timelines per surah, so playback outside the reader
+   *  (mini player, Now Playing, playlists) is not stuck on uniform division. */
+  private weightsBySurah = new Map<number, number[]>();
+  /** Lowest ayah index the highlight may show until the offset catches up.
+   *  Set when the reader deliberately seeks, so the highlight cannot jump
+   *  backwards to the previous ayah right after the jump. */
+  private indexFloor: number | null = null;
 
   /* ------------------------------------------------ element --------- */
   private ensureEl(): HTMLAudioElement {
@@ -50,18 +73,24 @@ class PlayerController {
     el.addEventListener('play', () => {
       store.dispatch(patch({ isPlaying: true, buffering: false }));
       this.syncPlaybackState('playing');
+      this.startTimelineSampler();
     });
     el.addEventListener('playing', () => {
       store.dispatch(patch({ isPlaying: true, buffering: false }));
       this.syncPlaybackState('playing');
+      this.startTimelineSampler();
     });
     el.addEventListener('pause', () => {
       store.dispatch(patch({ isPlaying: false, buffering: false }));
       this.syncPlaybackState('paused');
+      this.stopTimelineSampler();
     });
     el.addEventListener('waiting', () => store.dispatch(patch({ buffering: true })));
     el.addEventListener('canplay', () => store.dispatch(patch({ buffering: false })));
-    el.addEventListener('ended', () => this.onEnded());
+    el.addEventListener('ended', () => {
+      this.stopTimelineSampler();
+      this.onEnded();
+    });
     el.addEventListener('error', () => this.onError());
   }
 
@@ -128,6 +157,10 @@ class PlayerController {
     }
 
     this.cumulative = null;
+    this.indexFloor = null;
+    const knownLengths = this.weightsBySurah.get(surah);
+    if (knownLengths) this.applyWeights(knownLengths);
+    else void this.hydrateWeights(surah);
     this.pendingStartAyah = startAyahIndex;
     this.patch({
       surah,
@@ -225,16 +258,36 @@ class PlayerController {
     const el = this.ensureEl();
     const s = this.getState();
     const count = s.ayahCount || 0;
-    if (this.pendingStartAyah !== null && Number.isFinite(el.duration) && el.duration > 0) {
-      const target = this.ayahStartTime(this.pendingStartAyah, count, el.duration);
+    const duration = Number.isFinite(el.duration) ? el.duration : 0;
+
+    // Drop timings that describe a different rendition (another edit, or a
+    // downloaded copy) before they can skew the highlight.
+    if (this.realTiming && !this.timingMatchesAudio(this.realTiming, duration)) {
+      console.warn(
+        `[player] ignoring ayah timings for surah ${s.surah}: they span ` +
+          `${this.realTiming[this.realTiming.length - 1]?.end ?? 0}s but the audio is ${duration}s`,
+      );
+      this.realTiming = null;
+    }
+
+    if (this.pendingStartAyah !== null && duration > 0) {
+      const target = this.ayahStartTime(this.pendingStartAyah, count, duration);
       try {
-        el.currentTime = Math.max(0, Math.min(target, el.duration - 0.05));
+        el.currentTime = Math.max(0, Math.min(target, duration - 0.05));
       } catch {
         /* ignore seek errors */
       }
       this.pendingStartAyah = null;
     }
+    this.indexFloor = null;
     this.patch({ duration: el.duration || 0 });
+  }
+
+  private timingMatchesAudio(timing: TimingSegment[], duration: number): boolean {
+    if (timing.length === 0 || !(duration > 0)) return false;
+    const span = timing[timing.length - 1]?.end ?? 0;
+    if (!(span > 0)) return false;
+    return Math.abs(span - duration) / duration <= MAX_TIMING_DRIFT;
   }
 
   private ayahStartTime(ayahIndex: number, count: number, duration: number): number {
@@ -273,13 +326,42 @@ class PlayerController {
     return Math.min(count - 1, Math.floor(p * count));
   }
 
+  /**
+   * Audio-clock position used to resolve the highlighted ayah, after the
+   * reader's sync offset (negative = highlight follows later). Clamped so the
+   * first ayah still matches while the offset plays out at the start.
+   */
+  private timelineTime(raw: number): number {
+    if (this.syncOffsetMs === 0) return raw;
+    return Math.max(0, raw + this.syncOffsetMs / 1000);
+  }
+
+  private startTimelineSampler(): void {
+    if (this.timelineTimer !== null) return;
+    this.timelineTimer = window.setInterval(() => this.onTime(), TIMELINE_SAMPLE_MS);
+  }
+
+  private stopTimelineSampler(): void {
+    if (this.timelineTimer === null) return;
+    window.clearInterval(this.timelineTimer);
+    this.timelineTimer = null;
+  }
+
   private onTime(): void {
     const el = this.ensureEl();
     const s = this.getState();
     if (s.surah === null) return;
     const t = Number.isFinite(el.currentTime) ? el.currentTime : 0;
     const d = Number.isFinite(el.duration) ? el.duration : 0;
-    const idx = this.computeAyahIndex(t, d, s.ayahCount);
+    let idx = this.computeAyahIndex(this.timelineTime(t), d, s.ayahCount);
+
+    // After a deliberate seek the offset would briefly name the previous ayah;
+    // hold the floor instead so the highlight never steps backwards.
+    if (this.indexFloor !== null) {
+      if (idx >= this.indexFloor) this.indexFloor = null;
+      else idx = this.indexFloor;
+    }
+
     const toPatch: Partial<PlayerState> = { currentTime: t };
     if (Math.abs(d - s.duration) > 0.05) toPatch.duration = d;
     if (idx !== s.ayah) toPatch.ayah = idx;
@@ -432,7 +514,47 @@ class PlayerController {
 
   /** Attach text-length weights for more accurate ayah highlighting. */
   setWeights(textLengths: number[]): void {
+    const surah = this.getState().surah;
+    if (surah !== null) this.weightsBySurah.set(surah, textLengths);
+    this.applyWeights(textLengths);
+  }
+
+  private applyWeights(textLengths: number[]): void {
     this.cumulative = textLengths.length > 0 ? buildAyahFractions(textLengths) : null;
+  }
+
+  /**
+   * Playback started outside the reader (mini player, Now Playing, playlist),
+   * so nobody has registered ayah lengths yet. Without them the highlight falls
+   * back to dividing the surah into equal slots, which for a surah with uneven
+   * verses (Al-Baqara, Yaseen) is minutes out rather than seconds.
+   */
+  private async hydrateWeights(surah: number): Promise<void> {
+    if (this.weightsBySurah.has(surah)) return;
+    try {
+      const data = await getSurah(surah);
+      const lengths = data.ayahs.map((a) => a.ar.length);
+      if (lengths.length === 0) return;
+      this.weightsBySurah.set(surah, lengths);
+      if (this.getState().surah === surah) this.applyWeights(lengths);
+    } catch {
+      /* keep the uniform fallback */
+    }
+  }
+
+  /**
+   * Milliseconds added to the audio clock before resolving the highlighted
+   * ayah. Negative values delay the highlight and auto-scroll (the usual
+   * correction when a verse lights up before you hear it).
+   */
+  setSyncOffset(ms: number): void {
+    const clamped = Math.max(-MAX_SYNC_OFFSET_MS, Math.min(MAX_SYNC_OFFSET_MS, Math.round(ms) || 0));
+    this.syncOffsetMs = clamped;
+    this.onTime();
+  }
+
+  get syncOffset(): number {
+    return this.syncOffsetMs;
   }
 
   async play(): Promise<void> {
@@ -493,6 +615,8 @@ class PlayerController {
       window.clearTimeout(this.sleepTimerId);
       this.sleepTimerId = null;
     }
+    this.stopTimelineSampler();
+    this.indexFloor = null;
     el.pause();
     el.currentTime = 0;
     this.syncPlaybackState('none');
@@ -528,7 +652,10 @@ class PlayerController {
     } catch {
       /* ignore */
     }
-    this.patch({ currentTime: clamped });
+    // The reader chose this position, so highlight what the audio actually
+    // landed on rather than what the offset would have said.
+    this.indexFloor = this.computeAyahIndex(clamped, d, s.ayahCount);
+    this.patch({ currentTime: clamped, ayah: this.indexFloor });
   }
 
   seekToAyah(index: number): void {
@@ -546,6 +673,7 @@ class PlayerController {
         /* ignore */
       }
     }
+    this.indexFloor = clamped;
     this.patch({ ayah: clamped, currentTime: target });
   }
 
@@ -692,6 +820,13 @@ class PlayerController {
     el.volume = prefs.volume;
     el.muted = prefs.muted;
     el.playbackRate = playbackRate;
+
+    // Keep the highlight offset in step with the reader-facing setting.
+    this.setSyncOffset(store.getState().settings.audioSyncOffsetMs);
+    store.subscribe(() => {
+      const next = store.getState().settings.audioSyncOffsetMs;
+      if (next !== this.syncOffsetMs) this.setSyncOffset(next);
+    });
   }
 
   get isActive(): boolean {

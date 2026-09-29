@@ -25,6 +25,9 @@ import { SurahArtwork } from '../components/ui/SurahArtwork';
 import { ErrorBlock, SkeletonRows } from '../components/ui/common';
 import type { AyahData, SettingsState, SurahFull, ThemeMode } from '../types';
 
+/** Delay between the verse highlight moving and the viewport following it. */
+const FOLLOW_SCROLL_DELAY_MS = 140;
+
 export default function SurahReader() {
   const { number } = useParams();
   const navigate = useNavigate();
@@ -148,21 +151,58 @@ export default function SurahReader() {
     (index: number, smooth: boolean) => {
       const el = refs.current.get(index);
       if (!el) return;
-      el.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ behavior: smooth && !reduceMotion ? 'smooth' : 'auto', block: 'start' });
     },
     [],
   );
 
-  // One-time scroll to the resume target after first paint.
+  /**
+   * Auto-scroll waits a beat before moving: the highlight updates instantly,
+   * then the viewport follows the same index. Coalescing the hops means a
+   * skipped or retimed verse does not leave two smooth scrolls fighting, and a
+   * boundary crossed twice in quick succession only scrolls once.
+   */
+  const followScrollTimer = useRef<number | null>(null);
+  const scheduleFollowScroll = useCallback(
+    (index: number) => {
+      if (followScrollTimer.current !== null) window.clearTimeout(followScrollTimer.current);
+      followScrollTimer.current = window.setTimeout(() => {
+        followScrollTimer.current = null;
+        scrollToAyah(index, true);
+      }, FOLLOW_SCROLL_DELAY_MS);
+    },
+    [scrollToAyah],
+  );
+
+  useEffect(
+    () => () => {
+      if (followScrollTimer.current !== null) window.clearTimeout(followScrollTimer.current);
+    },
+    [],
+  );
+
+  // One-time scroll to the resume target after first paint. An ayah requested
+  // through the URL (search, juz jump) is scrolled to smoothly.
   useEffect(() => {
     if (initTarget.current === null) return;
     if (initTarget.current === activeAyah && refs.current.has(activeAyah)) {
       const t = initTarget.current;
       initTarget.current = null;
-      const raf = requestAnimationFrame(() => scrollToAyah(t, false));
+      const raf = requestAnimationFrame(() => scrollToAyah(t, fromUrl !== null));
       return () => cancelAnimationFrame(raf);
     }
   }, [activeAyah, scrollToAyah, surah?.number]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Only the ?ayah target changed (e.g. a second voice-search result in the same
+  // surah): the surah itself did not reload, so scroll manually.
+  useEffect(() => {
+    if (!surah || fromUrl === null || initTarget.current !== null) return;
+    const target = clamp(fromUrl - 1, 0, surah.ayahs.length - 1);
+    setActiveAyah(target);
+    if (viewMode === 'book') updateBookPage(pageForAyah(target));
+    else requestAnimationFrame(() => scrollToAyah(target, true));
+  }, [fromUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Persist reading position when the active ayah changes.
   useEffect(() => {
@@ -180,9 +220,9 @@ export default function SurahReader() {
       initTarget.current = null;
       setActiveAyah(ayah);
       if (viewMode === 'book') updateBookPage(pageForAyah(ayah));
-      else scrollToAyah(ayah, true);
+      else scheduleFollowScroll(ayah);
     }
-  }, [playerState.ayah, playerState.surah, playerState.isPlaying, settings.followAudio, activeAyah, scrollToAyah, pageForAyah, updateBookPage, viewMode, surah?.number]);
+  }, [playerState.ayah, playerState.surah, playerState.isPlaying, settings.followAudio, activeAyah, pageForAyah, updateBookPage, viewMode, surah?.number, scheduleFollowScroll]);
 
   const isActiveSession = playerState.surah === surahNumber;
   const readerRepeat = isActiveSession ? playerState.repeat : 'off';

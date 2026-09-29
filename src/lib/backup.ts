@@ -1,7 +1,7 @@
 import type { PlaylistState } from '../store/slices/playlistSlice';
 import { restorePlaylists } from '../store/slices/playlistSlice';
-import type { FavoritesState } from '../store/slices/favoritesSlice';
-import { restoreFavorites } from '../store/slices/favoritesSlice';
+import type { LikesState } from '../store/slices/likesSlice';
+import { migrateLegacyFavoriteIds, restoreLikes } from '../store/slices/likesSlice';
 import type { BookmarksState } from '../store/slices/bookmarksSlice';
 import { restoreBookmarks } from '../store/slices/bookmarksSlice';
 import { restoreProgress } from '../store/slices/progressSlice';
@@ -11,6 +11,11 @@ import { store } from '../store';
 import { KEYS, saveState } from '../store/persist';
 import type { ProgressState, SettingsState, ThemeState } from '../types';
 
+/** Retired likes list (`dua:<id>` / `saying:<id>`) still found in older exports. */
+interface LegacyFavorites {
+  items: string[];
+}
+
 export interface FurqanBackup {
   version: 1;
   exportedAt: string;
@@ -19,7 +24,7 @@ export interface FurqanBackup {
     settings: SettingsState;
     progress: ProgressState;
     playlists: PlaylistState;
-    favorites: FavoritesState;
+    likes: LikesState;
     bookmarks: BookmarksState;
   };
 }
@@ -101,7 +106,20 @@ function isPlaylists(value: unknown): value is PlaylistState {
         Number.isInteger(item.repeat) && Number(item.repeat) >= 1));
 }
 
-function isFavorites(value: unknown): value is FavoritesState {
+function isLikes(value: unknown): value is LikesState {
+  return isRecord(value) &&
+    Array.isArray(value.surahs) && value.surahs.every((surah) => Number.isInteger(surah)) &&
+    Array.isArray(value.ayahs) && value.ayahs.every((item) =>
+      isRecord(item) && typeof item.id === 'string' && Number.isInteger(item.surah) &&
+      Number(item.surah) >= 1 && Number(item.surah) <= 114 && Number.isInteger(item.ayah) &&
+      typeof item.surahName === 'string' && typeof item.arabic === 'string' &&
+      typeof item.translation === 'string' && isFiniteNumber(item.likedAt)) &&
+    Array.isArray(value.duas) && value.duas.every((id) => typeof id === 'string') &&
+    Array.isArray(value.quotes) && value.quotes.every((id) => typeof id === 'string');
+}
+
+/** Validator for the retired `favorites` list, migrated into likes on restore. */
+function isLegacyFavorites(value: unknown): value is LegacyFavorites {
   return isRecord(value) && Array.isArray(value.items) && value.items.every((item) => typeof item === 'string');
 }
 
@@ -115,11 +133,11 @@ function isBookmarks(value: unknown): value is BookmarksState {
 }
 
 export function createBackupJson(): string {
-  const { theme, settings, progress, playlists, favorites, bookmarks } = store.getState();
+  const { theme, settings, progress, playlists, likes, bookmarks } = store.getState();
   const backup: FurqanBackup = {
     version: 1,
     exportedAt: new Date().toISOString(),
-    data: { theme, settings, progress, playlists, favorites, bookmarks },
+    data: { theme, settings, progress, playlists, likes, bookmarks },
   };
   return JSON.stringify(backup, null, 2);
 }
@@ -135,25 +153,39 @@ export function parseBackupJson(text: string): FurqanBackup {
       !Number.isFinite(Date.parse(value.exportedAt)) || !isRecord(value.data) ||
       !isTheme(value.data.theme) || !isSettings(value.data.settings) ||
       !isProgress(value.data.progress) || !isPlaylists(value.data.playlists) ||
-      !isFavorites(value.data.favorites) || !isBookmarks(value.data.bookmarks)) {
+      !isBookmarks(value.data.bookmarks)) {
     throw new Error('This file is not a valid Furqan backup.');
   }
-  return value as unknown as FurqanBackup;
+
+  const legacy = isLegacyFavorites(value.data.favorites) ? value.data.favorites : null;
+  if (!isLikes(value.data.likes) && !legacy) {
+    throw new Error('This file is not a valid Furqan backup.');
+  }
+
+  const backup = value as unknown as FurqanBackup;
+  if (isLikes(value.data.likes)) return backup;
+
+  // An export from before the Favourites hub: carry its hearts over.
+  const migrated = migrateLegacyFavoriteIds(legacy?.items ?? []);
+  return {
+    ...backup,
+    data: { ...backup.data, likes: { surahs: [], ayahs: [], duas: migrated.duas, quotes: migrated.quotes } },
+  };
 }
 
 export function restoreBackup(backup: FurqanBackup): void {
-  const { theme, settings, progress, playlists, favorites, bookmarks } = backup.data;
+  const { theme, settings, progress, playlists, likes, bookmarks } = backup.data;
   store.dispatch(restoreTheme(theme));
   store.dispatch(restoreSettings(settings));
   store.dispatch(restoreProgress(progress));
   store.dispatch(restorePlaylists(playlists));
-  store.dispatch(restoreFavorites(favorites));
+  store.dispatch(restoreLikes(likes));
   store.dispatch(restoreBookmarks(bookmarks));
 
   saveState(KEYS.theme, theme);
   saveState(KEYS.settings, settings);
   saveState(KEYS.progress, progress);
   saveState(KEYS.playlists, playlists);
-  saveState(KEYS.favorites, favorites);
+  saveState(KEYS.likes, likes);
   saveState(KEYS.bookmarks, bookmarks);
 }

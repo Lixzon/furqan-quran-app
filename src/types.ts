@@ -105,8 +105,9 @@ export interface ProgressState {
 }
 
 /**
- * Consistency progression. Purely derived from reading/listening activity —
- * no currencies, points or purchasable items.
+ * Istiqamah (consistency) progression. Derived from reading/listening activity —
+ * no currencies and nothing purchasable. The XP shown in the app is a read-out
+ * of this same activity (`lib/xp.ts`), never a balance to spend.
  */
 export interface ProgressionState {
   /** Consecutive days on which the daily reading/listening goal was met. */
@@ -139,6 +140,18 @@ export interface ProgressionState {
    * Used to run the UTC -> local repair exactly once per install.
    */
   dayKeyVersion: number;
+  /**
+   * Monotonic counts of the two actions that leave no trace anywhere else —
+   * sharing and copying — so the XP they earn survives a reload. Nothing is
+   * ever spent, and no balance is derived from them beyond that read-out.
+   */
+  counters: XpCounters;
+}
+
+/** See {@link ProgressionState.counters}. */
+export interface XpCounters {
+  shares: number;
+  copies: number;
 }
 
 /* ---------------- quotes ---------------- */
@@ -222,6 +235,12 @@ export interface SettingsState {
   readingMode: boolean; // distraction free
   defaultReciter: string;
   followAudio: boolean; // auto-scroll/highlight reader to the playing ayah
+  /**
+   * Milliseconds added to the audio clock before the highlighted ayah (and the
+   * auto-scroll that follows it) is resolved. Negative values delay the
+   * highlight — the fix when a verse lights up before you hear it.
+   */
+  audioSyncOffsetMs: number;
   hasOfferedDefaultReciterDownload: boolean;
   wifiDownloadPending: boolean;
   /** Dynamic reader layout, gated behind the 365-day milestone. */

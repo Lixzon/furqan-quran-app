@@ -13,6 +13,7 @@ const initialState: SettingsState = loadState<SettingsState>(KEYS.settings, {
   readingMode: false,
   defaultReciter: DEFAULT_RECITER,
   followAudio: true,
+  audioSyncOffsetMs: 0,
   hasOfferedDefaultReciterDownload: false,
   wifiDownloadPending: false,
   assistantLayout: 'classic',
@@ -30,7 +31,11 @@ const settingsSlice = createSlice({
   reducers: {
     restoreSettings(_state, action: PayloadAction<SettingsState>) {
       // Backups written before a field existed would otherwise restore undefined.
-      return { ...action.payload, assistantLayout: action.payload.assistantLayout ?? 'classic' };
+      return {
+        ...action.payload,
+        assistantLayout: action.payload.assistantLayout ?? 'classic',
+        audioSyncOffsetMs: Number.isFinite(action.payload.audioSyncOffsetMs) ? action.payload.audioSyncOffsetMs : 0,
+      };
     },
     setShowArabic(state, action: PayloadAction<boolean>) {
       state.showArabic = action.payload;
@@ -55,6 +60,10 @@ const settingsSlice = createSlice({
     },
     setFollowAudio(state, action: PayloadAction<boolean>) {
       state.followAudio = action.payload;
+    },
+    setAudioSyncOffset(state, action: PayloadAction<number>) {
+      const ms = Math.round(action.payload) || 0;
+      state.audioSyncOffsetMs = Math.max(-5000, Math.min(5000, ms));
     },
     setDefaultReciterOfferSeen(state) {
       state.hasOfferedDefaultReciterDownload = true;
@@ -87,6 +96,7 @@ export const {
   setReadingMode,
   setDefaultReciter,
   setFollowAudio,
+  setAudioSyncOffset,
   setDefaultReciterOfferSeen,
   setWifiDownloadPending,
   setAssistantLayout,

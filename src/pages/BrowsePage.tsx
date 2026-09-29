@@ -9,6 +9,7 @@ import { PageHeader, EmptyState, SkeletonRows, ErrorBlock } from '../components/
 import { Icon } from '../components/ui/Icon';
 import { setJuzCompleted } from '../store/slices/progressSlice';
 import { surahNumberToArabic } from '../lib/utils';
+import { useVoiceSearch } from '../components/search/VoiceSearchModal';
 import { useDownloadedSet } from '../services/useDownloads';
 import { todayKey } from '../lib/progression';
 import type { SurahMeta } from '../types';
@@ -23,6 +24,7 @@ export default function BrowsePage() {
   const progress = useAppSelector((s) => s.progress);
   const playerState = useAppSelector((s) => s.player);
   const defaultReciter = useAppSelector((s) => s.settings.defaultReciter);
+  const voiceSearch = useVoiceSearch();
 
   const [tab, setTab] = useState<Tab>('surah');
   const [query, setQuery] = useState('');
@@ -149,8 +151,17 @@ export default function BrowsePage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={tab === 'surah' ? 'Search surahs…' : 'Filter juz…'}
-          className="w-full rounded-2xl border border-line bg-surface py-2.5 pl-10 pr-4 text-sm text-ink placeholder:text-mut focus:border-accent focus:outline-none"
+          className="w-full rounded-2xl border border-line bg-surface py-2.5 pl-10 pr-12 text-sm text-ink placeholder:text-mut focus:border-accent focus:outline-none"
         />
+        <button
+          type="button"
+          onClick={voiceSearch.open}
+          aria-label="Find a verse by reciting"
+          title="Find a verse by reciting"
+          className="pressable absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-accent/12 text-accent"
+        >
+          <Icon name="mic" size={18} />
+        </button>
       </div>
 
       {tab === 'surah' ? (

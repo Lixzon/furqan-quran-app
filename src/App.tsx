@@ -14,6 +14,7 @@ import { RECITERS } from './lib/constants';
 import { APP_NAME, APP_TAGLINE } from './lib/constants';
 import { islamicQuoteOfTheDay } from './data/quotes';
 import { ProgressionHost } from './components/layout/ProgressionHost';
+import { VoiceSearchProvider } from './components/search/VoiceSearchModal';
 
 import BrowsePage from './pages/BrowsePage';
 import SurahReader from './pages/SurahReader';
@@ -25,6 +26,7 @@ import ProgressPage from './pages/ProgressPage';
 import DownloadsPage from './pages/DownloadsPage';
 import SettingsPage from './pages/SettingsPage';
 import BookmarksPage from './pages/BookmarksPage';
+import FavoritesPage from './pages/FavoritesPage';
 
 export default function App() {
   const { pathname } = useLocation();
@@ -38,26 +40,30 @@ export default function App() {
   return (
     <ErrorBoundary>
       <QuranProvider>
-        <ThemeManager />
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route index element={<BrowsePage />} />
-            <Route path="surah/:number" element={<SurahReader />} />
-            <Route path="playlists" element={<PlaylistsPage />} />
-            <Route path="playlist/:id" element={<PlaylistDetailPage />} />
-            <Route path="player" element={<NowPlayingPage />} />
-            <Route path="quotes" element={<QuotesPage />} />
-            <Route path="bookmarks" element={<BookmarksPage />} />
-            <Route path="progress" element={<ProgressPage />} />
-            <Route path="downloads" element={<DownloadsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
-        <ToastHost />
-        <ReminderHost />
-        <ProgressionHost />
-        <DefaultReciterOffer />
+        <VoiceSearchProvider>
+          <ThemeManager />
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route index element={<BrowsePage />} />
+              <Route path="surah/:number" element={<SurahReader />} />
+              <Route path="playlists" element={<PlaylistsPage />} />
+              <Route path="playlist/:id" element={<PlaylistDetailPage />} />
+              <Route path="player" element={<NowPlayingPage />} />
+              <Route path="quotes" element={<QuotesPage />} />
+              <Route path="favorites" element={<FavoritesPage />} />
+              {/* The bookmarks page is now the Ayahs tab of the Favourites hub. */}
+              <Route path="bookmarks" element={<Navigate to="/favorites?tab=ayahs" replace />} />
+              <Route path="progress" element={<ProgressPage />} />
+              <Route path="downloads" element={<DownloadsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
+          </Routes>
+          <ToastHost />
+          <ReminderHost />
+          <ProgressionHost />
+          <DefaultReciterOffer />
+        </VoiceSearchProvider>
       </QuranProvider>
     </ErrorBoundary>
   );

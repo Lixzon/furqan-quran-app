@@ -171,6 +171,17 @@ const progressSlice = createSlice({
       minutes[action.payload.date] = (minutes[action.payload.date] ?? 0) + 1;
     },
 
+    /**
+     * Credits an action that leaves no other trace (sharing, copying) so the XP
+     * it earns is not forgotten on the next reload. See `lib/xp.ts`.
+     */
+    recordXpAction(state, action: PayloadAction<{ kind: 'share' | 'copy' }>) {
+      const counters = state.progression.counters ?? { shares: 0, copies: 0 };
+      if (action.payload.kind === 'share') counters.shares += 1;
+      else counters.copies += 1;
+      state.progression.counters = counters;
+    },
+
     /* ---------- developer test controls (Settings) ---------- */
 
     devAddStreakDays(state, action: PayloadAction<{ days: number }>) {
@@ -217,6 +228,7 @@ export const {
   setIstiqamahGoal,
   celebrateMilestone,
   addListenMinute,
+  recordXpAction,
   devAddStreakDays,
   devSetStreak,
   devResetStreak,

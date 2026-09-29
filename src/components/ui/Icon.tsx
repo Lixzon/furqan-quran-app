@@ -30,6 +30,10 @@ export type IconName =
   | 'grip'
   | 'edit'
   | 'search'
+  | 'mic'
+  | 'share'
+  | 'headphones'
+  | 'stop'
   | 'home'
   | 'music'
   | 'refresh'
@@ -230,6 +234,28 @@ const ICONS: Record<IconName, ReactElement> = {
     <S>
       <circle cx="11" cy="11" r="7" />
       <path d="m21 21-4.3-4.3" />
+    </S>
+  ),
+  mic: (
+    <S>
+      <rect x="9" y="2.75" width="6" height="11" rx="3" />
+      <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0" />
+      <path d="M12 18v3" />
+    </S>
+  ),
+  stop: <rect x="6.5" y="6.5" width="11" height="11" rx="2.5" fill="currentColor" stroke="none" />,
+  share: (
+    <S>
+      <path d="M12 15V3" />
+      <path d="m8 7 4-4 4 4" />
+      <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
+    </S>
+  ),
+  headphones: (
+    <S>
+      <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+      <rect x="2.5" y="13.5" width="4.5" height="7" rx="2" />
+      <rect x="17" y="13.5" width="4.5" height="7" rx="2" />
     </S>
   ),
   home: (
