@@ -4,9 +4,13 @@ import { Icon } from '../components/ui/Icon';
 import { Chip } from '../components/ui/controls';
 import { QUOTES, QUOTE_THEMES, QUOTE_THEME_LABELS, quoteOfTheDayIndex } from '../data/quotes';
 import { DUA_THEMES, DUA_THEME_LABELS, DUAS, type DuaEntry, type DuaTheme } from '../data/duas';
-import { useAppDispatch } from '../store';
-import { useAppSelector } from '../store';
-import { toggleFavorite } from '../store/slices/favoritesSlice';
+import { useAppDispatch, useAppSelector } from '../store';
+import {
+  isDuaLiked,
+  isQuoteLiked,
+  toggleLikedDua,
+  toggleLikedQuote,
+} from '../store/slices/likesSlice';
 import { push } from '../store/slices/toastSlice';
 import type { QuoteEntry, QuoteTheme } from '../types';
 import { recordQuoteView } from '../store/slices/progressSlice';
@@ -17,13 +21,9 @@ type View = 'sayings' | 'duas';
 type Filter = 'all' | 'liked' | QuoteTheme | DuaTheme;
 type FocusedItem = { kind: 'saying'; entry: QuoteEntry } | { kind: 'dua'; entry: DuaEntry };
 
-function favoriteKey(kind: FocusedItem['kind'], id: string): string {
-  return `${kind}:${id}`;
-}
-
 export default function QuotesPage() {
   const dispatch = useAppDispatch();
-  const favorites = useAppSelector((s) => s.favorites.items);
+  const likes = useAppSelector((s) => s.likes);
   const [view, setView] = useState<View>('sayings');
   const [filter, setFilter] = useState<Filter>('all');
   const [featuredIdx, setFeaturedIdx] = useState(() => quoteOfTheDayIndex(new Date()));
@@ -49,11 +49,11 @@ export default function QuotesPage() {
   const filtered = useMemo(() => {
     if (view === 'sayings') {
       return QUOTES.filter((quote) => filter === 'all' ||
-        (filter === 'liked' ? favorites.includes(favoriteKey('saying', quote.id)) : quote.themes.includes(filter as QuoteTheme)));
+        (filter === 'liked' ? isQuoteLiked(likes, quote.id) : quote.themes.includes(filter as QuoteTheme)));
     }
     return DUAS.filter((dua) => filter === 'all' ||
-      (filter === 'liked' ? favorites.includes(favoriteKey('dua', dua.id)) : dua.theme === filter));
-  }, [favorites, filter, view]);
+      (filter === 'liked' ? isDuaLiked(likes, dua.id) : dua.theme === filter));
+  }, [filter, likes, view]);
 
   const shuffle = () => {
     setFeaturedIdx(Math.floor(Math.random() * QUOTES.length));
@@ -84,8 +84,11 @@ export default function QuotesPage() {
 
   const copySaying = (quote: QuoteEntry) => copy(`${quote.text}\n— ${quote.by} (${quote.source})`);
   const copyDua = (dua: DuaEntry) => copy(`${dua.arabic}\n${dua.transliteration}\n${dua.translation}\n— ${dua.source}`);
-  const isLiked = (item: FocusedItem) => favorites.includes(favoriteKey(item.kind, item.entry.id));
-  const toggleLiked = (item: FocusedItem) => dispatch(toggleFavorite(favoriteKey(item.kind, item.entry.id)));
+  const isLiked = (item: FocusedItem) => item.kind === 'saying' ? isQuoteLiked(likes, item.entry.id) : isDuaLiked(likes, item.entry.id);
+  const toggleLiked = (item: FocusedItem) => {
+    if (item.kind === 'saying') dispatch(toggleLikedQuote(item.entry.id));
+    else dispatch(toggleLikedDua(item.entry.id));
+  };
 
   return (
     <div className="page-enter">

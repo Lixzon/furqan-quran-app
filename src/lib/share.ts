@@ -15,9 +15,9 @@ export interface SharePayload {
   url?: string;
 }
 
-interface ShareCapableNavigator extends Navigator {
-  share?: (data: ShareData) => Promise<void>;
-}
+type ShareCapableNavigator = Navigator & {
+  share?: (data?: ShareData) => Promise<void>;
+};
 
 export async function copyText(text: string): Promise<boolean> {
   try {

@@ -43,6 +43,7 @@ import { Segmented, Slider, Toggle, type SegOption } from '../components/ui/cont
 import { Modal } from '../components/ui/Modal';
 import { MihrabLogo } from '../components/ui/MihrabLogo';
 import { createBackupJson, parseBackupJson, restoreBackup, type FurqanBackup } from '../lib/backup';
+import { totalLikedItems } from '../store/slices/likesSlice';
 import type { ThemeMode } from '../types';
 
 /* beforeinstallprompt is a Chromium-only event */
@@ -58,7 +59,7 @@ export default function SettingsPage() {
   const settings = useAppSelector((s) => s.settings);
   const progress = useAppSelector((s) => s.progress);
   const playlists = useAppSelector((s) => s.playlists);
-  const favorites = useAppSelector((s) => s.favorites.items);
+  const likedCount = useAppSelector((s) => totalLikedItems(s.likes));
   const bookmarks = useAppSelector((s) => s.bookmarks.items);
   const storage = useStorageStats();
   const backupInputRef = useRef<HTMLInputElement>(null);
@@ -110,7 +111,7 @@ export default function SettingsPage() {
         progress.juzCompleted, progress.dailyActivity, progress.ayahsReached, progress.milestones];
       const hasUserData = progress.lastPosition !== null || progress.activity.length > 0 ||
         progress.quoteHistory.length > 0 || progressMaps.some((records) => Object.keys(records).length > 0) ||
-        favorites.length > 0 || bookmarks.length > 0 || playlists.playlists.some((playlist) =>
+        likedCount > 0 || bookmarks.length > 0 || playlists.playlists.some((playlist) =>
           playlist.createdAt > 0 || playlist.name !== 'My Playlist' || playlist.items.length > 0);
       if (hasUserData) {
         setPendingBackup(backup);

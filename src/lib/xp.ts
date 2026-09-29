@@ -95,17 +95,19 @@ export function formatListeningTime(minutes: number): string {
 }
 
 /** Activity the reader already has recorded, in the shape XP is read from. */
-export type XpProgressSource = Pick<
-  ProgressState,
-  'dailyListenMinutes' | 'ayahsReached' | 'dailyActivity' | 'progression'
->;
+export type XpProgressSource = Pick<ProgressState, 'ayahsReached' | 'dailyActivity' | 'progression'> & {
+  progression?: Partial<ProgressState['progression']> & {
+    dailyListenMinutes?: Record<string, number>;
+    counters?: { shares?: number; copies?: number };
+  };
+};
 
 /**
  * Sums every XP source. Kept pure so the same maths serves the pill, the
  * progress card and any future export.
  */
 export function computeXp(progress: XpProgressSource, likedItems: number): XpProgress {
-  const minutesListened = Object.values(progress.dailyListenMinutes ?? {}).reduce(
+  const minutesListened = Object.values(progress.progression?.dailyListenMinutes ?? {}).reduce(
     (sum, value) => sum + (Number.isFinite(value) ? value : 0),
     0,
   );

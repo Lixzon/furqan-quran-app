@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store';
 import { setBookmarkNote, removeBookmark, toggleAyahBookmark } from '../store/slices/bookmarksSlice';
 import {
-  isAyahLiked,
   isDuaLiked,
   isQuoteLiked,
   toggleLikedAyah,
@@ -25,7 +24,7 @@ import { Segmented } from '../components/ui/controls';
 import { XpPill } from '../components/ui/XpPill';
 import type { AyahBookmark } from '../store/slices/bookmarksSlice';
 
-type Tab = LikeKind | 'ayahs';
+type Tab = LikeKind;
 
 const TABS: Array<{ value: Tab; label: string; icon: 'stack' | 'book' | 'quote' | 'sparkle' }> = [
   { value: 'surah', label: 'Surahs', icon: 'stack' },
@@ -285,9 +284,16 @@ export default function FavoritesPage() {
                       liked={row.liked}
                       label={row.liked ? `Remove ayah ${row.surah}:${row.ayah} from favourites` : `Add ayah ${row.surah}:${row.ayah} to favourites`}
                       onToggle={() =>
-                        isAyahLiked(likes, row.surah, row.ayah)
-                          ? dispatch(toggleLikedAyah({ id: row.id, surah: row.surah, ayah: row.ayah, surahName: row.surahName, arabic: row.arabic, translation: row.translation }))
-                          : dispatch(toggleLikedAyah({ id: row.id, surah: row.surah, ayah: row.ayah, surahName: row.surahName, arabic: row.arabic, translation: row.translation }))
+                        dispatch(
+                          toggleLikedAyah({
+                            id: row.id,
+                            surah: row.surah,
+                            ayah: row.ayah,
+                            surahName: row.surahName,
+                            arabic: row.arabic,
+                            translation: row.translation,
+                          }),
+                        )
                       }
                     />
                     {!row.bookmarked && (

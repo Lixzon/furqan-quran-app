@@ -25,7 +25,6 @@ import QuotesPage from './pages/QuotesPage';
 import ProgressPage from './pages/ProgressPage';
 import DownloadsPage from './pages/DownloadsPage';
 import SettingsPage from './pages/SettingsPage';
-import BookmarksPage from './pages/BookmarksPage';
 import FavoritesPage from './pages/FavoritesPage';
 
 export default function App() {
