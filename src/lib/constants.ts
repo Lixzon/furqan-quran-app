@@ -1,4 +1,4 @@
-import type { AccentId, Reciter, ScriptStyle } from '../types';
+import type { AccentId, DownloadQuality, Reciter, ScriptStyle } from '../types';
 
 export const APP_NAME = 'Furqan Quran';
 export const APP_NAME_AR = 'الفرقان';
@@ -65,18 +65,26 @@ export function scriptClassName(script: ScriptStyle): string {
 const AUDIO_PATH = (bitrate: number, edition: string, surah: number) =>
   `/audio-surah/${bitrate}/${edition}/${surah}.mp3`;
 
+export const DOWNLOAD_QUALITY_OPTIONS: Array<{ id: DownloadQuality; label: string; bitrate: number; description: string }> = [
+  { id: 'low', label: 'Low', bitrate: 32, description: 'Smallest files for quick downloads' },
+  { id: 'medium', label: 'Medium', bitrate: 64, description: 'Balanced quality and size' },
+  { id: 'high', label: 'High', bitrate: 128, description: 'Current default, full quality' },
+];
+
+export const DEFAULT_DOWNLOAD_QUALITY: DownloadQuality = 'high';
+
 export const RECITERS: Reciter[] = [
-  { id: 'ar.alafasy', label: 'Mishary Rashid Alafasy', arabicName: 'مشاري راشد العفاسي', edition: 'ar.alafasy', bitrate: 128 },
-  { id: 'ar.abdulbasitmurattal', label: 'Abdul Basit (Murattal)', arabicName: 'عبد الباسط عبد الصمد', edition: 'ar.abdulbasitmurattal', bitrate: 128 },
-  { id: 'ar.abdurrahmaansudais', label: 'Abdur-Rahman As-Sudais', arabicName: 'عبد الرحمن السديس', edition: 'ar.abdurrahmaansudais', bitrate: 128 },
-  { id: 'ar.saudalshuraym', label: 'Saud Ash-Shuraym', arabicName: 'سعود الشريم', edition: 'ar.saudalshuraym', bitrate: 128 },
-  { id: 'ar.saadghamdi', label: 'Saad Al-Ghamdi', arabicName: 'سعد الغامدي', edition: 'ar.saadghamdi', bitrate: 128 },
-  { id: 'ar.mahermuaiqly', label: 'Maher Al-Muaiqly', arabicName: 'ماهر المعيقلي', edition: 'ar.mahermuaiqly', bitrate: 128 },
-  { id: 'ar.husary', label: 'Mahmoud Khalil Al-Husary', arabicName: 'محمود خليل الحصري', edition: 'ar.husary', bitrate: 128 },
-  { id: 'ar.minshawi', label: 'Muhammad Siddiq Al-Minshawi', arabicName: 'محمد صديق المنشاوي', edition: 'ar.minshawi', bitrate: 128 },
-  { id: 'ar.muhammadayyoub', label: 'Muhammad Ayyub', arabicName: 'محمد أيوب', edition: 'ar.muhammadayyoub', bitrate: 128 },
-  { id: 'ar.hanirifai', label: 'Hani Ar-Rifai', arabicName: 'هاني الرفاعي', edition: 'ar.hanirifai', bitrate: 128 },
-  { id: 'ar.muhammadjibreel', label: 'Muhammad Jibreel', arabicName: 'محمد جبريل', edition: 'ar.muhammadjibreel', bitrate: 128 },
+  { id: 'ar.alafasy', label: 'Mishary Rashid Alafasy', arabicName: 'مشاري راشد العفاسي', edition: 'ar.alafasy', bitrate: 128, availableBitrates: [128] },
+  { id: 'ar.abdulbasitmurattal', label: 'Abdul Basit (Murattal)', arabicName: 'عبد الباسط عبد الصمد', edition: 'ar.abdulbasitmurattal', bitrate: 128, availableBitrates: [128] },
+  { id: 'ar.abdurrahmaansudais', label: 'Abdur-Rahman As-Sudais', arabicName: 'عبد الرحمن السديس', edition: 'ar.abdurrahmaansudais', bitrate: 128, availableBitrates: [128] },
+  { id: 'ar.saudalshuraym', label: 'Saud Ash-Shuraym', arabicName: 'سعود الشريم', edition: 'ar.saudalshuraym', bitrate: 128, availableBitrates: [128] },
+  { id: 'ar.saadghamdi', label: 'Saad Al-Ghamdi', arabicName: 'سعد الغامدي', edition: 'ar.saadghamdi', bitrate: 128, availableBitrates: [128] },
+  { id: 'ar.mahermuaiqly', label: 'Maher Al-Muaiqly', arabicName: 'ماهر المعيقلي', edition: 'ar.mahermuaiqly', bitrate: 128, availableBitrates: [128] },
+  { id: 'ar.husary', label: 'Mahmoud Khalil Al-Husary', arabicName: 'محمود خليل الحصري', edition: 'ar.husary', bitrate: 128, availableBitrates: [128] },
+  { id: 'ar.minshawi', label: 'Muhammad Siddiq Al-Minshawi', arabicName: 'محمد صديق المنشاوي', edition: 'ar.minshawi', bitrate: 128, availableBitrates: [128] },
+  { id: 'ar.muhammadayyoub', label: 'Muhammad Ayyub', arabicName: 'محمد أيوب', edition: 'ar.muhammadayyoub', bitrate: 128, availableBitrates: [128] },
+  { id: 'ar.hanirifai', label: 'Hani Ar-Rifai', arabicName: 'هاني الرفاعي', edition: 'ar.hanirifai', bitrate: 128, availableBitrates: [128] },
+  { id: 'ar.muhammadjibreel', label: 'Muhammad Jibreel', arabicName: 'محمد جبريل', edition: 'ar.muhammadjibreel', bitrate: 128, availableBitrates: [128] },
 ];
 
 export function reciterById(id: string): Reciter {
@@ -101,9 +109,20 @@ export function audioStreamUrl(reciter: string, surah: number): string {
  * header, so a direct cross-origin fetch() cannot be read and downloads fail.
  * Served by the Vite dev proxy locally and the Vercel rewrite in production.
  */
-export function audioFetchUrl(reciter: string, surah: number): string {
+export function resolveAudioBitrate(reciter: string, quality: DownloadQuality = DEFAULT_DOWNLOAD_QUALITY): number {
   const r = reciterById(reciter);
-  return AUDIO_PATH(r.bitrate, r.edition, surah);
+  const candidates = r.availableBitrates && r.availableBitrates.length > 0 ? r.availableBitrates : [r.bitrate];
+  const desired = DOWNLOAD_QUALITY_OPTIONS.find((option) => option.id === quality)?.bitrate ?? r.bitrate;
+  const available = [...candidates].sort((a, b) => a - b);
+  const exact = available.find((bitrate) => bitrate === desired);
+  if (exact) return exact;
+  return available.find((bitrate) => bitrate >= desired) ?? available[available.length - 1] ?? r.bitrate;
+}
+
+export function audioFetchUrl(reciter: string, surah: number, quality: DownloadQuality = DEFAULT_DOWNLOAD_QUALITY): string {
+  const r = reciterById(reciter);
+  const bitrate = resolveAudioBitrate(reciter, quality);
+  return AUDIO_PATH(bitrate, r.edition, surah);
 }
 
 /* ---------------- default values ---------------- */

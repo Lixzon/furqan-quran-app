@@ -1,8 +1,8 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { AssistantLayout, ScriptStyle, SettingsState } from '../../types';
+import type { AssistantLayout, DownloadQuality, ScriptStyle, SettingsState } from '../../types';
 import { loadState } from '../persist';
 import { KEYS } from '../persist';
-import { DEFAULT_ARABIC_SCALE, DEFAULT_RECITER } from '../../lib/constants';
+import { DEFAULT_ARABIC_SCALE, DEFAULT_DOWNLOAD_QUALITY, DEFAULT_RECITER } from '../../lib/constants';
 
 const initialState: SettingsState = loadState<SettingsState>(KEYS.settings, {
   showArabic: true,
@@ -12,6 +12,7 @@ const initialState: SettingsState = loadState<SettingsState>(KEYS.settings, {
   script: 'uthmani',
   readingMode: false,
   defaultReciter: DEFAULT_RECITER,
+  downloadQuality: DEFAULT_DOWNLOAD_QUALITY,
   followAudio: true,
   audioSyncOffsetMs: 0,
   hasOfferedDefaultReciterDownload: false,
@@ -33,6 +34,7 @@ const settingsSlice = createSlice({
       // Backups written before a field existed would otherwise restore undefined.
       return {
         ...action.payload,
+        downloadQuality: action.payload.downloadQuality ?? DEFAULT_DOWNLOAD_QUALITY,
         assistantLayout: action.payload.assistantLayout ?? 'classic',
         audioSyncOffsetMs: Number.isFinite(action.payload.audioSyncOffsetMs) ? action.payload.audioSyncOffsetMs : 0,
       };
@@ -57,6 +59,9 @@ const settingsSlice = createSlice({
     },
     setDefaultReciter(state, action: PayloadAction<string>) {
       state.defaultReciter = action.payload;
+    },
+    setDownloadQuality(state, action: PayloadAction<DownloadQuality>) {
+      state.downloadQuality = action.payload;
     },
     setFollowAudio(state, action: PayloadAction<boolean>) {
       state.followAudio = action.payload;
@@ -95,6 +100,7 @@ export const {
   setScript,
   setReadingMode,
   setDefaultReciter,
+  setDownloadQuality,
   setFollowAudio,
   setAudioSyncOffset,
   setDefaultReciterOfferSeen,

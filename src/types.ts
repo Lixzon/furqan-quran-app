@@ -187,6 +187,8 @@ export interface QuoteEntry {
 
 /* ---------------- downloads / reciters ---------------- */
 
+export type DownloadQuality = 'low' | 'medium' | 'high';
+
 export interface Reciter {
   id: string;
   label: string;
@@ -194,6 +196,7 @@ export interface Reciter {
   /** islamic.network audio edition key */
   edition: string;
   bitrate: 64 | 128 | 192;
+  availableBitrates?: number[];
 }
 
 export interface DownloadRecord {
@@ -234,6 +237,7 @@ export interface SettingsState {
   script: ScriptStyle;
   readingMode: boolean; // distraction free
   defaultReciter: string;
+  downloadQuality: DownloadQuality;
   followAudio: boolean; // auto-scroll/highlight reader to the playing ayah
   /**
    * Milliseconds added to the audio clock before the highlighted ayah (and the

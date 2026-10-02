@@ -130,15 +130,24 @@ export interface UnlockProgress {
   remaining: number;
 }
 
+function isLocalDevOverrideEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname;
+  return import.meta.env.DEV || hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+}
+
 export function isReadingThemesUnlocked(streak: number): boolean {
-  return streak >= READING_THEMES_UNLOCK_DAYS;
+  return isLocalDevOverrideEnabled() || streak >= READING_THEMES_UNLOCK_DAYS;
 }
 
 export function isAiUiUnlocked(streak: number): boolean {
-  return streak >= AI_UI_UNLOCK_DAYS;
+  return isLocalDevOverrideEnabled() || streak >= AI_UI_UNLOCK_DAYS;
 }
 
 export function unlockProgress(streak: number, days: number): UnlockProgress {
+  if (isLocalDevOverrideEnabled()) {
+    return { unlocked: true, ratio: 1, remaining: 0 };
+  }
   const ratio = days <= 0 ? 1 : Math.max(0, Math.min(1, streak / days));
   return { unlocked: streak >= days, ratio, remaining: Math.max(0, days - streak) };
 }

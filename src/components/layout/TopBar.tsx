@@ -28,8 +28,8 @@ export function TopBar() {
           <button
             type="button"
             onClick={voiceSearch.open}
-            aria-label="Find a verse by reciting"
-            title="Find a verse by reciting"
+            aria-label="Recite and find the verse by speech"
+            title="Recite: find a verse by listening to it"
             className="pressable inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-mut hover:text-ink"
           >
             <Icon name="mic" size={16} className="text-accent" />

@@ -11,6 +11,7 @@ import {
   setScript,
   setReadingMode,
   setDefaultReciter,
+  setDownloadQuality,
   setFollowAudio,
   setAudioSyncOffset,
   setAssistantLayout,
@@ -35,7 +36,7 @@ import {
 import { normalizeHex } from '../lib/customTheme';
 import { db } from '../db/database';
 import { useStorageStats } from '../services/useDownloads';
-import { ACCENTS, APP_NAME, APP_TAGLINE, RECITERS, SCRIPT_STYLES } from '../lib/constants';
+import { ACCENTS, APP_NAME, APP_TAGLINE, DOWNLOAD_QUALITY_OPTIONS, RECITERS, SCRIPT_STYLES } from '../lib/constants';
 import { formatBytes } from '../lib/utils';
 import { PageHeader } from '../components/ui/common';
 import { Icon, type IconName } from '../components/ui/Icon';
@@ -416,6 +417,31 @@ export default function SettingsPage() {
             </option>
           ))}
         </select>
+
+        <div className="mt-4 border-t border-line pt-3">
+          <div className="mb-1 text-xs font-medium text-mut">Download quality</div>
+          <div className="grid grid-cols-3 gap-2">
+            {DOWNLOAD_QUALITY_OPTIONS.map((option) => {
+              const active = settings.downloadQuality === option.id;
+              const sizeMb = ((1.42 * option.bitrate) / 128).toFixed(2);
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => dispatch(setDownloadQuality(option.id))}
+                  className={`rounded-xl border px-2 py-2 text-left ${active ? 'border-accent bg-accent/8 text-ink' : 'border-line bg-surface2 text-mut'}`}
+                >
+                  <div className="text-sm font-semibold">{option.label}</div>
+                  <div className="mt-0.5 text-[10px] uppercase tracking-widest">{option.bitrate} kbps</div>
+                  <div className="mt-1 text-[11px]">~{sizeMb} MB / surah</div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-mut">
+            Existing downloads stay untouched. This only affects future surah downloads for your current reciter.
+          </p>
+        </div>
 
         <div className="mt-4">
           <div className="mb-1 flex items-center justify-between text-xs font-medium text-mut">

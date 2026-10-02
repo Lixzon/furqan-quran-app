@@ -3,11 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useAppDispatch, useAppSelector } from '../store';
 import { push } from '../store/slices/toastSlice';
-import { setDefaultReciter } from '../store/slices/settingsSlice';
+import { setDefaultReciter, setDownloadQuality } from '../store/slices/settingsSlice';
 import { useQuran } from '../data/QuranProvider';
 import { db, deleteStoredAudio, isUsableAudio, type StoredAudio } from '../db/database';
 import { downloadSurahAudio } from '../services/audioStore';
-import { RECITERS } from '../lib/constants';
+import { DOWNLOAD_QUALITY_OPTIONS, RECITERS } from '../lib/constants';
 import { formatBytes, surahNumberToArabic } from '../lib/utils';
 import { PageHeader, EmptyState } from '../components/ui/common';
 import { Icon } from '../components/ui/Icon';
@@ -18,6 +18,7 @@ export default function DownloadsPage() {
   const quran = useQuran();
   const [searchParams, setSearchParams] = useSearchParams();
   const defaultReciter = useAppSelector((s) => s.settings.defaultReciter);
+  const downloadQuality = useAppSelector((s) => s.settings.downloadQuality);
   const [reciter, setReciter] = useState(defaultReciter);
   const [busy, setBusy] = useState<Record<number, number>>({});
   const [downloadingAll, setDownloadingAll] = useState(false);
@@ -51,7 +52,7 @@ export default function DownloadsPage() {
     setBusy((b) => ({ ...b, [surah]: 0 }));
     try {
       const size = await downloadSurahAudio(reciter, surah, (p) =>
-        setBusy((b) => ({ ...b, [surah]: p })),
+        setBusy((b) => ({ ...b, [surah]: p })), downloadQuality,
       );
       const meta = allSurahs.find((s) => s.number === surah);
       dispatch(push(`Downloaded ${meta?.englishName ?? surah} (${formatBytes(size)}).`, 'success'));
@@ -78,7 +79,7 @@ export default function DownloadsPage() {
       setBusy((b) => ({ ...b, [s.number]: 0 }));
       try {
         await downloadSurahAudio(reciter, s.number, (p) =>
-          setBusy((b) => ({ ...b, [s.number]: p })),
+          setBusy((b) => ({ ...b, [s.number]: p })), downloadQuality,
         );
         ok++;
       } catch {
@@ -137,6 +138,34 @@ export default function DownloadsPage() {
             {r.label}
           </button>
         ))}
+      </div>
+
+      <div className="mb-3 rounded-2xl bg-surface p-3">
+        <div className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-mut">
+          <span>Download quality</span>
+          <span className="text-[10px] uppercase tracking-widest">Future downloads only</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {DOWNLOAD_QUALITY_OPTIONS.map((option) => {
+            const active = option.id === downloadQuality;
+            const sizeMb = ((1.42 * option.bitrate) / 128).toFixed(2);
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => dispatch(setDownloadQuality(option.id))}
+                className={`rounded-xl border px-2 py-2 text-left ${active ? 'border-accent bg-accent/8 text-ink' : 'border-line bg-surface2 text-mut'}`}
+              >
+                <div className="text-sm font-semibold">{option.label}</div>
+                <div className="mt-0.5 text-[10px] uppercase tracking-widest">{option.bitrate} kbps</div>
+                <div className="mt-1 text-[11px]">~{sizeMb} MB / surah</div>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-mut">
+          Based on a live measured Surah 1 file at 128 kbps (~1.42 MB). Lower tiers scale down proportionally and do not change existing downloads.
+        </p>
       </div>
 
       {/* stats */}

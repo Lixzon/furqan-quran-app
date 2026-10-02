@@ -29,11 +29,15 @@ export function LikeButton({
         event.stopPropagation();
         onToggle();
       }}
-      className={`pressable flex shrink-0 items-center justify-center rounded-full ${
+      className={`pressable flex shrink-0 items-center justify-center rounded-full transition-colors ${
         liked ? 'text-danger' : 'text-mut hover:text-ink'
       } ${className}`}
     >
-      <Icon name="heart" size={size} className={liked ? 'heart-pop heart-filled' : undefined} />
+      <Icon
+        name="heart"
+        size={size}
+        className={liked ? 'heart-pop heart-filled' : 'heart-outline'}
+      />
     </button>
   );
 }

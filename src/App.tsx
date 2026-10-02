@@ -1,16 +1,11 @@
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAppSelector } from './store';
-import { useAppDispatch } from './store';
-import { setDefaultReciterOfferSeen, setWifiDownloadPending } from './store/slices/settingsSlice';
 import { QuranProvider } from './data/QuranProvider';
 import { ThemeManager } from './components/layout/ThemeManager';
 import { AppLayout } from './components/layout/AppLayout';
 import { ToastHost } from './components/ui/ToastHost';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { Modal } from './components/ui/Modal';
-import { Icon } from './components/ui/Icon';
-import { RECITERS } from './lib/constants';
 import { APP_NAME, APP_TAGLINE } from './lib/constants';
 import { islamicQuoteOfTheDay } from './data/quotes';
 import { ProgressionHost } from './components/layout/ProgressionHost';
@@ -61,96 +56,9 @@ export default function App() {
           <ToastHost />
           <ReminderHost />
           <ProgressionHost />
-          <DefaultReciterOffer />
         </VoiceSearchProvider>
       </QuranProvider>
     </ErrorBoundary>
-  );
-}
-
-interface NetworkInformation extends EventTarget {
-  type?: string;
-}
-
-function DefaultReciterOffer() {
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-  const settings = useAppSelector((s) => s.settings);
-  const [open, setOpen] = useState(false);
-  const deferredThisSession = useRef(false);
-
-  useEffect(() => {
-    if (settings.wifiDownloadPending) {
-      const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
-      if (!connection || typeof connection.type !== 'string' || connection.type === 'unknown') {
-        if (deferredThisSession.current) return;
-        dispatch(setWifiDownloadPending(false));
-        setOpen(true);
-        return;
-      }
-
-      const startWhenOnWifi = () => {
-        if (connection.type !== 'wifi') return;
-        dispatch(setWifiDownloadPending(false));
-        navigate('/downloads?downloadAll=1');
-      };
-      startWhenOnWifi();
-      if (connection.type !== 'wifi') {
-        connection.addEventListener('change', startWhenOnWifi);
-        return () => connection.removeEventListener('change', startWhenOnWifi);
-      }
-      return;
-    }
-
-    if (!settings.hasOfferedDefaultReciterDownload) {
-      dispatch(setDefaultReciterOfferSeen());
-      setOpen(true);
-    }
-  }, [dispatch, navigate, settings.hasOfferedDefaultReciterDownload, settings.wifiDownloadPending]);
-
-  const startDownload = () => {
-    dispatch(setWifiDownloadPending(false));
-    setOpen(false);
-    navigate('/downloads?downloadAll=1');
-  };
-
-  const deferToWifi = () => {
-    const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
-    if (!connection || typeof connection.type !== 'string' || connection.type === 'unknown') {
-      deferredThisSession.current = true;
-    }
-    dispatch(setWifiDownloadPending(true));
-    setOpen(false);
-  };
-
-  const reciter = RECITERS.find((item) => item.id === settings.defaultReciter) ?? RECITERS[0];
-  return (
-    <Modal open={open} onClose={() => setOpen(false)} title="Download recitation">
-      <p className="text-sm leading-relaxed text-mut">
-        Download {reciter.label}’s complete recitation, approximately 700 MB, for offline listening. Best on Wi-Fi.
-      </p>
-      <div className="mt-5 grid gap-2">
-        <button
-          type="button"
-          onClick={startDownload}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-onaccent pressable"
-        >
-          <Icon name="download" size={16} />
-          Download now
-        </button>
-        <button
-          type="button"
-          onClick={deferToWifi}
-          className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface2 px-4 py-2.5 text-sm font-semibold text-ink pressable"
-        >
-          <Icon name="wifi" size={16} />
-          Only on Wi-Fi
-        </button>
-        <button type="button" onClick={() => setOpen(false)} className="rounded-full px-4 py-2 text-sm font-medium text-mut">
-          Not now
-        </button>
-      </div>
-    </Modal>
   );
 }
 

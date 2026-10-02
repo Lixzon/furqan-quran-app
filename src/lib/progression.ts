@@ -1,5 +1,11 @@
 import type { AccentId, ProgressionState, ThemeMode } from '../types';
 
+function isLocalDevOverrideEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname;
+  return import.meta.env.DEV || hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+}
+
 /**
  * Istiqamah (consistency) progression.
  *
@@ -355,7 +361,7 @@ export function tierProgress(days: number, tier: TierDefinition): { ratio: numbe
 }
 
 export function isTierUnlocked(days: number, tier: TierDefinition): boolean {
-  return days >= tier.days;
+  return isLocalDevOverrideEnabled() || days >= tier.days;
 }
 
 /** The highest badge earned so far (used for the flame treatment). */

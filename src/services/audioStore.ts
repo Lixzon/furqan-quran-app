@@ -1,5 +1,6 @@
 import { deleteStoredAudio, getStoredAudio, isAudioDownloaded, isUsableAudio, putStoredAudio, type StoredAudio } from '../db/database';
 import { audioFetchUrl } from '../lib/constants';
+import type { DownloadQuality } from '../types';
 
 const RANGE_SIZE = 4 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 45_000;
@@ -90,10 +91,11 @@ export async function downloadSurahAudio(
   reciter: string,
   surah: number,
   onProgress?: (fraction: number) => void,
+  quality: DownloadQuality = 'high',
 ): Promise<number> {
   // Always fetch same-origin: the CDN omits Access-Control-Allow-Origin, so a
   // direct cross-origin fetch cannot be read by the browser.
-  const blob = await fetchAudioBlob(audioFetchUrl(reciter, surah), surah, onProgress);
+  const blob = await fetchAudioBlob(audioFetchUrl(reciter, surah, quality), surah, onProgress);
   const rec: StoredAudio = {
     key: `${reciter}|${surah}`,
     reciter,

@@ -728,22 +728,36 @@ button {
 /* ---------- likes ---------- */
 /* The heart icon ships with fill="none"; a CSS rule beats that presentation
    attribute, so a liked heart can be filled without a second icon. */
+.heart-outline path {
+  fill: none;
+  stroke: currentColor;
+}
+
 .heart-filled path {
   fill: currentColor;
+  stroke: currentColor;
 }
+
 @keyframes q-heart-pop {
   0% {
     transform: scale(1);
   }
   35% {
-    transform: scale(1.35);
+    transform: scale(1.2);
   }
   100% {
     transform: scale(1);
   }
 }
+
 .heart-pop {
-  animation: q-heart-pop 0.34s ease;
+  animation: q-heart-pop 0.22s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heart-pop {
+    animation: none;
+  }
 }
 
 /* ---------- dynamic reader layouts ----------

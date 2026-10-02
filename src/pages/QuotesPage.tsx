@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/ui/common';
 import { Icon } from '../components/ui/Icon';
 import { Chip } from '../components/ui/controls';
@@ -24,7 +25,8 @@ type FocusedItem = { kind: 'saying'; entry: QuoteEntry } | { kind: 'dua'; entry:
 export default function QuotesPage() {
   const dispatch = useAppDispatch();
   const likes = useAppSelector((s) => s.likes);
-  const [view, setView] = useState<View>('sayings');
+  const [searchParams] = useSearchParams();
+  const [view, setView] = useState<View>(() => (searchParams.get('view') === 'duas' ? 'duas' : 'sayings'));
   const [filter, setFilter] = useState<Filter>('all');
   const [featuredIdx, setFeaturedIdx] = useState(() => quoteOfTheDayIndex(new Date()));
   const [focused, setFocused] = useState<FocusedItem | null>(null);
@@ -32,6 +34,11 @@ export default function QuotesPage() {
 
   const featured = QUOTES[featuredIdx] ?? QUOTES[0];
   const hasArabicVoice = voices.some((voice) => voice.lang.toLowerCase().startsWith('ar'));
+
+  useEffect(() => {
+    const nextView = searchParams.get('view') === 'duas' ? 'duas' : 'sayings';
+    setView((current) => (current === nextView ? current : nextView));
+  }, [searchParams]);
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) return;
@@ -139,7 +146,7 @@ export default function QuotesPage() {
               <Icon name="clipboard" size={16} />
             </button>
             <button type="button" onClick={() => toggleLiked({ kind: 'saying', entry: featured })} aria-label={isLiked({ kind: 'saying', entry: featured }) ? 'Unlike saying' : 'Like saying'} aria-pressed={isLiked({ kind: 'saying', entry: featured })} className="rounded-full bg-white/20 p-2 pressable">
-              <Icon name="heart" size={16} />
+              <Icon name="heart" size={16} className={isLiked({ kind: 'saying', entry: featured }) ? 'heart-pop heart-filled' : 'heart-outline'} />
             </button>
           </div>
         </div>
@@ -200,7 +207,7 @@ export default function QuotesPage() {
                 <div className="flex shrink-0 items-center gap-1">
                   <SpeechActions onEnglish={() => speak(quote.text, 'en')} compact />
                   <button type="button" aria-label="Copy saying" title="Copy saying" onClick={() => void copySaying(quote)} className="rounded-full p-2 text-mut hover:bg-surface2 hover:text-ink"><Icon name="clipboard" size={17} /></button>
-                  <button type="button" aria-label={liked ? 'Unlike saying' : 'Like saying'} title={liked ? 'Unlike' : 'Like'} aria-pressed={liked} onClick={() => toggleLiked(item)} className={`rounded-full p-2 ${liked ? 'text-accent' : 'text-mut hover:bg-surface2 hover:text-accent'}`}><Icon name="heart" size={17} /></button>
+                  <button type="button" aria-label={liked ? 'Unlike saying' : 'Like saying'} title={liked ? 'Unlike' : 'Like'} aria-pressed={liked} onClick={() => toggleLiked(item)} className={`rounded-full p-2 ${liked ? 'text-accent' : 'text-mut hover:bg-surface2 hover:text-accent'}`}><Icon name="heart" size={17} className={liked ? 'heart-pop heart-filled' : 'heart-outline'} /></button>
                 </div>
               </div>
             </article>
@@ -224,7 +231,7 @@ export default function QuotesPage() {
               <div className="mt-3 flex justify-end gap-1 border-t border-line pt-2">
                 <SpeechActions onEnglish={() => speak(dua.translation, 'en')} onArabic={hasArabicVoice ? () => speak(dua.arabic, 'ar') : undefined} compact />
                 <button type="button" aria-label="Copy dua" title="Copy dua" onClick={() => void copyDua(dua)} className="rounded-full p-2 text-mut hover:bg-surface2 hover:text-ink"><Icon name="clipboard" size={17} /></button>
-                <button type="button" aria-label={liked ? 'Unlike dua' : 'Like dua'} title={liked ? 'Unlike' : 'Like'} aria-pressed={liked} onClick={() => toggleLiked(item)} className={`rounded-full p-2 ${liked ? 'text-accent' : 'text-mut hover:bg-surface2 hover:text-accent'}`}><Icon name="heart" size={17} /></button>
+                <button type="button" aria-label={liked ? 'Unlike dua' : 'Like dua'} title={liked ? 'Unlike' : 'Like'} aria-pressed={liked} onClick={() => toggleLiked(item)} className={`rounded-full p-2 ${liked ? 'text-accent' : 'text-mut hover:bg-surface2 hover:text-accent'}`}><Icon name="heart" size={17} className={liked ? 'heart-pop heart-filled' : 'heart-outline'} /></button>
               </div>
             </article>
           );
@@ -240,7 +247,7 @@ export default function QuotesPage() {
             <div className="mt-5 flex flex-wrap gap-2">
               <SpeechActions onEnglish={() => speak(focused.entry.text, 'en')} />
               <button type="button" onClick={() => void copySaying(focused.entry)} className="rounded-full bg-surface2 p-2 text-mut" aria-label="Copy saying"><Icon name="clipboard" size={17} /></button>
-              <button type="button" onClick={() => toggleLiked(focused)} className="rounded-full bg-surface2 p-2 text-mut" aria-label={isLiked(focused) ? 'Unlike saying' : 'Like saying'}><Icon name="heart" size={17} /></button>
+              <button type="button" onClick={() => toggleLiked(focused)} className="rounded-full bg-surface2 p-2 text-mut" aria-label={isLiked(focused) ? 'Unlike saying' : 'Like saying'}><Icon name="heart" size={17} className={isLiked(focused) ? 'heart-pop heart-filled' : 'heart-outline'} /></button>
             </div>
           </div>
         )}
@@ -253,7 +260,7 @@ export default function QuotesPage() {
             <div className="mt-5 flex flex-wrap gap-2">
               <SpeechActions onEnglish={() => speak(focused.entry.translation, 'en')} onArabic={hasArabicVoice ? () => speak(focused.entry.arabic, 'ar') : undefined} />
               <button type="button" onClick={() => void copyDua(focused.entry)} className="rounded-full bg-surface2 p-2 text-mut" aria-label="Copy dua"><Icon name="clipboard" size={17} /></button>
-              <button type="button" onClick={() => toggleLiked(focused)} className="rounded-full bg-surface2 p-2 text-mut" aria-label={isLiked(focused) ? 'Unlike dua' : 'Like dua'}><Icon name="heart" size={17} /></button>
+              <button type="button" onClick={() => toggleLiked(focused)} className="rounded-full bg-surface2 p-2 text-mut" aria-label={isLiked(focused) ? 'Unlike dua' : 'Like dua'}><Icon name="heart" size={17} className={isLiked(focused) ? 'heart-pop heart-filled' : 'heart-outline'} /></button>
             </div>
           </div>
         )}

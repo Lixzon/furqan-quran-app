@@ -55,6 +55,53 @@ export default function BrowsePage() {
   const checkInSurah = progress.lastPosition?.surah ?? 1;
   const dailyQuote = islamicQuoteOfTheDay(new Date());
   const streak = progress.progression.currentStreak;
+  const banner = useMemo(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    const day = now.getDay();
+    const isFriday = day === 5;
+    const isThursdayEvening = (day === 4 && hour >= 18) || (isFriday && hour < 19);
+    const isNight = hour >= 21 || hour < 5;
+    const isProtectionWindow = (hour >= 5 && hour < 8) || (hour >= 15 && hour < 17);
+
+    if (isThursdayEvening) {
+      return {
+        type: 'single' as const,
+        title: 'Friday reading',
+        subtitle: 'Many people begin Friday with Surah Al-Kahf for a calm, meaningful start.',
+        surah: 18,
+        accent: 'from-accent to-accentstrong',
+      };
+    }
+
+    if (isNight) {
+      return {
+        type: 'multiple' as const,
+        title: 'Night supplication',
+        subtitle: 'Many scholars recommend Surah Al-Mulk and Surah As-Sajdah before sleep.',
+        surahs: [67, 32],
+        accent: 'from-slate-900 to-slate-700',
+      };
+    }
+
+    if (isProtectionWindow) {
+      return {
+        type: 'protection' as const,
+        title: 'In a pinch',
+        subtitle: 'A few short protection surahs are commonly recited on the go and throughout the day.',
+        surahs: [112, 113, 114],
+        accent: 'from-amber-600 to-orange-500',
+      };
+    }
+
+    return {
+      type: 'single' as const,
+      title: 'A gentle place to begin',
+      subtitle: 'Take a few minutes with the Qur’an and let it settle the heart.',
+      surah: 1,
+      accent: 'from-accent to-accentstrong',
+    };
+  }, []);
   const goal = progress.progression.istiqamahGoal;
   const goalPct = Math.min(100, (streak / Math.max(1, goal)) * 100);
 
@@ -81,6 +128,45 @@ export default function BrowsePage() {
         <div className="ar-uthmani text-2xl leading-relaxed text-ink" style={{ direction: 'rtl' }}>
           بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
         </div>
+      </div>
+
+      <div className={`mb-4 rounded-2xl bg-gradient-to-br ${banner.accent} p-4 text-onaccent shadow-card`}>
+        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest opacity-90">
+          <Icon name="sparkle" size={14} />
+          {banner.title}
+        </div>
+        <p className="mt-2 text-sm font-medium leading-relaxed">{banner.subtitle}</p>
+        {banner.type === 'single' && (
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <button type="button" onClick={() => navigate(`/surah/${banner.surah}`)} className="inline-flex items-center gap-2 rounded-full bg-white/18 px-3 py-1.5 text-xs font-semibold pressable">
+              <Icon name="book" size={14} />
+              Open Surah {banner.surah}
+            </button>
+            <button type="button" onClick={() => navigate('/quotes')} aria-label="Explore sayings and duas" className="shrink-0 rounded-full bg-white/20 p-2 pressable">
+              <Icon name="forward" size={16} />
+            </button>
+          </div>
+        )}
+        {banner.type === 'multiple' && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {banner.surahs.map((surah) => (
+              <button key={surah} type="button" onClick={() => navigate(`/surah/${surah}`)} className="inline-flex items-center gap-2 rounded-full bg-white/18 px-3 py-1.5 text-xs font-semibold pressable">
+                <Icon name="book" size={14} />
+                Surah {surah}
+              </button>
+            ))}
+          </div>
+        )}
+        {banner.type === 'protection' && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {banner.surahs.map((surah) => (
+              <button key={surah} type="button" onClick={() => navigate(`/surah/${surah}`)} className="inline-flex items-center gap-2 rounded-full bg-white/18 px-3 py-1.5 text-xs font-semibold pressable">
+                <span className="tabular-nums">{surah}</span>
+                <Icon name="book" size={14} />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mb-4 rounded-2xl bg-gradient-to-br from-accent to-accentstrong p-4 text-onaccent shadow-card">
@@ -156,12 +242,37 @@ export default function BrowsePage() {
         <button
           type="button"
           onClick={voiceSearch.open}
-          aria-label="Find a verse by reciting"
-          title="Find a verse by reciting"
+          aria-label="Dictate your surah search"
+          title="Dictate your search term into the surah box"
           className="pressable absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-accent/12 text-accent"
         >
           <Icon name="mic" size={18} />
         </button>
+      </div>
+
+      <div className="mb-4 rounded-2xl bg-surface p-3">
+        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted">
+          <Icon name="heart" size={14} className="text-accent" />
+          In a pinch
+        </div>
+        <div className="grid gap-2 md:grid-cols-3">
+          {[
+            { category: 'Distress', title: 'Prophet Yunus', text: 'La ilaha illa anta...' },
+            { category: 'Anxiety', title: 'Sayyid al-Istighfar', text: 'Allahumma anta rabbi...' },
+            { category: 'Difficulty', title: 'Need a steady heart', text: 'A reminder that Allah is near and merciful.' },
+          ].map((item) => (
+            <button
+              key={item.title}
+              type="button"
+              onClick={() => navigate('/quotes?view=duas')}
+              className="rounded-xl border border-line bg-surface2 p-2.5 text-left pressable"
+            >
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-mut">{item.category}</div>
+              <div className="mt-1 text-sm font-semibold text-ink">{item.title}</div>
+              <div className="mt-1 text-xs text-mut">{item.text}</div>
+            </button>
+          ))}
+        </div>
       </div>
 
       {tab === 'surah' ? (
