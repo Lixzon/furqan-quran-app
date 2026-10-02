@@ -20,7 +20,6 @@ import { PageHeader, EmptyState } from '../components/ui/common';
 import { Icon } from '../components/ui/Icon';
 import { LikeButton } from '../components/ui/LikeButton';
 import { Modal } from '../components/ui/Modal';
-import { Segmented } from '../components/ui/controls';
 import { XpPill } from '../components/ui/XpPill';
 import type { AyahBookmark } from '../store/slices/bookmarksSlice';
 
@@ -135,16 +134,25 @@ export default function FavoritesPage({ embedded = false }: { embedded?: boolean
         />
       )}
 
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Segmented<Tab>
-          value={tab}
-          onChange={(value) => setParam('tab', value)}
-          options={TABS.map((entry) => ({
-            value: entry.value,
-            label: `${entry.label}${counts[entry.value] ? ` · ${counts[entry.value]}` : ''}`,
-            icon: entry.icon,
-          }))}
-        />
+      <div className="mb-3 grid grid-cols-4 gap-1 rounded-2xl bg-surface2 p-1" role="tablist" aria-label="Favourite types">
+        {TABS.map((entry) => {
+          const active = tab === entry.value;
+          return (
+            <button
+              key={entry.value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setParam('tab', entry.value)}
+              className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-semibold transition-colors ${active ? 'bg-accent text-onaccent' : 'text-mut hover:bg-surface hover:text-ink'}`}
+            >
+              <Icon name={entry.icon} size={15} />
+              <span className="max-w-full truncate">
+                {entry.label}{counts[entry.value] > 0 ? ` · ${counts[entry.value]}` : ''}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="relative mb-3">
