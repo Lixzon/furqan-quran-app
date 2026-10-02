@@ -9,14 +9,17 @@ import {
   setArabicFontSize,
   setAudioQuality,
   setAutoClearCacheThreshold,
+  setAutoAdvanceSurah,
   setAutoScrollVerse,
   setAutoScrollSpeed,
   setDefaultReciterId,
+  setEnableFluidAnimations,
   setFontFamily,
   setLineSpacing,
-  setReducedMotion,
+  setPlaybackSpeed,
   setScriptType,
   setShowArabic,
+  setShowTajweedRules,
   setShowTransliteration,
   setShowTranslation,
   setShowVerseNumbers,
@@ -221,7 +224,7 @@ export default function SettingsPage() {
           <Row
             label="Fluid animations"
             hint="Reduce motion across transitions and page effects"
-            control={<Toggle checked={!settings.reducedMotion} onChange={(enabled) => dispatch(setReducedMotion(!enabled))} label="Fluid animations" />}
+            control={<Toggle checked={settings.enableFluidAnimations} onChange={(enabled) => dispatch(setEnableFluidAnimations(enabled))} label="Fluid animations" />}
           />
         </div>
 
@@ -409,8 +412,17 @@ export default function SettingsPage() {
           control={<Toggle checked={settings.autoScrollVerse} onChange={(v) => dispatch(setAutoScrollVerse(v))} label="Auto-scroll with recitation" />}
         />
         <Row
+          label="Auto-advance to next surah"
+          hint="Continue automatically when the current surah ends"
+          control={<Toggle checked={settings.autoAdvanceSurah} onChange={(v) => dispatch(setAutoAdvanceSurah(v))} label="Auto-advance to next surah" />}
+        />
+        <Row
           label="Verse numbers"
           control={<Toggle checked={settings.showVerseNumbers} onChange={(v) => dispatch(setShowVerseNumbers(v))} label="Verse numbers" />}
+        />
+        <Row
+          label="Tajweed rules"
+          control={<Toggle checked={settings.showTajweedRules} onChange={(v) => dispatch(setShowTajweedRules(v))} label="Tajweed rules" />}
         />
         <Row
           label="Focus mode"
@@ -543,6 +555,14 @@ export default function SettingsPage() {
             options={[{ value: 'ar-SA', label: 'Arabic' }, { value: 'en-US', label: 'English' }]}
             size="sm"
           />
+        </div>
+
+        <div className="mt-4 border-t border-line pt-3">
+          <div className="mb-1 flex items-center justify-between text-xs font-medium text-mut">
+            <span>Playback speed</span>
+            <span className="tabular-nums">{settings.playbackSpeed.toFixed(1)}x</span>
+          </div>
+          <Slider min={0.5} max={2} step={0.1} value={settings.playbackSpeed} onChange={(v) => dispatch(setPlaybackSpeed(v))} ariaLabel="Playback speed" />
         </div>
 
         <div className="mt-4">

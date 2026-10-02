@@ -243,10 +243,12 @@ export interface SettingsState {
   showTransliteration: boolean;
   showTranslation: boolean;
   showVerseNumbers: boolean;
+  showTajweedRules: boolean;
   arabicFontScale: number; // multiplier, e.g. 1.6
   script: ScriptStyle;
   themeMode: ThemeMode;
   accentColor: AccentId;
+  enableFluidAnimations: boolean;
   reducedMotion: boolean;
   readingMode: boolean; // distraction free
   defaultReciter: string;
@@ -255,7 +257,9 @@ export interface SettingsState {
   audioQuality: AudioQuality;
   followAudio: boolean; // auto-scroll/highlight reader to the playing ayah
   autoScrollVerse: boolean;
+  autoAdvanceSurah: boolean;
   autoScrollSpeed: number;
+  playbackSpeed: number;
   voiceLanguage: 'ar-SA' | 'en-US';
   autoClearCacheThreshold: number;
   /**

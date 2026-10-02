@@ -15,7 +15,7 @@ const AUDIO_TO_QUALITY: Record<AudioQuality, DownloadQuality> = {
   '128kbps': 'high',
 };
 
-const DEFAULT_SETTINGS: SettingsState = {
+export const DEFAULT_SETTINGS: SettingsState = {
   arabicFontSize: 28,
   translationFontSize: 16,
   lineSpacing: 1.8,
@@ -25,10 +25,12 @@ const DEFAULT_SETTINGS: SettingsState = {
   showTransliteration: true,
   showTranslation: true,
   showVerseNumbers: true,
+  showTajweedRules: true,
   arabicFontScale: DEFAULT_ARABIC_SCALE,
   script: 'uthmani',
   themeMode: 'system',
   accentColor: DEFAULT_ACCENT,
+  enableFluidAnimations: true,
   reducedMotion: false,
   readingMode: false,
   defaultReciter: DEFAULT_RECITER,
@@ -37,7 +39,9 @@ const DEFAULT_SETTINGS: SettingsState = {
   audioQuality: QUALITY_TO_AUDIO[DEFAULT_DOWNLOAD_QUALITY],
   followAudio: true,
   autoScrollVerse: true,
+  autoAdvanceSurah: false,
   autoScrollSpeed: 140,
+  playbackSpeed: 1,
   voiceLanguage: 'ar-SA',
   autoClearCacheThreshold: 1000,
   audioSyncOffsetMs: 0,
@@ -52,13 +56,15 @@ const DEFAULT_SETTINGS: SettingsState = {
   },
 };
 
-function normalizeSettings(stored: Partial<SettingsState>): SettingsState {
+export function normalizeSettings(stored: Partial<SettingsState>): SettingsState {
   const initialTheme = loadState<{ mode: ThemeMode; accent: AccentId }>(KEYS.theme, {
     mode: 'system',
     accent: DEFAULT_ACCENT,
   });
   const defaultReciter = stored.defaultReciterId ?? stored.defaultReciter ?? DEFAULT_RECITER;
   const downloadQuality = stored.downloadQuality ?? DEFAULT_DOWNLOAD_QUALITY;
+  const reducedMotion = stored.reducedMotion ?? (stored.enableFluidAnimations === false);
+  const enableFluidAnimations = stored.enableFluidAnimations ?? !reducedMotion;
   const arabicFontSize = Math.min(50, Math.max(18,
     stored.arabicFontSize ?? (stored.arabicFontScale !== undefined
       ? Math.round(26 * stored.arabicFontScale)
@@ -75,23 +81,27 @@ function normalizeSettings(stored: Partial<SettingsState>): SettingsState {
     scriptType: stored.scriptType ?? 'uthmani',
     fontFamily: stored.fontFamily ?? 'amiri',
     showVerseNumbers: stored.showVerseNumbers ?? true,
+    showTajweedRules: stored.showTajweedRules ?? true,
     themeMode: stored.themeMode ?? initialTheme.mode,
     accentColor: stored.accentColor ?? initialTheme.accent,
-    reducedMotion: stored.reducedMotion ?? false,
+    enableFluidAnimations,
+    reducedMotion,
     defaultReciter,
     defaultReciterId: defaultReciter,
     downloadQuality,
     audioQuality: stored.audioQuality ?? QUALITY_TO_AUDIO[downloadQuality],
     followAudio: stored.followAudio ?? stored.autoScrollVerse ?? true,
     autoScrollVerse: stored.autoScrollVerse ?? stored.followAudio ?? true,
+    autoAdvanceSurah: stored.autoAdvanceSurah ?? false,
     autoScrollSpeed: Math.min(800, Math.max(0, stored.autoScrollSpeed ?? DEFAULT_SETTINGS.autoScrollSpeed)),
+    playbackSpeed: Math.min(2, Math.max(0.5, stored.playbackSpeed ?? DEFAULT_SETTINGS.playbackSpeed)),
     voiceLanguage: stored.voiceLanguage ?? 'ar-SA',
     autoClearCacheThreshold: stored.autoClearCacheThreshold ?? 1000,
     notifications: { ...DEFAULT_SETTINGS.notifications, ...stored.notifications },
   };
 }
 
-const initialState = normalizeSettings(loadState<Partial<SettingsState>>(KEYS.settings, {}));
+export const initialState = normalizeSettings(loadState<Partial<SettingsState>>(KEYS.settings, {}));
 
 const settingsSlice = createSlice({
   name: 'settings',
@@ -102,6 +112,9 @@ const settingsSlice = createSlice({
       return normalizeSettings(action.payload);
     },
     resetSettings() {
+      return { ...DEFAULT_SETTINGS, notifications: { ...DEFAULT_SETTINGS.notifications } };
+    },
+    resetToDefaults() {
       return { ...DEFAULT_SETTINGS, notifications: { ...DEFAULT_SETTINGS.notifications } };
     },
     setArabicFontSize(state, action: PayloadAction<number>) {
@@ -123,8 +136,16 @@ const settingsSlice = createSlice({
     setShowVerseNumbers(state, action: PayloadAction<boolean>) {
       state.showVerseNumbers = action.payload;
     },
+    setShowTajweedRules(state, action: PayloadAction<boolean>) {
+      state.showTajweedRules = action.payload;
+    },
     setReducedMotion(state, action: PayloadAction<boolean>) {
       state.reducedMotion = action.payload;
+      state.enableFluidAnimations = !action.payload;
+    },
+    setEnableFluidAnimations(state, action: PayloadAction<boolean>) {
+      state.enableFluidAnimations = action.payload;
+      state.reducedMotion = !action.payload;
     },
     setThemeMode(state, action: PayloadAction<ThemeMode>) {
       state.themeMode = action.payload;
@@ -144,8 +165,14 @@ const settingsSlice = createSlice({
       state.autoScrollVerse = action.payload;
       state.followAudio = action.payload;
     },
+    setAutoAdvanceSurah(state, action: PayloadAction<boolean>) {
+      state.autoAdvanceSurah = action.payload;
+    },
     setAutoScrollSpeed(state, action: PayloadAction<number>) {
       state.autoScrollSpeed = Math.min(800, Math.max(0, Math.round(action.payload)));
+    },
+    setPlaybackSpeed(state, action: PayloadAction<number>) {
+      state.playbackSpeed = Math.min(2, Math.max(0.5, Number(action.payload) || 1));
     },
     setVoiceLanguage(state, action: PayloadAction<SettingsState['voiceLanguage']>) {
       state.voiceLanguage = action.payload;
@@ -212,19 +239,24 @@ const settingsSlice = createSlice({
 export const {
   restoreSettings,
   resetSettings,
+  resetToDefaults,
   setArabicFontSize,
   setTranslationFontSize,
   setLineSpacing,
   setScriptType,
   setFontFamily,
   setShowVerseNumbers,
+  setShowTajweedRules,
   setReducedMotion,
+  setEnableFluidAnimations,
   setThemeMode,
   setAccentColor,
   setDefaultReciterId,
   setAudioQuality,
   setAutoScrollVerse,
+  setAutoAdvanceSurah,
   setAutoScrollSpeed,
+  setPlaybackSpeed,
   setVoiceLanguage,
   setAutoClearCacheThreshold,
   setShowArabic,
