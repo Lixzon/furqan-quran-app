@@ -74,7 +74,7 @@ function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => voi
     lang,
     fallbackLang: lang === 'ar-SA' ? 'ar-EG' : 'ar-SA',
   });
-  const { status, transcript } = speech;
+  const { status, transcript, cancel: cancelSpeech } = speech;
   const isListening = status === 'listening';
   const isBusy = isListening || status === 'processing';
 
@@ -124,7 +124,7 @@ function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => voi
           const match = matches[0];
           dispatch(setVoiceMatchSession({ matches, activeIndex: 0, isOpen: false, lastQuery: query }));
           setSearching(false);
-          speech.cancel();
+          cancelSpeech();
           onClose();
           navigate(`/surah/${match.surahNumber}?ayah=${match.ayahNumber}`);
           return;
@@ -134,7 +134,7 @@ function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => voi
       })();
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [dispatch, index, lang, navigate, onClose, speech, transcript]);
+  }, [cancelSpeech, dispatch, index, lang, navigate, onClose, transcript]);
 
   const close = useCallback(() => {
     dispatch(clearVoiceMatchSession());
