@@ -33,7 +33,7 @@ export default function ProfilePage() {
             type="button"
             aria-label="Open settings"
             onClick={() => navigate('/settings')}
-            className="pressable inline-flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface text-muted hover:text-ink"
+            className="pressable inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-line bg-surface2 p-0 text-muted hover:text-ink"
           >
             <Icon name="settings" size={18} />
           </button>

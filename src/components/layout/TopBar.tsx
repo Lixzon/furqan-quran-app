@@ -30,16 +30,16 @@ export function TopBar() {
             onClick={voiceSearch.open}
             aria-label="Recite and find the verse by speech"
             title="Recite: find a verse by listening to it"
-            className="pressable flex h-10 w-10 items-center justify-center rounded-full border-0 bg-transparent p-2 text-mut transition-colors hover:bg-surface2 hover:text-ink"
+            className="pressable inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-accent/20 bg-accent/10 p-0 text-accent transition-colors hover:bg-accent/15"
           >
-            <Icon name="mic" size={18} className="text-accent" />
+            <Icon name="mic" size={18} />
           </button>
 
           <button
             type="button"
             onClick={() => navigate('/profile')}
             aria-label="Open profile"
-            className="pressable flex h-10 w-10 items-center justify-center rounded-full border-0 bg-transparent p-2 text-muted transition-colors hover:bg-surface2 hover:text-ink"
+            className="pressable inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-line bg-surface2 p-0 text-muted transition-colors hover:text-ink"
           >
             <Icon name="user" size={18} />
           </button>
