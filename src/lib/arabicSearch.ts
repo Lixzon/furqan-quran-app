@@ -11,6 +11,7 @@
 
 import type { SurahFull } from '../types';
 import { getAllSurahs } from './dataClient';
+import { getQuranSearchIndex, putQuranSearchIndex } from '../db/database';
 
 /* ------------------------------------------------------------------ */
 /* normalisation                                                      */
@@ -394,8 +395,22 @@ let cachedIndex: ArabicSearchIndex | null = null;
 /** Loads the whole Qur'an on first use, then reuses the built index. */
 export async function loadArabicSearchIndex(): Promise<ArabicSearchIndex> {
   if (cachedIndex) return cachedIndex;
+  try {
+    const stored = await getQuranSearchIndex<ArabicSearchIndex>('arabic-v1');
+    if (stored && Array.isArray(stored.ayahs) && stored.grams instanceof Map) {
+      cachedIndex = stored;
+      return stored;
+    }
+  } catch {
+    // Build the index from local text files if IndexedDB is unavailable.
+  }
   const surahs = await getAllSurahs();
   cachedIndex = buildArabicSearchIndex(surahs);
+  try {
+    await putQuranSearchIndex('arabic-v1', cachedIndex);
+  } catch {
+    // Search remains available for this session when persistent storage fails.
+  }
   return cachedIndex;
 }
 

@@ -18,11 +18,20 @@ export interface CachedJson {
   cachedAt: number;
 }
 
+export interface QuranTextRecord {
+  id: string;
+  edition: 'uthmani' | 'indopak';
+  surah: number;
+  data: unknown;
+  cachedAt: number;
+}
+
 class FurqanDB extends Dexie {
   audio!: Table<StoredAudio, string>;
   cachedJson!: Table<CachedJson, string>;
   kv!: Table<{ key: string; value: unknown }, string>;
   bookmarks!: Table<AyahBookmark, string>;
+  quranText!: Table<QuranTextRecord, string>;
 
   constructor() {
     super('furqan-db');
@@ -36,6 +45,13 @@ class FurqanDB extends Dexie {
       cachedJson: 'url, cachedAt',
       kv: 'key',
       bookmarks: 'id, surah, createdAt',
+    });
+    this.version(3).stores({
+      audio: 'key, reciter, surah, storedAt',
+      cachedJson: 'url, cachedAt',
+      kv: 'key',
+      bookmarks: 'id, surah, createdAt',
+      quranText: 'id, edition, surah',
     });
   }
 }
@@ -80,4 +96,42 @@ export async function totalAudioBytes(): Promise<number> {
 
 export async function deleteAllAudio(): Promise<void> {
   await db.audio.clear();
+}
+
+/* ---------- locally stored Quran editions ---------- */
+
+function quranTextId(edition: QuranTextRecord['edition'], surah: number): string {
+  return `${edition}:${surah}`;
+}
+
+export async function getQuranText<T>(edition: QuranTextRecord['edition'], surah: number): Promise<T | undefined> {
+  const record = await db.quranText.get(quranTextId(edition, surah));
+  return record?.data as T | undefined;
+}
+
+export async function putQuranText(
+  edition: QuranTextRecord['edition'],
+  surah: number,
+  data: unknown,
+): Promise<void> {
+  await db.quranText.put({
+    id: quranTextId(edition, surah),
+    edition,
+    surah,
+    data,
+    cachedAt: Date.now(),
+  });
+}
+
+export async function countQuranText(edition: QuranTextRecord['edition']): Promise<number> {
+  return db.quranText.where('edition').equals(edition).count();
+}
+
+export async function getQuranSearchIndex<T>(key: string): Promise<T | undefined> {
+  const record = await db.kv.get(`quran-search:${key}`);
+  return record?.value as T | undefined;
+}
+
+export async function putQuranSearchIndex(key: string, value: unknown): Promise<void> {
+  await db.kv.put({ key: `quran-search:${key}`, value });
 }

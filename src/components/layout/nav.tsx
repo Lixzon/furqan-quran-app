@@ -13,12 +13,10 @@ interface NavItem {
 
 export const MAIN_ITEMS: NavItem[] = [
   { to: '/', icon: 'book', label: 'Read', end: true },
-  { to: '/playlists', icon: 'list', label: 'Playlists' },
-  { to: '/quotes', icon: 'quote', label: 'Quotes' },
-  { to: '/favorites', icon: 'heart', label: 'Favourites' },
+  { to: '/guidance', icon: 'quote', label: 'Guidance' },
+  { to: '/library', icon: 'list', label: 'Library' },
+  { to: '/profile', icon: 'user', label: 'Profile' },
   { to: '/progress', icon: 'progress', label: 'Progress' },
-  { to: '/downloads', icon: 'download', label: 'Downloads' },
-  { to: '/settings', icon: 'settings', label: 'Settings' },
 ];
 
 export function Sidebar() {

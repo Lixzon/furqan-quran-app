@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { JuzBoundary, SurahMeta } from '../types';
-import { getJuzList, getSurahMetaList } from '../lib/dataClient';
+import { cacheCompleteQuranText, getJuzList, getSurahMetaList } from '../lib/dataClient';
 
 interface QuranData {
   surahs: SurahMeta[] | null;
@@ -26,6 +26,9 @@ export function QuranProvider({ children }: { children: ReactNode }) {
         if (!alive) return;
         setSurahs(s);
         setJuz(j);
+        void cacheCompleteQuranText().catch((cacheError: unknown) => {
+          console.warn('Could not warm the offline Quran text store.', cacheError);
+        });
       })
       .catch((e) => {
         if (alive) setError(e instanceof Error ? e.message : String(e));

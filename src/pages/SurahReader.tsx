@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useAppDispatch, useAppSelector } from '../store';
 import { player } from '../audio/controller';
 import { getSurah } from '../lib/dataClient';
@@ -54,9 +56,41 @@ export default function SurahReader() {
   const validSurahNumber = Number.isInteger(surahNumber) && surahNumber >= 1 && surahNumber <= 114;
 
   const refs = useRef(new Map<number, HTMLDivElement>());
+  const listRef = useRef<HTMLDivElement>(null);
+  const pendingAyahScroll = useRef<{ index: number; smooth: boolean } | null>(null);
+  const [listOffset, setListOffset] = useState(0);
   const listSwipeStart = useRef<{ x: number; y: number } | null>(null);
   const initTarget = useRef<number | null>(null);
   const bookPageRef = useRef(0);
+
+  const rowVirtualizer = useWindowVirtualizer({
+    count: viewMode === 'list' ? surah?.ayahs.length ?? 0 : 0,
+    estimateSize: () => settings.showArabic ? 240 : 140,
+    overscan: 3,
+    scrollMargin: listOffset,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+
+  useLayoutEffect(() => {
+    if (viewMode !== 'list' || !listRef.current) return;
+    const measureOffset = () => {
+      const node = listRef.current;
+      if (node) setListOffset(node.getBoundingClientRect().top + window.scrollY);
+    };
+    measureOffset();
+    window.addEventListener('resize', measureOffset);
+    return () => window.removeEventListener('resize', measureOffset);
+  }, [surah?.number, settings.showArabic, settings.showTranslation, settings.showTransliteration, viewMode]);
+
+  useEffect(() => {
+    const pending = pendingAyahScroll.current;
+    if (!pending) return;
+    const element = refs.current.get(pending.index);
+    if (!element) return;
+    pendingAyahScroll.current = null;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    element.scrollIntoView({ behavior: pending.smooth && !reduceMotion ? 'smooth' : 'auto', block: 'start' });
+  }, [virtualRows]);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--q-reader-bar-h', '64px');
@@ -150,11 +184,15 @@ export default function SurahReader() {
   const scrollToAyah = useCallback(
     (index: number, smooth: boolean) => {
       const el = refs.current.get(index);
-      if (!el) return;
+      if (!el) {
+        pendingAyahScroll.current = { index, smooth };
+        rowVirtualizer.scrollToIndex(index, { align: 'start', behavior: 'auto' });
+        return;
+      }
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       el.scrollIntoView({ behavior: smooth && !reduceMotion ? 'smooth' : 'auto', block: 'start' });
     },
-    [],
+    [rowVirtualizer],
   );
 
   /**
@@ -186,7 +224,7 @@ export default function SurahReader() {
   // through the URL (search, juz jump) is scrolled to smoothly.
   useEffect(() => {
     if (initTarget.current === null) return;
-    if (initTarget.current === activeAyah && refs.current.has(activeAyah)) {
+    if (initTarget.current === activeAyah) {
       const t = initTarget.current;
       initTarget.current = null;
       const raf = requestAnimationFrame(() => scrollToAyah(t, fromUrl !== null));
@@ -383,7 +421,9 @@ export default function SurahReader() {
 
       {viewMode === 'list' ? (
         <div
+          ref={listRef}
           className="mt-2 touch-pan-y"
+          style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}
           onPointerDown={(event) => {
             if (event.pointerType === 'mouse' || (event.target as HTMLElement).closest('button')) return;
             listSwipeStart.current = { x: event.clientX, y: event.clientY };
@@ -399,28 +439,41 @@ export default function SurahReader() {
           }}
           onPointerCancel={() => { listSwipeStart.current = null; }}
         >
-          {surah.ayahs.map((a, i) => (
-            <AyahBlock
-              key={a.g}
-              ayah={a}
-              index={i}
-              bookmark={{ id: `${surah.number}:${a.i}`, surah: surah.number, ayah: a.i, surahName: surah.englishName, arabic: a.ar, translation: a.tr }}
-              isBookmarked={bookmarkIds.has(`${surah.number}:${a.i}`)}
-              onToggleBookmark={(item) => dispatch(toggleAyahBookmark(item))}
-              arClass={arClass}
-              arFontPx={arFontPx}
-              showArabic={settings.showArabic}
-              showTranslation={settings.showTranslation}
-              showTransliteration={settings.showTransliteration}
-              sounding={isActiveSession && playerState.isPlaying && playerState.ayah === i}
-              selected={activeAyah === i}
-              registerRef={(el) => {
-                if (el) refs.current.set(i, el);
-                else refs.current.delete(i);
-              }}
-              onSelect={() => handleSelect(i)}
-            />
-          ))}
+          {virtualRows.map((virtualRow) => {
+            const i = virtualRow.index;
+            const ayah = surah.ayahs[i];
+            return (
+              <AyahBlock
+                key={ayah.g}
+                virtualIndex={virtualRow.index}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
+                }}
+                ayah={ayah}
+                index={i}
+                bookmark={{ id: `${surah.number}:${ayah.i}`, surah: surah.number, ayah: ayah.i, surahName: surah.englishName, arabic: ayah.ar, translation: ayah.tr }}
+                isBookmarked={bookmarkIds.has(`${surah.number}:${ayah.i}`)}
+                onToggleBookmark={(item) => dispatch(toggleAyahBookmark(item))}
+                arClass={arClass}
+                arFontPx={arFontPx}
+                showArabic={settings.showArabic}
+                showTranslation={settings.showTranslation}
+                showTransliteration={settings.showTransliteration}
+                sounding={isActiveSession && playerState.isPlaying && playerState.ayah === i}
+                selected={activeAyah === i}
+                registerRef={(el) => {
+                  if (el) refs.current.set(i, el);
+                  else refs.current.delete(i);
+                  rowVirtualizer.measureElement(el);
+                }}
+                onSelect={() => handleSelect(i)}
+              />
+            );
+          })}
         </div>
       ) : (
         <BookView
@@ -484,6 +537,8 @@ function AyahBlock({
   selected,
   registerRef,
   onSelect,
+  virtualIndex,
+  style,
 }: {
   ayah: AyahData;
   index: number;
@@ -499,6 +554,8 @@ function AyahBlock({
   selected: boolean;
   registerRef: (el: HTMLDivElement | null) => void;
   onSelect: () => void;
+  virtualIndex?: number;
+  style?: React.CSSProperties;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -537,7 +594,9 @@ function AyahBlock({
   return (
     <div
       ref={registerRef}
+      data-index={virtualIndex}
       onClick={onSelect}
+      style={style}
       className={`ayah-row group relative scroll-mt-24 cursor-pointer border-b border-line px-3 py-5 transition-colors ${
         sounding ? 'ayah-active' : selected ? 'bg-accent/6 ring-1 ring-accent/30' : 'hover:bg-surface'
       }`}

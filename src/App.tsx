@@ -18,11 +18,10 @@ import SurahReader from './pages/SurahReader';
 import PlaylistsPage from './pages/PlaylistsPage';
 import PlaylistDetailPage from './pages/PlaylistDetailPage';
 import NowPlayingPage from './pages/NowPlayingPage';
-import QuotesPage from './pages/QuotesPage';
+import GuidancePage from './pages/GuidancePage';
 import ProgressPage from './pages/ProgressPage';
 import DownloadsPage from './pages/DownloadsPage';
 import SettingsPage from './pages/SettingsPage';
-import FavoritesPage from './pages/FavoritesPage';
 import ProfilePage from './pages/ProfilePage';
 
 export default function App() {
@@ -47,10 +46,10 @@ export default function App() {
               <Route path="playlists" element={<PlaylistsPage />} />
               <Route path="playlist/:id" element={<PlaylistDetailPage />} />
               <Route path="player" element={<NowPlayingPage />} />
-              <Route path="quotes" element={<QuotesPage />} />
-              <Route path="favorites" element={<FavoritesPage />} />
-              {/* The bookmarks page is now the Ayahs tab of the Favourites hub. */}
-              <Route path="bookmarks" element={<Navigate to="/favorites?tab=ayahs" replace />} />
+              <Route path="guidance" element={<GuidancePage />} />
+              <Route path="quotes" element={<Navigate to="/guidance?tab=sayings" replace />} />
+              <Route path="favorites" element={<LegacyFavoritesRedirect />} />
+              <Route path="bookmarks" element={<Navigate to="/library?tab=ayah&section=favorites" replace />} />
               <Route path="progress" element={<ProgressPage />} />
               <Route path="downloads" element={<DownloadsPage />} />
               <Route path="settings" element={<SettingsPage />} />
@@ -67,6 +66,14 @@ export default function App() {
       </QuranProvider>
     </ErrorBoundary>
   );
+}
+
+function LegacyFavoritesRedirect() {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  params.set('section', 'favorites');
+  if (params.get('tab') === 'ayahs') params.set('tab', 'ayah');
+  return <Navigate to={`/library?${params.toString()}`} replace />;
 }
 
 function ReminderHost() {

@@ -11,8 +11,8 @@ interface BottomNavItem {
 
 const items: BottomNavItem[] = [
   { to: '/', label: 'Read', icon: 'book', end: true },
+  { to: '/guidance', label: 'Guidance', icon: 'quote' },
   { to: '/library', label: 'Library', icon: 'list' },
-  { to: '/favorites', label: 'Favorites', icon: 'heart' },
   { to: '/profile', label: 'Profile', icon: 'user' },
 ];
 

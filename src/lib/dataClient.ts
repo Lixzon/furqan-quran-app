@@ -1,9 +1,12 @@
 import type { JuzBoundary, SurahFull, SurahMeta } from '../types';
+import { countStoredQuranSurahs, getStoredIndoPakSurah, getStoredUthmaniSurah, storeIndoPakSurah, storeUthmaniSurah, type IndoPakSurah } from './quranDb';
 
 /** Simple in-memory + session fetch layer over the bundled static data in /public/data. */
 
 const metaCache: { surahs?: SurahMeta[]; juz?: JuzBoundary[] } = {};
 const surahCache = new Map<number, SurahFull>();
+const surahPending = new Map<number, Promise<SurahFull>>();
+const indoPakPending = new Map<number, Promise<IndoPakSurah>>();
 
 export async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -27,9 +30,88 @@ export async function getJuzList(): Promise<JuzBoundary[]> {
 
 export async function getSurah(number: number): Promise<SurahFull> {
   if (surahCache.has(number)) return surahCache.get(number) as SurahFull;
-  const data = await fetchJson<SurahFull>(`/data/surah/${number}.json`);
-  surahCache.set(number, data);
-  return data;
+  const pending = surahPending.get(number);
+  if (pending) return pending;
+  const task = (async () => {
+    try {
+      const stored = await getStoredUthmaniSurah(number);
+      if (stored) {
+        surahCache.set(number, stored);
+        return stored;
+      }
+    } catch {
+      // IndexedDB may be unavailable; the bundled response remains a fallback.
+    }
+    const data = await fetchJson<SurahFull>(`/data/surah/${number}.json`);
+    surahCache.set(number, data);
+    try {
+      await storeUthmaniSurah(data);
+    } catch {
+      // Keep the in-memory and service-worker caches usable when quota is tight.
+    }
+    return data;
+  })();
+  surahPending.set(number, task);
+  try {
+    return await task;
+  } finally {
+    if (surahPending.get(number) === task) surahPending.delete(number);
+  }
+}
+
+export async function getIndoPakSurah(number: number): Promise<IndoPakSurah> {
+  const pending = indoPakPending.get(number);
+  if (pending) return pending;
+  const task = (async () => {
+    try {
+      const stored = await getStoredIndoPakSurah(number);
+      if (stored) return stored;
+    } catch {
+      // Fetch the bundled copy if IndexedDB is unavailable.
+    }
+    const data = await fetchJson<IndoPakSurah>(`/data/indopak/${number}.json`);
+    try {
+      await storeIndoPakSurah(data);
+    } catch {
+      // Keep the bundled service-worker copy usable if storage is full.
+    }
+    return data;
+  })();
+  indoPakPending.set(number, task);
+  try {
+    return await task;
+  } finally {
+    if (indoPakPending.get(number) === task) indoPakPending.delete(number);
+  }
+}
+
+let completeTextCachePromise: Promise<void> | null = null;
+
+/** Populate both local text editions after first load without blocking the UI. */
+export function cacheCompleteQuranText(): Promise<void> {
+  if (!completeTextCachePromise) {
+    completeTextCachePromise = (async () => {
+      const ordered = [...(await getSurahMetaList())].sort((a, b) => a.number - b.number);
+      const [uthmaniCount, indoPakCount] = await Promise.all([
+        countStoredQuranSurahs('uthmani'),
+        countStoredQuranSurahs('indopak'),
+      ]);
+      if (uthmaniCount >= ordered.length && indoPakCount >= ordered.length) return;
+
+      let cursor = 0;
+      const worker = async () => {
+        while (cursor < ordered.length) {
+          const meta = ordered[cursor++];
+          await Promise.all([getSurah(meta.number), getIndoPakSurah(meta.number)]);
+        }
+      };
+      await Promise.all(Array.from({ length: 4 }, worker));
+    })().catch((error: unknown) => {
+      completeTextCachePromise = null;
+      throw error;
+    });
+  }
+  return completeTextCachePromise;
 }
 
 /* ---------------- whole-Qur'an corpus ---------------- */

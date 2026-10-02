@@ -33,7 +33,7 @@ const TABS: Array<{ value: Tab; label: string; icon: 'stack' | 'book' | 'quote' 
   { value: 'quote', label: 'Sayings', icon: 'quote' },
 ];
 
-export default function FavoritesPage() {
+export default function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { copy, share } = useXpActions();
@@ -127,11 +127,13 @@ export default function FavoritesPage() {
 
   return (
     <div className="page-enter">
-      <PageHeader
-        title="Favourites"
-        subtitle="Everything you have liked or saved, in one place."
-        right={<XpPill />}
-      />
+      {!embedded && (
+        <PageHeader
+          title="Favourites"
+          subtitle="Everything you have liked or saved, in one place."
+          right={<XpPill />}
+        />
+      )}
 
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <Segmented<Tab>

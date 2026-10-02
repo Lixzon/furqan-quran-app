@@ -11,6 +11,7 @@
     "verify:pwa": "node scripts/verify-pwa.mjs",
     "preview": "vite preview",
     "data:fetch": "node scripts/fetch-quran.mjs && node scripts/normalize-basmala.mjs",
+    "data:fetch-indopak": "node scripts/fetch-indopak.mjs",
     "data:timing": "node scripts/fetch-audio-timing.mjs",
     "data:fonts": "node scripts/fetch-fonts.mjs",
     "icons": "node scripts/generate-icons.mjs",
@@ -18,6 +19,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.3.0",
+    "@tanstack/react-virtual": "^3.14.13",
     "dexie": "^4.0.8",
     "dexie-react-hooks": "^1.1.7",
     "react": "^19.0.0",
