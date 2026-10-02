@@ -15,6 +15,7 @@ import { subscribeSurahLoad } from '../../lib/dataClient';
 import { searchRecitationMatches, type VoiceMatchResult } from '../../lib/recitationSearch';
 import { useSpeechRecognition, type SpeechStatus } from '../../services/useSpeechRecognition';
 import { clearVoiceMatchSession, setVoiceMatchSession } from '../../store/slices/searchSessionSlice';
+import { setVoiceLanguage } from '../../store/slices/settingsSlice';
 
 /* ------------------------------------------------------------------ */
 /* provider                                                           */
@@ -60,9 +61,10 @@ function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => voi
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const script = useAppSelector((s) => s.settings.script);
+  const voiceLanguage = useAppSelector((s) => s.settings.voiceLanguage);
   const arClass = scriptClassName(script);
 
-  const [lang, setLang] = useState<string>(LANGUAGES[0].id);
+  const [lang, setLang] = useState<string>(voiceLanguage);
   const [index, setIndex] = useState<ArabicSearchIndex | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -77,6 +79,10 @@ function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => voi
   const { status, transcript, cancel: cancelSpeech } = speech;
   const isListening = status === 'listening';
   const isBusy = isListening || status === 'processing';
+
+  useEffect(() => {
+    if (open) setLang(voiceLanguage);
+  }, [open, voiceLanguage]);
 
   /* Fetch the whole Qur'an the first time the sheet is opened. */
   useEffect(() => {
@@ -129,6 +135,7 @@ function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => voi
           navigate(`/surah/${match.surahNumber}?ayah=${match.ayahNumber}`);
           return;
         }
+        onClose();
         dispatch(setVoiceMatchSession({ matches, activeIndex: 0, isOpen: true, lastQuery: query }));
         setSearching(false);
       })();
@@ -163,6 +170,7 @@ function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => voi
     if (id === lang) return;
     speech.cancel();
     setLang(id);
+    dispatch(setVoiceLanguage(id === 'en-US' ? 'en-US' : 'ar-SA'));
   };
 
   const selectHit = (hit: VoiceMatchResult) => {
@@ -375,6 +383,8 @@ function ResultRow({
     <button
       type="button"
       onClick={onSelect}
+      aria-label={`${hit.englishName} surah ${hit.surahNumber}:${hit.ayahNumber}`}
+      title={`${hit.englishName} surah ${hit.surahNumber}:${hit.ayahNumber}`}
       className="pressable block w-full rounded-2xl border border-line bg-surface p-3 text-left hover:border-accent/40"
     >
       <div className="flex items-center gap-2 text-[11px] font-semibold">

@@ -42,13 +42,15 @@ export function VoiceMatchDrawer() {
     }>
       <div className="space-y-3">
         <div className="text-xs font-medium uppercase tracking-[0.18em] text-mut">
-          {matches.length} possible matches
+          {matches.length} results
         </div>
         {matches.map((match, index) => (
           <button
             key={`${match.surahNumber}:${match.ayahNumber}:${index}`}
             type="button"
             onClick={() => handleSelect(match)}
+            aria-label={`${match.englishName} surah ${match.surahNumber}:${match.ayahNumber}`}
+            title={`${match.englishName} surah ${match.surahNumber}:${match.ayahNumber}`}
             className={`pressable w-full rounded-2xl border p-3 text-left ${
               index === activeIndex ? 'border-accent/50 bg-accent/8' : 'border-line bg-surface2/70 hover:border-accent/35'
             }`}

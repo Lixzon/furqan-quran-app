@@ -85,6 +85,21 @@
   --q-danger: #f2605f;
   --q-shadow: 0 14px 36px -16px rgba(0, 0, 0, 0.72);
 }
+[data-mode="oled"] {
+  --q-bg: #000000;
+  --q-surface: #050505;
+  --q-surface2: #111111;
+  --q-surface3: #1a1a1a;
+  --q-text: #f4f7f5;
+  --q-text2: #c2cbc7;
+  --q-muted: #909a95;
+  --q-border: #242424;
+  --q-border2: #353535;
+  --q-gold: #e3c15a;
+  --q-frozen: #7cc4f0;
+  --q-danger: #f2605f;
+  --q-shadow: 0 14px 36px -16px rgba(0, 0, 0, 0.9);
+}
 [data-mode="sepia"] {
   --q-bg: #efe5d1;
   --q-surface: #f8f0df;
@@ -153,19 +168,19 @@
   --q-shadow: 0 14px 36px -16px rgba(0, 0, 0, 0.82);
 }
 [data-mode="emerald"] {
-  --q-bg: #eaf4ec;
-  --q-surface: #f7fcf8;
-  --q-surface2: #dcefe0;
-  --q-surface3: #cbe5d1;
-  --q-text: #10241a;
-  --q-text2: #3d5a47;
-  --q-muted: #5f7a66;
-  --q-border: #cfe4d5;
-  --q-border2: #b3d2bb;
-  --q-gold: #9a7a12;
-  --q-frozen: #3d6f9e;
-  --q-danger: #b42318;
-  --q-shadow: 0 12px 32px -14px rgba(20, 60, 40, 0.22);
+  --q-bg: #07130e;
+  --q-surface: #0d1e15;
+  --q-surface2: #14291d;
+  --q-surface3: #1d3828;
+  --q-text: #eaf5ed;
+  --q-text2: #bad1c1;
+  --q-muted: #87a18e;
+  --q-border: #203b2a;
+  --q-border2: #31553d;
+  --q-gold: #d4bd67;
+  --q-frozen: #8fc7f5;
+  --q-danger: #f2605f;
+  --q-shadow: 0 14px 36px -16px rgba(0, 0, 0, 0.78);
 }
 
 /* ---------- accent themes ---------- */
@@ -188,6 +203,16 @@
   --q-accent: #c08a1e;
   --q-accent-strong: #9c7016;
   --q-on-accent: #fffdf5;
+}
+[data-accent="amber"] {
+  --q-accent: #d97706;
+  --q-accent-strong: #b45309;
+  --q-on-accent: #ffffff;
+}
+[data-accent="slate"] {
+  --q-accent: #64748b;
+  --q-accent-strong: #475569;
+  --q-on-accent: #ffffff;
 }
 [data-accent="blue"] {
   --q-accent: #2563eb;
@@ -345,6 +370,30 @@ button {
 }
 .ar-clear {
   font-family: "Noto Naskh Arabic", "Scheherazade New", "Traditional Arabic", sans-serif;
+}
+[data-font-family="kfgqpc"] .ar-uthmani,
+[data-font-family="kfgqpc"] .ar-naskh,
+[data-font-family="kfgqpc"] .ar-clear {
+  font-family: "KFGQPC Uthmanic Script HAFS", "Amiri Quran", "Traditional Arabic", serif;
+}
+[data-font-family="scheherazade"] .ar-uthmani,
+[data-font-family="scheherazade"] .ar-naskh,
+[data-font-family="scheherazade"] .ar-clear {
+  font-family: "Scheherazade New", "Noto Naskh Arabic", serif;
+}
+[data-font-family="amiri"] .ar-uthmani,
+[data-font-family="amiri"] .ar-naskh,
+[data-font-family="amiri"] .ar-clear {
+  font-family: "Amiri Quran", "Amiri", "Traditional Arabic", serif;
+}
+
+:root[data-reduced-motion="true"] *,
+:root[data-reduced-motion="true"] *::before,
+:root[data-reduced-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
 }
 
 /* ayah end ornament (circle number) */

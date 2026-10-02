@@ -17,6 +17,8 @@ export interface AccentOption {
 export const ACCENTS: AccentOption[] = [
   { id: 'teal', label: 'Teal', swatch: '#0d9488' },
   { id: 'emerald', label: 'Emerald', swatch: '#10b981' },
+  { id: 'amber', label: 'Amber', swatch: '#d97706' },
+  { id: 'slate', label: 'Slate', swatch: '#64748b' },
   { id: 'green', label: 'Green', swatch: '#16a34a' },
   { id: 'gold', label: 'Gold', swatch: '#c9a227' },
   { id: 'blue', label: 'Blue', swatch: '#2563eb' },
@@ -129,13 +131,15 @@ export function audioFetchUrl(reciter: string, surah: number, quality: DownloadQ
 
 export const DEFAULT_ACCENT: AccentId = 'teal';
 export const DEFAULT_RECITER = 'ar.alafasy';
-export const DEFAULT_ARABIC_SCALE = 1.3;
+export const DEFAULT_ARABIC_SCALE = 28 / 26;
 
 /** theme colour applied to the browser chrome */
 export function accentHex(accent: AccentId, dark: boolean): string {
   const map: Record<AccentId, [string, string]> = {
     teal: ['#0d9488', '#2dd4bf'],
     emerald: ['#10b981', '#34d399'],
+    amber: ['#d97706', '#fbbf24'],
+    slate: ['#475569', '#94a3b8'],
     green: ['#16a34a', '#4ade80'],
     gold: ['#c08a1e', '#e3b341'],
     blue: ['#2563eb', '#60a5fa'],

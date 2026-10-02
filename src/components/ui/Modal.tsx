@@ -62,6 +62,26 @@ export function Modal({
     };
   }, [open, variant]);
 
+  useEffect(() => {
+    if (!open) return;
+    const appRoot = document.getElementById('root');
+    if (!appRoot) return;
+
+    const previousDisplay = appRoot.style.display;
+    const previousVisibility = appRoot.style.visibility;
+    const previousAria = appRoot.getAttribute('aria-hidden');
+    appRoot.style.display = 'none';
+    appRoot.style.visibility = 'hidden';
+    appRoot.setAttribute('aria-hidden', 'true');
+
+    return () => {
+      appRoot.style.display = previousDisplay;
+      appRoot.style.visibility = previousVisibility;
+      if (previousAria === null) appRoot.removeAttribute('aria-hidden');
+      else appRoot.setAttribute('aria-hidden', previousAria);
+    };
+  }, [open]);
+
   if (!open) return null;
   const widths: Record<string, string> = {
     sm: 'max-w-sm',

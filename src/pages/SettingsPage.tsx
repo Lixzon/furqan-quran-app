@@ -2,17 +2,28 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store';
 import { push } from '../store/slices/toastSlice';
-import { setMode, setAccent, setCustomAccent } from '../store/slices/themeSlice';
+import { setCustomAccent } from '../store/slices/themeSlice';
 import {
+  resetSettings,
+  setAccentColor,
+  setArabicFontSize,
+  setAudioQuality,
+  setAutoClearCacheThreshold,
+  setAutoScrollVerse,
+  setAutoScrollSpeed,
+  setDefaultReciterId,
+  setFontFamily,
+  setLineSpacing,
+  setReducedMotion,
+  setScriptType,
   setShowArabic,
   setShowTransliteration,
   setShowTranslation,
-  setArabicFontScale,
-  setScript,
+  setShowVerseNumbers,
+  setThemeMode,
+  setTranslationFontSize,
+  setVoiceLanguage,
   setReadingMode,
-  setDefaultReciter,
-  setDownloadQuality,
-  setFollowAudio,
   setAudioSyncOffset,
   setAssistantLayout,
   setNotificationPreference,
@@ -36,11 +47,11 @@ import {
 import { normalizeHex } from '../lib/customTheme';
 import { db } from '../db/database';
 import { useStorageStats } from '../services/useDownloads';
-import { ACCENTS, APP_NAME, APP_TAGLINE, DOWNLOAD_QUALITY_OPTIONS, RECITERS, SCRIPT_STYLES } from '../lib/constants';
+import { ACCENTS, APP_NAME, APP_TAGLINE, DOWNLOAD_QUALITY_OPTIONS, RECITERS } from '../lib/constants';
 import { formatBytes } from '../lib/utils';
 import { PageHeader } from '../components/ui/common';
 import { Icon, type IconName } from '../components/ui/Icon';
-import { Segmented, Slider, Toggle, type SegOption } from '../components/ui/controls';
+import { Segmented, Slider, Toggle } from '../components/ui/controls';
 import { Modal } from '../components/ui/Modal';
 import { MihrabLogo } from '../components/ui/MihrabLogo';
 import { createBackupJson, parseBackupJson, restoreBackup, type FurqanBackup } from '../lib/backup';
@@ -67,6 +78,7 @@ export default function SettingsPage() {
 
   const [confirmClearAudio, setConfirmClearAudio] = useState(false);
   const [confirmResetProgress, setConfirmResetProgress] = useState(false);
+  const [confirmResetSettings, setConfirmResetSettings] = useState(false);
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>(() =>
     typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
@@ -80,13 +92,12 @@ export default function SettingsPage() {
   // Sepia is one of the gated reading themes, so it only joins the free picker
   // once the milestone is reached — or while it is the theme in use, so the
   // chip stays honest for a reader whose streak has since dropped.
-  const modeOptions: SegOption<ThemeMode>[] = [
-    { value: 'system', label: 'System', icon: 'stack' },
-    { value: 'light', label: 'Light', icon: 'sun' },
-    { value: 'dark', label: 'Dark', icon: 'moon' },
-    ...(readingThemesUnlocked || theme.mode === 'sepia'
-      ? [{ value: 'sepia' as const, label: 'Sepia', icon: 'sun' as const }]
-      : []),
+  const themeOptions: Array<{ value: ThemeMode; label: string; swatch: string }> = [
+    { value: 'dark', label: 'Dark', swatch: '#101d19' },
+    { value: 'oled', label: 'OLED Black', swatch: '#050505' },
+    { value: 'sepia', label: 'Warm Parchment', swatch: '#f8f0df' },
+    { value: 'emerald', label: 'Emerald Midnight', swatch: '#0d1e15' },
+    { value: 'light', label: 'Light', swatch: '#ffffff' },
   ];
 
   const exportBackup = () => {
@@ -161,8 +172,24 @@ export default function SettingsPage() {
       {/* ---- Appearance ---- */}
       <Section title="Appearance" icon="sun" />
       <Card>
-        <div className="mb-1 text-xs font-medium text-mut">Colour mode</div>
-        <Segmented value={theme.mode} onChange={(m) => dispatch(setMode(m))} options={modeOptions} />
+        <div className="mb-2 text-xs font-medium text-mut">Theme</div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {themeOptions.map((option) => {
+            const active = theme.mode === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => dispatch(setThemeMode(option.value))}
+                className={`flex items-center gap-2 rounded-xl border p-2 text-left text-xs font-medium ${active ? 'border-accent ring-1 ring-accent/40' : 'border-line'}`}
+              >
+                <span className="h-8 w-8 shrink-0 rounded-lg border border-line" style={{ backgroundColor: option.swatch }} />
+                <span className="min-w-0 text-ink">{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
         <div className="mb-1 mt-4 text-xs font-medium text-mut">Accent colour</div>
         <div className="flex flex-wrap gap-2.5">
           {ACCENTS.map((a) => {
@@ -171,7 +198,7 @@ export default function SettingsPage() {
               <button
                 key={a.id}
                 type="button"
-                onClick={() => dispatch(setAccent(a.id))}
+                onClick={() => dispatch(setAccentColor(a.id))}
                 className="flex flex-col items-center gap-1"
               >
                 <span
@@ -188,6 +215,14 @@ export default function SettingsPage() {
               </button>
             );
           })}
+        </div>
+
+        <div className="mt-3 border-t border-line pt-2">
+          <Row
+            label="Fluid animations"
+            hint="Reduce motion across transitions and page effects"
+            control={<Toggle checked={!settings.reducedMotion} onChange={(enabled) => dispatch(setReducedMotion(!enabled))} label="Fluid animations" />}
+          />
         </div>
 
         {/* Reading themes unlocked by the 100-day milestone. */}
@@ -215,7 +250,7 @@ export default function SettingsPage() {
                   type="button"
                   disabled={!selectable}
                   aria-pressed={active}
-                  onClick={() => dispatch(setMode(option.id))}
+                  onClick={() => dispatch(setThemeMode(option.id))}
                   className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2.5 text-[11px] font-medium pressable ${
                     active ? 'border-accent bg-accent/8' : 'border-line bg-surface2'
                   } ${selectable ? '' : 'opacity-70'}`}
@@ -369,9 +404,13 @@ export default function SettingsPage() {
           control={<Toggle checked={settings.showTranslation} onChange={(v) => dispatch(setShowTranslation(v))} label="English translation" />}
         />
         <Row
-          label="Follow playback"
-          hint="Auto-scroll to the ayah being recited"
-          control={<Toggle checked={settings.followAudio} onChange={(v) => dispatch(setFollowAudio(v))} label="Follow playback" />}
+          label="Auto-scroll with recitation"
+          hint="Follow the ayah currently being recited"
+          control={<Toggle checked={settings.autoScrollVerse} onChange={(v) => dispatch(setAutoScrollVerse(v))} label="Auto-scroll with recitation" />}
+        />
+        <Row
+          label="Verse numbers"
+          control={<Toggle checked={settings.showVerseNumbers} onChange={(v) => dispatch(setShowVerseNumbers(v))} label="Verse numbers" />}
         />
         <Row
           label="Focus mode"
@@ -379,26 +418,78 @@ export default function SettingsPage() {
           control={<Toggle checked={settings.readingMode} onChange={(v) => dispatch(setReadingMode(v))} label="Focus mode" />}
         />
         <div className="mt-3">
-          <div className="mb-1 text-xs font-medium text-mut">Arabic script</div>
+          <div className="mb-1 text-xs font-medium text-mut">Mushaf script</div>
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface2 p-1">
+            {([
+              { id: 'uthmani', label: 'Uthmani' },
+              { id: 'indopak', label: 'IndoPak' },
+              { id: 'tajweed', label: 'Tajweed' },
+            ] as const).map((option) => {
+              const unavailable = option.id === 'tajweed';
+              const active = settings.scriptType === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  disabled={unavailable}
+                  aria-pressed={active}
+                  title={unavailable ? 'Colorized Tajweed data is not bundled yet.' : undefined}
+                  onClick={() => dispatch(setScriptType(option.id))}
+                  className={`rounded-lg px-2 py-2 text-xs font-semibold ${active ? 'bg-accent text-onaccent' : 'text-mut'} ${unavailable ? 'cursor-not-allowed opacity-45' : ''}`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-[11px] text-mut">IndoPak text is available offline. Tajweed color annotations are not part of the local text dataset.</p>
+        </div>
+        <div className="mt-3">
+          <div className="mb-1 text-xs font-medium text-mut">Arabic font family</div>
           <Segmented
-            value={settings.script}
-            onChange={(v) => dispatch(setScript(v))}
-            options={SCRIPT_STYLES.map((s) => ({ value: s.id, label: s.label }))}
+            value={settings.fontFamily}
+            onChange={(value) => dispatch(setFontFamily(value))}
+            options={[
+              { value: 'kfgqpc', label: 'KFGQPC' },
+              { value: 'scheherazade', label: 'Scheherazade' },
+              { value: 'amiri', label: 'Amiri' },
+            ]}
+            size="sm"
           />
         </div>
         <div className="mt-3">
           <div className="mb-1 flex items-center justify-between text-xs font-medium text-mut">
-            <span>Arabic text size</span>
-            <span className="tabular-nums">{(settings.arabicFontScale * 100).toFixed(0)}%</span>
+            <span>Arabic font size</span>
+            <span className="tabular-nums">{settings.arabicFontSize}px</span>
           </div>
           <Slider
-            min={1}
-            max={3}
-            step={0.05}
-            value={settings.arabicFontScale}
-            onChange={(v) => dispatch(setArabicFontScale(v))}
-            ariaLabel="Arabic text size"
+            min={18}
+            max={50}
+            step={1}
+            value={settings.arabicFontSize}
+            onChange={(v) => dispatch(setArabicFontSize(v))}
+            ariaLabel="Arabic font size"
           />
+          <div className="mt-2 rounded-xl bg-surface2 px-3 py-2 text-center text-ink" dir="rtl">
+            <span className="ar-uthmani" style={{ fontSize: settings.arabicFontSize, lineHeight: settings.lineSpacing }}>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</span>
+          </div>
+        </div>
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between text-xs font-medium text-mut">
+            <span>Translation font size</span>
+            <span className="tabular-nums">{settings.translationFontSize}px</span>
+          </div>
+          <Slider min={12} max={30} step={1} value={settings.translationFontSize} onChange={(v) => dispatch(setTranslationFontSize(v))} ariaLabel="Translation font size" />
+          <p className="mt-2 text-ink2" style={{ fontSize: settings.translationFontSize, lineHeight: settings.lineSpacing }}>
+            In the name of Allah, the Entirely Merciful, the Especially Merciful.
+          </p>
+        </div>
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between text-xs font-medium text-mut">
+            <span>Line spacing</span>
+            <span className="tabular-nums">{settings.lineSpacing.toFixed(1)}</span>
+          </div>
+          <Slider min={1.2} max={2.6} step={0.1} value={settings.lineSpacing} onChange={(v) => dispatch(setLineSpacing(v))} ariaLabel="Reader line spacing" />
         </div>
       </Card>
 
@@ -407,8 +498,8 @@ export default function SettingsPage() {
       <Card>
         <div className="mb-1 text-xs font-medium text-mut">Default reciter</div>
         <select
-          value={settings.defaultReciter}
-          onChange={(e) => dispatch(setDefaultReciter(e.target.value))}
+          value={settings.defaultReciterId}
+          onChange={(e) => dispatch(setDefaultReciterId(e.target.value))}
           className="w-full rounded-xl border border-line bg-surface2 px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
         >
           {RECITERS.map((r) => (
@@ -422,13 +513,14 @@ export default function SettingsPage() {
           <div className="mb-1 text-xs font-medium text-mut">Download quality</div>
           <div className="grid grid-cols-3 gap-2">
             {DOWNLOAD_QUALITY_OPTIONS.map((option) => {
-              const active = settings.downloadQuality === option.id;
+              const audioQuality = option.bitrate === 32 ? '32kbps' : option.bitrate === 64 ? '64kbps' : '128kbps';
+              const active = settings.audioQuality === audioQuality;
               const sizeMb = ((1.42 * option.bitrate) / 128).toFixed(2);
               return (
                 <button
                   key={option.id}
                   type="button"
-                  onClick={() => dispatch(setDownloadQuality(option.id))}
+                  onClick={() => dispatch(setAudioQuality(audioQuality))}
                   className={`rounded-xl border px-2 py-2 text-left ${active ? 'border-accent bg-accent/8 text-ink' : 'border-line bg-surface2 text-mut'}`}
                 >
                   <div className="text-sm font-semibold">{option.label}</div>
@@ -439,13 +531,23 @@ export default function SettingsPage() {
             })}
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-mut">
-            Existing downloads stay untouched. This only affects future surah downloads for your current reciter.
+            Existing downloads stay untouched. The configured reciter CDN currently serves 128 kbps; lower tiers may fall back to its available bitrate.
           </p>
+        </div>
+
+        <div className="mt-4 border-t border-line pt-3">
+          <div className="mb-1 text-xs font-medium text-mut">Recite &amp; Find voice language</div>
+          <Segmented
+            value={settings.voiceLanguage}
+            onChange={(value) => dispatch(setVoiceLanguage(value))}
+            options={[{ value: 'ar-SA', label: 'Arabic' }, { value: 'en-US', label: 'English' }]}
+            size="sm"
+          />
         </div>
 
         <div className="mt-4">
           <div className="mb-1 flex items-center justify-between text-xs font-medium text-mut">
-            <span>Highlight sync offset</span>
+            <span>Auto-scroll timing offset</span>
             <span className="tabular-nums">
               {settings.audioSyncOffsetMs === 0 ? 'Off' : `${(settings.audioSyncOffsetMs / 1000).toFixed(2)}s`}
             </span>
@@ -456,7 +558,7 @@ export default function SettingsPage() {
             step={250}
             value={settings.audioSyncOffsetMs}
             onChange={(v) => dispatch(setAudioSyncOffset(v))}
-            ariaLabel="Highlight sync offset"
+            ariaLabel="Auto-scroll timing offset"
           />
           <p className="mt-1 text-[11px] leading-relaxed text-mut">
             Nudges the verse highlight and auto-scroll against the recitation. Move it negative
@@ -472,6 +574,28 @@ export default function SettingsPage() {
               Reset offset
             </button>
           )}
+        </div>
+
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between text-xs text-mut">
+            <span>Audio cache</span>
+            <span className="tabular-nums">{formatBytes(storage.bytes)} / {settings.autoClearCacheThreshold} MB</span>
+          </div>
+          <div
+            className="h-2 overflow-hidden rounded-full bg-surface2"
+            role="progressbar"
+            aria-label="Audio cache usage"
+            aria-valuemin={0}
+            aria-valuemax={settings.autoClearCacheThreshold}
+            aria-valuenow={Math.min(settings.autoClearCacheThreshold, storage.bytes / (1024 * 1024))}
+          >
+            <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${Math.min(100, (storage.bytes / (settings.autoClearCacheThreshold * 1024 * 1024)) * 100)}%` }} />
+          </div>
+          <div className="mt-3 flex items-center justify-between text-xs font-medium text-mut">
+            <span>Cache warning threshold</span>
+            <span className="tabular-nums">{settings.autoClearCacheThreshold} MB</span>
+          </div>
+          <Slider min={100} max={5000} step={100} value={settings.autoClearCacheThreshold} onChange={(v) => dispatch(setAutoClearCacheThreshold(v))} ariaLabel="Audio cache warning threshold" />
         </div>
       </Card>
 
@@ -591,6 +715,13 @@ export default function SettingsPage() {
               </button>
             ))}
           </div>
+          <div className="mt-4 border-t border-line pt-3">
+            <div className="mb-1 flex items-center justify-between text-xs font-medium text-mut">
+              <span>Auto-scroll speed</span>
+              <span className="tabular-nums">{settings.autoScrollSpeed === 0 ? 'Immediate' : `${settings.autoScrollSpeed} ms delay`}</span>
+            </div>
+            <Slider min={0} max={800} step={20} value={settings.autoScrollSpeed} onChange={(v) => dispatch(setAutoScrollSpeed(v))} ariaLabel="Auto-scroll speed" />
+          </div>
         </div>
 
         <div className="mt-4 text-xs font-medium text-mut">Themes and badges</div>
@@ -624,8 +755,8 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (tier.theme?.mode) dispatch(setMode(tier.theme.mode));
-                        if (tier.theme?.accent) dispatch(setAccent(tier.theme.accent));
+                        if (tier.theme?.mode) dispatch(setThemeMode(tier.theme.mode));
+                        if (tier.theme?.accent) dispatch(setAccentColor(tier.theme.accent));
                       }}
                       className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold pressable ${
                         applied ? 'bg-surface2 text-mut' : 'bg-accent text-onaccent'
@@ -733,6 +864,16 @@ export default function SettingsPage() {
             Reset reading progress
           </span>
         </button>
+        <button
+          type="button"
+          onClick={() => setConfirmResetSettings(true)}
+          className="mt-2 flex w-full items-center justify-between rounded-xl px-2 py-2 text-sm pressable"
+        >
+          <span className="inline-flex items-center gap-2 font-medium text-danger">
+            <Icon name="refresh" size={16} />
+            Reset all settings to default
+          </span>
+        </button>
       </Card>
 
       {/* ---- About ---- */}
@@ -827,6 +968,24 @@ export default function SettingsPage() {
             className="rounded-full bg-danger px-5 py-2 text-sm font-semibold text-white"
           >
             Reset
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={confirmResetSettings} onClose={() => setConfirmResetSettings(false)} title="Reset all settings?">
+        <p className="text-sm text-mut">This restores appearance, reader, audio, voice, and storage preferences to their defaults. Reading progress, favorites, playlists, and downloaded audio will not be changed.</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={() => setConfirmResetSettings(false)} className="rounded-full px-4 py-2 text-sm font-medium text-mut hover:bg-surface2">Cancel</button>
+          <button
+            type="button"
+            onClick={() => {
+              dispatch(resetSettings());
+              setConfirmResetSettings(false);
+              dispatch(push('Settings restored to defaults.', 'success'));
+            }}
+            className="rounded-full bg-danger px-5 py-2 text-sm font-semibold text-white"
+          >
+            Reset settings
           </button>
         </div>
       </Modal>

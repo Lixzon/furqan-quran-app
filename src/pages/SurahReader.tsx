@@ -4,20 +4,21 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useAppDispatch, useAppSelector } from '../store';
 import { player } from '../audio/controller';
-import { getSurah } from '../lib/dataClient';
+import { getIndoPakSurah, getSurah } from '../lib/dataClient';
 import { useQuran } from '../data/QuranProvider';
 import { rememberRead } from '../store/slices/progressSlice';
 import { toggleAyahBookmark } from '../store/slices/bookmarksSlice';
 import type { AyahBookmark } from '../store/slices/bookmarksSlice';
 import {
-  setArabicFontScale,
+  setArabicFontSize,
   setReadingMode,
   setShowArabic,
   setShowTransliteration,
   setShowTranslation,
+  setShowVerseNumbers,
 } from '../store/slices/settingsSlice';
-import { setAccent, setMode } from '../store/slices/themeSlice';
-import { ACCENTS, DEFAULT_ARABIC_SCALE, scriptClassName } from '../lib/constants';
+import { setAccentColor, setThemeMode } from '../store/slices/settingsSlice';
+import { ACCENTS, scriptClassName } from '../lib/constants';
 import { isThemeSelectable } from '../lib/unlocks';
 import { clamp } from '../lib/utils';
 import { Icon } from '../components/ui/Icon';
@@ -26,9 +27,6 @@ import { Modal } from '../components/ui/Modal';
 import { SurahArtwork } from '../components/ui/SurahArtwork';
 import { ErrorBlock, SkeletonRows } from '../components/ui/common';
 import type { AyahData, SettingsState, SurahFull, ThemeMode } from '../types';
-
-/** Delay between the verse highlight moving and the viewport following it. */
-const FOLLOW_SCROLL_DELAY_MS = 140;
 
 export default function SurahReader() {
   const { number } = useParams();
@@ -45,6 +43,7 @@ export default function SurahReader() {
   const { surahs, juz } = useQuran();
 
   const [surah, setSurah] = useState<SurahFull | null>(null);
+  const [indoPakAyahs, setIndoPakAyahs] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
@@ -52,6 +51,22 @@ export default function SurahReader() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'book'>('list');
   const [bookPage, setBookPage] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    if (!surah || settings.scriptType !== 'indopak') {
+      setIndoPakAyahs([]);
+      return () => { alive = false; };
+    }
+    void getIndoPakSurah(surah.number)
+      .then((data) => {
+        if (alive) setIndoPakAyahs(data.ayahs.map((ayah) => ayah.text));
+      })
+      .catch(() => {
+        if (alive) setIndoPakAyahs([]);
+      });
+    return () => { alive = false; };
+  }, [surah?.number, settings.scriptType]);
 
   const validSurahNumber = Number.isInteger(surahNumber) && surahNumber >= 1 && surahNumber <= 114;
 
@@ -65,7 +80,9 @@ export default function SurahReader() {
 
   const rowVirtualizer = useWindowVirtualizer({
     count: viewMode === 'list' ? surah?.ayahs.length ?? 0 : 0,
-    estimateSize: () => settings.showArabic ? 240 : 140,
+    estimateSize: () => settings.showArabic
+      ? Math.max(150, settings.arabicFontSize * settings.lineSpacing * 4)
+      : Math.max(100, settings.translationFontSize * settings.lineSpacing * 4),
     overscan: 3,
     scrollMargin: listOffset,
   });
@@ -208,9 +225,9 @@ export default function SurahReader() {
       followScrollTimer.current = window.setTimeout(() => {
         followScrollTimer.current = null;
         scrollToAyah(index, true);
-      }, FOLLOW_SCROLL_DELAY_MS);
+      }, settings.autoScrollSpeed);
     },
-    [scrollToAyah],
+    [scrollToAyah, settings.autoScrollSpeed],
   );
 
   useEffect(
@@ -347,7 +364,7 @@ export default function SurahReader() {
     );
   }
 
-  const arFontPx = Math.round(26 * settings.arabicFontScale);
+  const arFontPx = settings.arabicFontSize;
   const arClass = scriptClassName(settings.script);
   const showBasmala = surah.number !== 1 && surah.number !== 9;
 
@@ -377,13 +394,13 @@ export default function SurahReader() {
         }
         onOptions={() => setOptionsOpen(true)}
         actions={
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-center gap-1">
             <button
               type="button"
               aria-label="Toggle translation and transliteration"
               title="Show or hide translation lines"
               onClick={handleQuickVisibility}
-              className={`pressable rounded-full p-2 ${settings.showTranslation || settings.showTransliteration ? 'bg-accent/15 text-accent' : 'text-mut'}`}
+              className={`pressable flex h-10 w-10 items-center justify-center rounded-full p-2 transition-colors ${settings.showTranslation || settings.showTransliteration ? 'bg-accent/15 text-accent' : 'text-mut hover:bg-surface2'}`}
             >
               <Icon name={settings.showTranslation || settings.showTransliteration ? 'eye' : 'eyeOff'} size={20} />
             </button>
@@ -392,7 +409,7 @@ export default function SurahReader() {
               onClick={() => changeViewMode(viewMode === 'list' ? 'book' : 'list')}
               aria-label={`Switch to ${viewMode === 'list' ? 'book' : 'list'} view`}
               title={`${viewMode === 'list' ? 'Book' : 'List'} view`}
-              className={`pressable rounded-full p-2 ${viewMode === 'list' ? 'text-mut' : 'bg-accent/15 text-accent'}`}
+              className={`pressable flex h-10 w-10 items-center justify-center rounded-full p-2 transition-colors ${viewMode === 'list' ? 'text-mut hover:bg-surface2' : 'bg-accent/15 text-accent'}`}
             >
               <Icon name={viewMode === 'list' ? 'list' : 'book'} size={20} />
             </button>
@@ -454,8 +471,9 @@ export default function SurahReader() {
                   transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                 }}
                 ayah={ayah}
+                arabicText={settings.scriptType === 'indopak' ? indoPakAyahs[i] ?? ayah.ar : ayah.ar}
                 index={i}
-                bookmark={{ id: `${surah.number}:${ayah.i}`, surah: surah.number, ayah: ayah.i, surahName: surah.englishName, arabic: ayah.ar, translation: ayah.tr }}
+                bookmark={{ id: `${surah.number}:${ayah.i}`, surah: surah.number, ayah: ayah.i, surahName: surah.englishName, arabic: settings.scriptType === 'indopak' ? indoPakAyahs[i] ?? ayah.ar : ayah.ar, translation: ayah.tr }}
                 isBookmarked={bookmarkIds.has(`${surah.number}:${ayah.i}`)}
                 onToggleBookmark={(item) => dispatch(toggleAyahBookmark(item))}
                 arClass={arClass}
@@ -463,6 +481,9 @@ export default function SurahReader() {
                 showArabic={settings.showArabic}
                 showTranslation={settings.showTranslation}
                 showTransliteration={settings.showTransliteration}
+                showVerseNumbers={settings.showVerseNumbers}
+                translationFontSize={settings.translationFontSize}
+                lineSpacing={settings.lineSpacing}
                 sounding={isActiveSession && playerState.isPlaying && playerState.ayah === i}
                 selected={activeAyah === i}
                 registerRef={(el) => {
@@ -485,6 +506,11 @@ export default function SurahReader() {
           showArabic={settings.showArabic}
           showTranslation={settings.showTranslation}
           showTransliteration={settings.showTransliteration}
+          showVerseNumbers={settings.showVerseNumbers}
+          translationFontSize={settings.translationFontSize}
+          lineSpacing={settings.lineSpacing}
+          scriptType={settings.scriptType}
+          indoPakAyahs={indoPakAyahs}
           isActiveSession={isActiveSession}
           isPlaying={playerState.isPlaying}
           activeAyah={activeAyah}
@@ -524,6 +550,7 @@ export default function SurahReader() {
 /* ============================ Ayah block ============================ */
 function AyahBlock({
   ayah,
+  arabicText,
   index,
   bookmark,
   isBookmarked,
@@ -533,6 +560,9 @@ function AyahBlock({
   showArabic,
   showTranslation,
   showTransliteration,
+  showVerseNumbers,
+  translationFontSize,
+  lineSpacing,
   sounding,
   selected,
   registerRef,
@@ -541,6 +571,7 @@ function AyahBlock({
   style,
 }: {
   ayah: AyahData;
+  arabicText?: string;
   index: number;
   bookmark: Omit<AyahBookmark, 'note' | 'createdAt'>;
   isBookmarked: boolean;
@@ -550,6 +581,9 @@ function AyahBlock({
   showArabic: boolean;
   showTranslation: boolean;
   showTransliteration: boolean;
+  showVerseNumbers: boolean;
+  translationFontSize: number;
+  lineSpacing: number;
   sounding: boolean;
   selected: boolean;
   registerRef: (el: HTMLDivElement | null) => void;
@@ -560,6 +594,7 @@ function AyahBlock({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const displayedArabic = arabicText ?? ayah.ar;
 
   const closeMenu = () => {
     setMenuOpen(false);
@@ -587,7 +622,7 @@ function AyahBlock({
   }, [menuOpen]);
 
   const copyArabic = () => {
-    void navigator.clipboard?.writeText(ayah.ar);
+    void navigator.clipboard?.writeText(displayedArabic);
     closeMenu();
   };
 
@@ -603,20 +638,20 @@ function AyahBlock({
       data-ayah={index}
     >
       {showArabic && (
-        <p className={`ayah-ar ${arClass} pr-8 text-right leading-[2.35] text-ink`} dir="rtl" style={{ fontSize: arFontPx }}>
-          {ayah.ar}
-          <span className="ayah-marker">{index + 1}</span>
+        <p className={`ayah-ar ${arClass} pr-8 text-right text-ink`} dir="rtl" style={{ fontSize: arFontPx, lineHeight: lineSpacing }}>
+          {displayedArabic}
+          {showVerseNumbers && <span className="ayah-marker">{index + 1}</span>}
         </p>
       )}
       {showTransliteration && ayah.tl && (
-        <p className="ayah-tl mt-4 pr-8 text-[14px] italic leading-relaxed text-ink2">
-          <span className="mr-1.5 font-semibold not-italic text-accent">{index + 1}.</span>
+        <p className="ayah-tl mt-4 pr-8 italic text-ink2" style={{ fontSize: Math.min(translationFontSize, 20), lineHeight: lineSpacing }}>
+          {showVerseNumbers && <span className="mr-1.5 font-semibold not-italic text-accent">{index + 1}.</span>}
           {ayah.tl}
         </p>
       )}
       {showTranslation && ayah.tr && (
-        <p className="ayah-tr mt-3 pr-8 text-[15px] leading-relaxed text-ink2">
-          <span className="mr-1.5 font-semibold text-accent">{index + 1}.</span>
+        <p className="ayah-tr mt-3 pr-8 text-ink2" style={{ fontSize: translationFontSize, lineHeight: lineSpacing }}>
+          {showVerseNumbers && <span className="mr-1.5 font-semibold text-accent">{index + 1}.</span>}
           {ayah.tr}
         </p>
       )}
@@ -693,6 +728,11 @@ function BookView({
   showArabic,
   showTranslation,
   showTransliteration,
+  showVerseNumbers,
+  translationFontSize,
+  lineSpacing,
+  scriptType,
+  indoPakAyahs,
   isActiveSession,
   isPlaying,
   activeAyah,
@@ -709,6 +749,11 @@ function BookView({
   showArabic: boolean;
   showTranslation: boolean;
   showTransliteration: boolean;
+  showVerseNumbers: boolean;
+  translationFontSize: number;
+  lineSpacing: number;
+  scriptType: SettingsState['scriptType'];
+  indoPakAyahs: string[];
   isActiveSession: boolean;
   isPlaying: boolean;
   activeAyah: number;
@@ -755,8 +800,9 @@ function BookView({
               <AyahBlock
                 key={ayah.g}
                 ayah={ayah}
+                arabicText={scriptType === 'indopak' ? indoPakAyahs[index] ?? ayah.ar : ayah.ar}
                 index={index}
-                bookmark={{ id: `${surah.number}:${ayah.i}`, surah: surah.number, ayah: ayah.i, surahName: surah.englishName, arabic: ayah.ar, translation: ayah.tr }}
+                bookmark={{ id: `${surah.number}:${ayah.i}`, surah: surah.number, ayah: ayah.i, surahName: surah.englishName, arabic: scriptType === 'indopak' ? indoPakAyahs[index] ?? ayah.ar : ayah.ar, translation: ayah.tr }}
                 isBookmarked={bookmarkedIds.has(`${surah.number}:${ayah.i}`)}
                 onToggleBookmark={onToggleBookmark}
                 arClass={arClass}
@@ -764,6 +810,9 @@ function BookView({
                 showArabic={showArabic}
                 showTranslation={showTranslation}
                 showTransliteration={showTransliteration}
+                showVerseNumbers={showVerseNumbers}
+                translationFontSize={translationFontSize}
+                lineSpacing={lineSpacing}
                 sounding={isActiveSession && isPlaying && activeAyah === index}
                 selected={activeAyah === index}
                 registerRef={() => undefined}
@@ -826,7 +875,7 @@ function ReaderBar({
         type="button"
         aria-label="Reading settings"
         onClick={onOptions}
-        className="pressable rounded-full p-2 text-mut hover:bg-surface2 hover:text-ink"
+        className="pressable flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-2 text-mut transition-colors hover:bg-surface2 hover:text-ink"
       >
         <Icon name="settings" size={20} />
       </button>
@@ -960,7 +1009,7 @@ function ReaderOptions({
               key={preview.mode}
               type="button"
               aria-pressed={selected}
-              onClick={() => dispatch(setMode(preview.mode))}
+              onClick={() => dispatch(setThemeMode(preview.mode))}
               className={`relative min-w-0 rounded-xl border p-1.5 text-left ${selected ? 'border-accent ring-2 ring-accent/40' : 'border-line'}`}
             >
               <div className="flex aspect-[4/5] flex-col overflow-hidden rounded-lg p-1.5" style={{ background: preview.background, color: preview.ink }}>
@@ -989,8 +1038,8 @@ function ReaderOptions({
                 aria-label={`${accent.label} accent`}
                 aria-pressed={selected}
                 title={accent.label}
-                onClick={() => dispatch(setAccent(accent.id))}
-                className="flex h-12 w-12 items-center justify-center rounded-full"
+                onClick={() => dispatch(setAccentColor(accent.id))}
+                className="flex h-12 w-12 items-center justify-center rounded-full transition-colors hover:bg-surface2"
               >
                 <span className={`flex h-7 w-7 items-center justify-center rounded-full ${selected ? 'ring-2 ring-ink ring-offset-2 ring-offset-surface' : ''}`} style={{ backgroundColor: accent.swatch }}>
                   {selected && <Icon name="check" size={14} className="text-white" />}
@@ -1001,15 +1050,12 @@ function ReaderOptions({
         </div>
       </div>
 
-      <SectionLabel>Text size</SectionLabel>
-      <div className="flex items-center gap-3 py-2">
-        <span className="text-xs text-mut">A</span>
-        <Slider min={1} max={3} step={0.05} value={settings.arabicFontScale} onChange={(value) => dispatch(setArabicFontScale(value))} ariaLabel="Arabic text size" />
-        <span className="text-base text-ink">A</span>
-        <button type="button" onClick={() => dispatch(setArabicFontScale(DEFAULT_ARABIC_SCALE))} className="shrink-0 rounded-full px-2 py-1 text-xs font-medium text-accent hover:bg-accent/10">Reset</button>
+      <SectionLabel>Arabic font size · {settings.arabicFontSize}px</SectionLabel>
+      <div className="py-2">
+        <Slider min={18} max={50} step={1} value={settings.arabicFontSize} onChange={(value) => dispatch(setArabicFontSize(value))} ariaLabel="Arabic font size" />
       </div>
       <div className="overflow-hidden rounded-xl bg-surface2 px-3 py-2 text-center text-ink" dir="rtl">
-        <span className="ar-uthmani leading-relaxed" style={{ fontSize: `${Math.round(20 * settings.arabicFontScale)}px` }}>بِسْمِ ٱللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</span>
+        <span className="ar-uthmani" style={{ fontSize: settings.arabicFontSize, lineHeight: settings.lineSpacing }}>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</span>
       </div>
 
       <SectionLabel>Show lines</SectionLabel>
@@ -1017,6 +1063,7 @@ function ReaderOptions({
         <OptionRow label="Arabic" control={<Toggle checked={settings.showArabic} onChange={(value) => dispatch(setShowArabic(value))} label="Arabic" />} />
         <OptionRow label="Transliteration" control={<Toggle checked={settings.showTransliteration} onChange={(value) => dispatch(setShowTransliteration(value))} label="Transliteration" />} />
         <OptionRow label="Translation" control={<Toggle checked={settings.showTranslation} onChange={(value) => dispatch(setShowTranslation(value))} label="Translation" />} />
+        <OptionRow label="Verse numbers" control={<Toggle checked={settings.showVerseNumbers} onChange={(value) => dispatch(setShowVerseNumbers(value))} label="Verse numbers" />} />
         <OptionRow label="Focus mode" control={<Toggle checked={settings.readingMode} onChange={(value) => dispatch(setReadingMode(value))} label="Focus mode" />} />
       </div>
 

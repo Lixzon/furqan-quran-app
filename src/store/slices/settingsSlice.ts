@@ -1,19 +1,45 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { AssistantLayout, DownloadQuality, ScriptStyle, SettingsState } from '../../types';
+import type { AccentId, AssistantLayout, AudioQuality, DownloadQuality, QuranScriptType, ScriptStyle, SettingsState, ThemeMode } from '../../types';
 import { loadState } from '../persist';
 import { KEYS } from '../persist';
-import { DEFAULT_ARABIC_SCALE, DEFAULT_DOWNLOAD_QUALITY, DEFAULT_RECITER } from '../../lib/constants';
+import { DEFAULT_ACCENT, DEFAULT_ARABIC_SCALE, DEFAULT_DOWNLOAD_QUALITY, DEFAULT_RECITER } from '../../lib/constants';
 
-const initialState: SettingsState = loadState<SettingsState>(KEYS.settings, {
+const QUALITY_TO_AUDIO: Record<DownloadQuality, AudioQuality> = {
+  low: '32kbps',
+  medium: '64kbps',
+  high: '128kbps',
+};
+const AUDIO_TO_QUALITY: Record<AudioQuality, DownloadQuality> = {
+  '32kbps': 'low',
+  '64kbps': 'medium',
+  '128kbps': 'high',
+};
+
+const DEFAULT_SETTINGS: SettingsState = {
+  arabicFontSize: 28,
+  translationFontSize: 16,
+  lineSpacing: 1.8,
+  scriptType: 'uthmani',
+  fontFamily: 'amiri',
   showArabic: true,
   showTransliteration: true,
   showTranslation: true,
+  showVerseNumbers: true,
   arabicFontScale: DEFAULT_ARABIC_SCALE,
   script: 'uthmani',
+  themeMode: 'system',
+  accentColor: DEFAULT_ACCENT,
+  reducedMotion: false,
   readingMode: false,
   defaultReciter: DEFAULT_RECITER,
+  defaultReciterId: DEFAULT_RECITER,
   downloadQuality: DEFAULT_DOWNLOAD_QUALITY,
+  audioQuality: QUALITY_TO_AUDIO[DEFAULT_DOWNLOAD_QUALITY],
   followAudio: true,
+  autoScrollVerse: true,
+  autoScrollSpeed: 140,
+  voiceLanguage: 'ar-SA',
+  autoClearCacheThreshold: 1000,
   audioSyncOffsetMs: 0,
   hasOfferedDefaultReciterDownload: false,
   wifiDownloadPending: false,
@@ -24,7 +50,48 @@ const initialState: SettingsState = loadState<SettingsState>(KEYS.settings, {
     nightlyMulk: false,
     reminderTime: '20:00',
   },
-});
+};
+
+function normalizeSettings(stored: Partial<SettingsState>): SettingsState {
+  const initialTheme = loadState<{ mode: ThemeMode; accent: AccentId }>(KEYS.theme, {
+    mode: 'system',
+    accent: DEFAULT_ACCENT,
+  });
+  const defaultReciter = stored.defaultReciterId ?? stored.defaultReciter ?? DEFAULT_RECITER;
+  const downloadQuality = stored.downloadQuality ?? DEFAULT_DOWNLOAD_QUALITY;
+  const arabicFontSize = Math.min(50, Math.max(18,
+    stored.arabicFontSize ?? (stored.arabicFontScale !== undefined
+      ? Math.round(26 * stored.arabicFontScale)
+      : DEFAULT_SETTINGS.arabicFontSize),
+  ));
+
+  return {
+    ...DEFAULT_SETTINGS,
+    ...stored,
+    arabicFontSize,
+    arabicFontScale: arabicFontSize / 26,
+    translationFontSize: Math.min(30, Math.max(12, stored.translationFontSize ?? DEFAULT_SETTINGS.translationFontSize)),
+    lineSpacing: Math.min(2.6, Math.max(1.2, stored.lineSpacing ?? DEFAULT_SETTINGS.lineSpacing)),
+    scriptType: stored.scriptType ?? 'uthmani',
+    fontFamily: stored.fontFamily ?? 'amiri',
+    showVerseNumbers: stored.showVerseNumbers ?? true,
+    themeMode: stored.themeMode ?? initialTheme.mode,
+    accentColor: stored.accentColor ?? initialTheme.accent,
+    reducedMotion: stored.reducedMotion ?? false,
+    defaultReciter,
+    defaultReciterId: defaultReciter,
+    downloadQuality,
+    audioQuality: stored.audioQuality ?? QUALITY_TO_AUDIO[downloadQuality],
+    followAudio: stored.followAudio ?? stored.autoScrollVerse ?? true,
+    autoScrollVerse: stored.autoScrollVerse ?? stored.followAudio ?? true,
+    autoScrollSpeed: Math.min(800, Math.max(0, stored.autoScrollSpeed ?? DEFAULT_SETTINGS.autoScrollSpeed)),
+    voiceLanguage: stored.voiceLanguage ?? 'ar-SA',
+    autoClearCacheThreshold: stored.autoClearCacheThreshold ?? 1000,
+    notifications: { ...DEFAULT_SETTINGS.notifications, ...stored.notifications },
+  };
+}
+
+const initialState = normalizeSettings(loadState<Partial<SettingsState>>(KEYS.settings, {}));
 
 const settingsSlice = createSlice({
   name: 'settings',
@@ -32,12 +99,59 @@ const settingsSlice = createSlice({
   reducers: {
     restoreSettings(_state, action: PayloadAction<SettingsState>) {
       // Backups written before a field existed would otherwise restore undefined.
-      return {
-        ...action.payload,
-        downloadQuality: action.payload.downloadQuality ?? DEFAULT_DOWNLOAD_QUALITY,
-        assistantLayout: action.payload.assistantLayout ?? 'classic',
-        audioSyncOffsetMs: Number.isFinite(action.payload.audioSyncOffsetMs) ? action.payload.audioSyncOffsetMs : 0,
-      };
+      return normalizeSettings(action.payload);
+    },
+    resetSettings() {
+      return { ...DEFAULT_SETTINGS, notifications: { ...DEFAULT_SETTINGS.notifications } };
+    },
+    setArabicFontSize(state, action: PayloadAction<number>) {
+      state.arabicFontSize = Math.min(50, Math.max(18, Math.round(action.payload)));
+      state.arabicFontScale = state.arabicFontSize / 26;
+    },
+    setTranslationFontSize(state, action: PayloadAction<number>) {
+      state.translationFontSize = Math.min(30, Math.max(12, Math.round(action.payload)));
+    },
+    setLineSpacing(state, action: PayloadAction<number>) {
+      state.lineSpacing = Math.min(2.6, Math.max(1.2, action.payload));
+    },
+    setScriptType(state, action: PayloadAction<QuranScriptType>) {
+      state.scriptType = action.payload;
+    },
+    setFontFamily(state, action: PayloadAction<SettingsState['fontFamily']>) {
+      state.fontFamily = action.payload;
+    },
+    setShowVerseNumbers(state, action: PayloadAction<boolean>) {
+      state.showVerseNumbers = action.payload;
+    },
+    setReducedMotion(state, action: PayloadAction<boolean>) {
+      state.reducedMotion = action.payload;
+    },
+    setThemeMode(state, action: PayloadAction<ThemeMode>) {
+      state.themeMode = action.payload;
+    },
+    setAccentColor(state, action: PayloadAction<AccentId>) {
+      state.accentColor = action.payload;
+    },
+    setDefaultReciterId(state, action: PayloadAction<string>) {
+      state.defaultReciterId = action.payload;
+      state.defaultReciter = action.payload;
+    },
+    setAudioQuality(state, action: PayloadAction<AudioQuality>) {
+      state.audioQuality = action.payload;
+      state.downloadQuality = AUDIO_TO_QUALITY[action.payload];
+    },
+    setAutoScrollVerse(state, action: PayloadAction<boolean>) {
+      state.autoScrollVerse = action.payload;
+      state.followAudio = action.payload;
+    },
+    setAutoScrollSpeed(state, action: PayloadAction<number>) {
+      state.autoScrollSpeed = Math.min(800, Math.max(0, Math.round(action.payload)));
+    },
+    setVoiceLanguage(state, action: PayloadAction<SettingsState['voiceLanguage']>) {
+      state.voiceLanguage = action.payload;
+    },
+    setAutoClearCacheThreshold(state, action: PayloadAction<number>) {
+      state.autoClearCacheThreshold = Math.min(5000, Math.max(100, Math.round(action.payload)));
     },
     setShowArabic(state, action: PayloadAction<boolean>) {
       state.showArabic = action.payload;
@@ -49,7 +163,8 @@ const settingsSlice = createSlice({
       state.showTranslation = action.payload;
     },
     setArabicFontScale(state, action: PayloadAction<number>) {
-      state.arabicFontScale = Math.min(3, Math.max(1, action.payload));
+      state.arabicFontScale = Math.min(50, Math.max(18, Math.round(26 * action.payload))) / 26;
+      state.arabicFontSize = Math.round(26 * state.arabicFontScale);
     },
     setScript(state, action: PayloadAction<ScriptStyle>) {
       state.script = action.payload;
@@ -59,12 +174,15 @@ const settingsSlice = createSlice({
     },
     setDefaultReciter(state, action: PayloadAction<string>) {
       state.defaultReciter = action.payload;
+      state.defaultReciterId = action.payload;
     },
     setDownloadQuality(state, action: PayloadAction<DownloadQuality>) {
       state.downloadQuality = action.payload;
+      state.audioQuality = QUALITY_TO_AUDIO[action.payload];
     },
     setFollowAudio(state, action: PayloadAction<boolean>) {
       state.followAudio = action.payload;
+      state.autoScrollVerse = action.payload;
     },
     setAudioSyncOffset(state, action: PayloadAction<number>) {
       const ms = Math.round(action.payload) || 0;
@@ -93,6 +211,22 @@ const settingsSlice = createSlice({
 
 export const {
   restoreSettings,
+  resetSettings,
+  setArabicFontSize,
+  setTranslationFontSize,
+  setLineSpacing,
+  setScriptType,
+  setFontFamily,
+  setShowVerseNumbers,
+  setReducedMotion,
+  setThemeMode,
+  setAccentColor,
+  setDefaultReciterId,
+  setAudioQuality,
+  setAutoScrollVerse,
+  setAutoScrollSpeed,
+  setVoiceLanguage,
+  setAutoClearCacheThreshold,
   setShowArabic,
   setShowTransliteration,
   setShowTranslation,

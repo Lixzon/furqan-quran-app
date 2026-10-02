@@ -3,6 +3,7 @@ import type { AccentId, ThemeMode, ThemeState } from '../../types';
 import { loadState } from '../persist';
 import { KEYS } from '../persist';
 import { DEFAULT_ACCENT } from '../../lib/constants';
+import { resetSettings, setAccentColor, setThemeMode } from './settingsSlice';
 
 const initialState: ThemeState = loadState<ThemeState>(KEYS.theme, {
   mode: 'system',
@@ -29,6 +30,21 @@ const themeSlice = createSlice({
     setCustomAccent(state, action: PayloadAction<string | null>) {
       state.customAccent = action.payload;
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(setThemeMode, (state, action) => {
+        state.mode = action.payload;
+      })
+      .addCase(setAccentColor, (state, action) => {
+        state.accent = action.payload;
+        state.customAccent = null;
+      })
+      .addCase(resetSettings, (state) => {
+        state.mode = 'system';
+        state.accent = DEFAULT_ACCENT;
+        state.customAccent = null;
+      });
   },
 });
 

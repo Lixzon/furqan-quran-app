@@ -11,7 +11,7 @@ import {
   setIstiqamahGoal,
 } from '../../store/slices/progressSlice';
 import { push } from '../../store/slices/toastSlice';
-import { setAccent, setMode } from '../../store/slices/themeSlice';
+import { setAccentColor, setThemeMode } from '../../store/slices/settingsSlice';
 import { Modal } from '../ui/Modal';
 import { Icon } from '../ui/Icon';
 import { WeekStrip } from '../ui/WeekStrip';
@@ -80,8 +80,8 @@ export function ProgressionHost() {
   const milestone = pendingMilestone(progression);
 
   const applyTierTheme = (tier: TierDefinition) => {
-    if (tier.theme?.mode) dispatch(setMode(tier.theme.mode));
-    if (tier.theme?.accent) dispatch(setAccent(tier.theme.accent));
+    if (tier.theme?.mode) dispatch(setThemeMode(tier.theme.mode));
+    if (tier.theme?.accent) dispatch(setAccentColor(tier.theme.accent));
   };
 
   if (tierToCelebrate) {

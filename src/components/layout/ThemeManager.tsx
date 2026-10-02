@@ -6,10 +6,10 @@ import { isAiUiUnlocked } from '../../lib/unlocks';
 import type { ThemeMode } from '../../types';
 
 /** Themes built on a dark palette, so `color-scheme` and on-accent ink follow. */
-const DARK_MODES: ThemeMode[] = ['dark', 'velvet', 'midnight'];
+const DARK_MODES: ThemeMode[] = ['dark', 'oled', 'emerald', 'velvet', 'midnight'];
 
 /** Themes that carry their own palette instead of resolving through light/dark. */
-const EXPLICIT_MODES: ThemeMode[] = ['sepia', 'midnight', 'emerald', 'velvet', 'golden'];
+const EXPLICIT_MODES: ThemeMode[] = ['oled', 'sepia', 'midnight', 'emerald', 'velvet', 'golden'];
 
 /** Applies the active theme (data-mode / data-accent + theme-color) to <html>. */
 export function ThemeManager() {
@@ -17,6 +17,8 @@ export function ThemeManager() {
   const accent = useAppSelector((s) => s.theme.accent);
   const customAccent = useAppSelector((s) => s.theme.customAccent);
   const assistantLayout = useAppSelector((s) => s.settings.assistantLayout);
+  const fontFamily = useAppSelector((s) => s.settings.fontFamily);
+  const reducedMotion = useAppSelector((s) => s.settings.reducedMotion);
   const streak = useAppSelector((s) => s.progress.progression.currentStreak);
 
   useEffect(() => {
@@ -28,6 +30,8 @@ export function ThemeManager() {
       const root = document.documentElement;
       root.dataset.mode = EXPLICIT_MODES.includes(mode) ? mode : dark ? 'dark' : 'light';
       root.dataset.accent = accent;
+      root.dataset.fontFamily = fontFamily;
+      root.dataset.reducedMotion = String(reducedMotion);
 
       // The 365-day Istiqamah milestone gates the advanced UI. While it is not
       // held, the custom accent is dropped and the layout falls back to classic,
@@ -55,7 +59,7 @@ export function ThemeManager() {
     apply();
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
-  }, [mode, accent, customAccent, assistantLayout, streak]);
+  }, [mode, accent, customAccent, assistantLayout, streak, fontFamily, reducedMotion]);
 
   return null;
 }

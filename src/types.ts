@@ -213,6 +213,7 @@ export type ThemeMode =
   | 'light'
   | 'dark'
   | 'system'
+  | 'oled'
   /** Gated reading themes (100-day Istiqamah milestone, see `lib/unlocks.ts`). */
   | 'sepia'
   | 'midnight'
@@ -221,7 +222,10 @@ export type ThemeMode =
   | 'velvet'
   | 'golden';
 export type ScriptStyle = 'uthmani' | 'naskh' | 'clear';
-export type AccentId = 'teal' | 'emerald' | 'green' | 'gold' | 'blue' | 'rose' | 'purple' | 'sapphire';
+export type AccentId = 'teal' | 'emerald' | 'green' | 'gold' | 'amber' | 'slate' | 'blue' | 'rose' | 'purple' | 'sapphire';
+export type QuranScriptType = 'uthmani' | 'indopak' | 'tajweed';
+export type ArabicFontFamily = 'kfgqpc' | 'scheherazade' | 'amiri';
+export type AudioQuality = '32kbps' | '64kbps' | '128kbps';
 
 /**
  * Reader layout presets. `classic` is the default behaviour; the other two are
@@ -230,15 +234,30 @@ export type AccentId = 'teal' | 'emerald' | 'green' | 'gold' | 'blue' | 'rose' |
 export type AssistantLayout = 'classic' | 'guided' | 'immersive';
 
 export interface SettingsState {
+  arabicFontSize: number;
+  translationFontSize: number;
+  lineSpacing: number;
+  scriptType: QuranScriptType;
+  fontFamily: ArabicFontFamily;
   showArabic: boolean;
   showTransliteration: boolean;
   showTranslation: boolean;
+  showVerseNumbers: boolean;
   arabicFontScale: number; // multiplier, e.g. 1.6
   script: ScriptStyle;
+  themeMode: ThemeMode;
+  accentColor: AccentId;
+  reducedMotion: boolean;
   readingMode: boolean; // distraction free
   defaultReciter: string;
+  defaultReciterId: string;
   downloadQuality: DownloadQuality;
+  audioQuality: AudioQuality;
   followAudio: boolean; // auto-scroll/highlight reader to the playing ayah
+  autoScrollVerse: boolean;
+  autoScrollSpeed: number;
+  voiceLanguage: 'ar-SA' | 'en-US';
+  autoClearCacheThreshold: number;
   /**
    * Milliseconds added to the audio clock before the highlighted ayah (and the
    * auto-scroll that follows it) is resolved. Negative values delay the

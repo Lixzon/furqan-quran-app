@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { push } from '../../store/slices/toastSlice';
-import { setMode } from '../../store/slices/themeSlice';
+import { setThemeMode } from '../../store/slices/settingsSlice';
 import { Icon } from './Icon';
 import { Modal } from './Modal';
 import { WeekStrip } from './WeekStrip';
@@ -46,7 +46,7 @@ export function IstiqamahTracker({ open, onClose }: { open: boolean; onClose: ()
   const unlockedMilestones = MILESTONE_UNLOCKS.filter((milestone) => streak >= milestone.days).length;
 
   const applyTheme = (mode: ThemeMode, label: string) => {
-    dispatch(setMode(mode));
+    dispatch(setThemeMode(mode));
     dispatch(push(`${label} reading theme applied.`, 'success'));
     onClose();
   };
