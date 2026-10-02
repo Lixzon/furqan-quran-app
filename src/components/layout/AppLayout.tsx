@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Outlet } from 'react-router-dom';
 import { useAppSelector } from '../../store';
-import { Sidebar, MobileNav } from './nav';
+import { Sidebar } from './nav';
+import { BottomNav } from './BottomNav';
 import { MiniPlayer } from './MiniPlayer';
 import { TopBar } from './TopBar';
 
@@ -27,7 +28,7 @@ export function AppLayout() {
         </main>
       </div>
       <MiniPlayer />
-      <MobileNav />
+      <BottomNav />
     </div>
   );
 }

@@ -725,6 +725,11 @@ button {
   color: inherit;
 }
 
+.voice-match-back-pill {
+  border: 1px solid color-mix(in srgb, var(--q-accent) 28%, transparent);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+}
+
 /* ---------- likes ---------- */
 /* The heart icon ships with fill="none"; a CSS rule beats that presentation
    attribute, so a liked heart can be filled without a second icon. */

@@ -10,8 +10,10 @@ import { APP_NAME, APP_TAGLINE } from './lib/constants';
 import { islamicQuoteOfTheDay } from './data/quotes';
 import { ProgressionHost } from './components/layout/ProgressionHost';
 import { VoiceSearchProvider } from './components/search/VoiceSearchModal';
+import { VoiceMatchDrawer, VoiceMatchBackPill } from './components/VoiceMatchDrawer';
 
 import BrowsePage from './pages/BrowsePage';
+import LibraryPage from './pages/LibraryPage';
 import SurahReader from './pages/SurahReader';
 import PlaylistsPage from './pages/PlaylistsPage';
 import PlaylistDetailPage from './pages/PlaylistDetailPage';
@@ -21,6 +23,7 @@ import ProgressPage from './pages/ProgressPage';
 import DownloadsPage from './pages/DownloadsPage';
 import SettingsPage from './pages/SettingsPage';
 import FavoritesPage from './pages/FavoritesPage';
+import ProfilePage from './pages/ProfilePage';
 
 export default function App() {
   const { pathname } = useLocation();
@@ -39,6 +42,7 @@ export default function App() {
           <Routes>
             <Route element={<AppLayout />}>
               <Route index element={<BrowsePage />} />
+              <Route path="library" element={<LibraryPage />} />
               <Route path="surah/:number" element={<SurahReader />} />
               <Route path="playlists" element={<PlaylistsPage />} />
               <Route path="playlist/:id" element={<PlaylistDetailPage />} />
@@ -50,12 +54,15 @@ export default function App() {
               <Route path="progress" element={<ProgressPage />} />
               <Route path="downloads" element={<DownloadsPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="profile" element={<ProfilePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
           <ToastHost />
           <ReminderHost />
           <ProgressionHost />
+          <VoiceMatchDrawer />
+          <VoiceMatchBackPill />
         </VoiceSearchProvider>
       </QuranProvider>
     </ErrorBoundary>

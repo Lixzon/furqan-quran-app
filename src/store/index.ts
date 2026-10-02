@@ -9,6 +9,7 @@ import playerReducer from './slices/playerSlice';
 import toastReducer from './slices/toastSlice';
 import likesReducer, { totalLikedItems } from './slices/likesSlice';
 import bookmarksReducer from './slices/bookmarksSlice';
+import searchSessionReducer from './slices/searchSessionSlice';
 import { computeXp, type XpProgress } from '../lib/xp';
 import { db } from '../db/database';
 
@@ -24,6 +25,7 @@ export const store = configureStore({
     toast: toastReducer,
     likes: likesReducer,
     bookmarks: bookmarksReducer,
+    searchSession: searchSessionReducer,
   },
 });
 

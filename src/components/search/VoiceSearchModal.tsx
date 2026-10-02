@@ -3,18 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Icon } from '../ui/Icon';
 import { EmptyState } from '../ui/common';
-import { useAppSelector } from '../../store';
+import { useAppDispatch, useAppSelector } from '../../store';
 import { scriptClassName } from '../../lib/constants';
 import { formatTime } from '../../lib/utils';
 import {
   DEFAULT_SEARCH_LIMIT,
   loadArabicSearchIndex,
-  searchAyahs,
   type ArabicSearchIndex,
-  type SearchHit,
 } from '../../lib/arabicSearch';
 import { subscribeSurahLoad } from '../../lib/dataClient';
+import { searchRecitationMatches, type VoiceMatchResult } from '../../lib/recitationSearch';
 import { useSpeechRecognition, type SpeechStatus } from '../../services/useSpeechRecognition';
+import { clearVoiceMatchSession, setVoiceMatchSession } from '../../store/slices/searchSessionSlice';
 
 /* ------------------------------------------------------------------ */
 /* provider                                                           */
@@ -51,12 +51,14 @@ export function VoiceSearchProvider({ children }: { children: ReactNode }) {
 const LANGUAGES = [
   { id: 'ar-SA', label: 'Saudi', arabic: 'السعودية' },
   { id: 'ar-EG', label: 'Egyptian', arabic: 'مصر' },
+  { id: 'en-US', label: 'English', arabic: 'English' },
 ] as const;
 
 const SEARCH_DEBOUNCE_MS = 220;
 
 function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const script = useAppSelector((s) => s.settings.script);
   const arClass = scriptClassName(script);
 
@@ -65,7 +67,7 @@ function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => voi
   const [loadError, setLoadError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [reloadTick, setReloadTick] = useState(0);
-  const [results, setResults] = useState<SearchHit[]>([]);
+  const [results, setResults] = useState<VoiceMatchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
   const speech = useSpeechRecognition({
@@ -103,21 +105,43 @@ function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => voi
     if (!index || query.length < 2) {
       setResults([]);
       setSearching(false);
+      dispatch(clearVoiceMatchSession());
       return;
     }
+
     setSearching(true);
     const timer = window.setTimeout(() => {
-      setResults(searchAyahs(query, index, DEFAULT_SEARCH_LIMIT));
-      setSearching(false);
+      void (async () => {
+        const language = lang === 'en-US' ? 'en-US' : 'ar-SA';
+        const matches = await searchRecitationMatches(query, language, DEFAULT_SEARCH_LIMIT);
+        setResults(matches);
+        if (matches.length === 0) {
+          dispatch(clearVoiceMatchSession());
+          setSearching(false);
+          return;
+        }
+        if (matches.length === 1) {
+          const match = matches[0];
+          dispatch(setVoiceMatchSession({ matches, activeIndex: 0, isOpen: false, lastQuery: query }));
+          setSearching(false);
+          speech.cancel();
+          onClose();
+          navigate(`/surah/${match.surahNumber}?ayah=${match.ayahNumber}`);
+          return;
+        }
+        dispatch(setVoiceMatchSession({ matches, activeIndex: 0, isOpen: true, lastQuery: query }));
+        setSearching(false);
+      })();
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [index, transcript]);
+  }, [dispatch, index, lang, navigate, onClose, speech, transcript]);
 
   const close = useCallback(() => {
+    dispatch(clearVoiceMatchSession());
     speech.cancel();
     setResults([]);
     onClose();
-  }, [onClose, speech]);
+  }, [dispatch, onClose, speech]);
 
   const toggleListening = () => {
     if (isBusy) speech.stop();
@@ -130,6 +154,7 @@ function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => voi
   };
 
   const startOver = () => {
+    dispatch(clearVoiceMatchSession());
     speech.cancel();
     setResults([]);
   };
@@ -140,9 +165,10 @@ function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => voi
     setLang(id);
   };
 
-  const selectHit = (hit: SearchHit) => {
+  const selectHit = (hit: VoiceMatchResult) => {
+    dispatch(setVoiceMatchSession({ matches: [hit], activeIndex: 0, isOpen: false, lastQuery: transcript.trim() }));
     close();
-    navigate(`/surah/${hit.surah}?ayah=${hit.ayah}`);
+    navigate(`/surah/${hit.surahNumber}?ayah=${hit.ayahNumber}`);
   };
 
   const ready = index !== null;
@@ -293,7 +319,7 @@ function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => voi
                 </div>
                 {results.map((hit) => (
                   <ResultRow
-                    key={`${hit.surah}:${hit.ayah}`}
+                    key={`${hit.surahNumber}:${hit.ayahNumber}`}
                     hit={hit}
                     arClass={arClass}
                     onSelect={() => selectHit(hit)}
@@ -336,30 +362,12 @@ function statusMessage(
   }
 }
 
-/** Renders the Uthmani text with the matched recitation marked. */
-function HighlightedAyah({ text, ranges }: { text: string; ranges: Array<[number, number]> }) {
-  if (ranges.length === 0) return <>{text}</>;
-  const parts: ReactNode[] = [];
-  let cursor = 0;
-  ranges.forEach(([start, end], index) => {
-    if (start > cursor) parts.push(text.slice(cursor, start));
-    parts.push(
-      <mark key={`hit-${index}`} className="search-hit">
-        {text.slice(start, end)}
-      </mark>,
-    );
-    cursor = end;
-  });
-  if (cursor < text.length) parts.push(text.slice(cursor));
-  return <>{parts}</>;
-}
-
 function ResultRow({
   hit,
   arClass,
   onSelect,
 }: {
-  hit: SearchHit;
+  hit: VoiceMatchResult;
   arClass: string;
   onSelect: () => void;
 }) {
@@ -371,18 +379,18 @@ function ResultRow({
     >
       <div className="flex items-center gap-2 text-[11px] font-semibold">
         <span className="shrink-0 rounded-full bg-accent/12 px-2 py-0.5 tabular-nums text-accent">
-          {hit.surah}:{hit.ayah}
+          {hit.surahNumber}:{hit.ayahNumber}
         </span>
-        <span className="min-w-0 truncate text-ink">{hit.surahEnglishName}</span>
+        <span className="min-w-0 truncate text-ink">{hit.englishName}</span>
         <span className="min-w-0 truncate text-mut" style={{ direction: 'rtl' }}>
           {hit.surahName}
         </span>
-        <span className="ml-auto shrink-0 text-mut">Āyah {hit.ayah}</span>
+        <span className="ml-auto shrink-0 text-mut">Ayah {hit.ayahNumber}</span>
       </div>
       <div dir="rtl" className={`${arClass} mt-2 text-[21px] leading-loose text-ink`}>
-        <HighlightedAyah text={hit.arabic} ranges={hit.ranges} />
+        {hit.matchedSnippet || hit.arabicText}
       </div>
-      <p className="mt-2 text-xs leading-relaxed text-mut">{hit.translation}</p>
+      <p className="mt-2 text-xs leading-relaxed text-mut">{hit.englishText}</p>
     </button>
   );
 }
