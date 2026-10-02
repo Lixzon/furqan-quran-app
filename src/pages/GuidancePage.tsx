@@ -10,7 +10,7 @@ import { Icon } from '../components/ui/Icon';
 import { LikeButton } from '../components/ui/LikeButton';
 
 type GuidanceTab = 'all' | 'duas' | 'sayings' | 'pinch';
-type DhikrKey = 'subhanallah' | 'alhamdulillah' | 'allahuakbar';
+type DhikrKey = 'subhanallah' | 'alhamdulillah' | 'allahuakbar' | 'laIlahaIllallah' | 'astaghfirullah';
 
 const TABS: Array<{ id: GuidanceTab; label: string }> = [
   { id: 'all', label: 'All' },
@@ -19,10 +19,12 @@ const TABS: Array<{ id: GuidanceTab; label: string }> = [
   { id: 'pinch', label: 'In a Pinch' },
 ];
 
-const DHIKR_ITEMS: Array<{ id: DhikrKey; label: string; arabic: string; goal: number }> = [
+const DHIKR_ITEMS: Array<{ id: DhikrKey; label: string; arabic: string; meaning?: string; goal: number | null }> = [
   { id: 'subhanallah', label: 'SubhanAllah', arabic: 'سُبْحَانَ اللَّهِ', goal: 33 },
   { id: 'alhamdulillah', label: 'Alhamdulillah', arabic: 'الْحَمْدُ لِلَّهِ', goal: 33 },
   { id: 'allahuakbar', label: 'Allahu Akbar', arabic: 'اللَّهُ أَكْبَرُ', goal: 34 },
+  { id: 'laIlahaIllallah', label: 'La ilaha illallah', arabic: 'لَا إِلَٰهَ إِلَّا اللَّهُ', goal: 1 },
+  { id: 'astaghfirullah', label: 'Astaghfirullah', arabic: 'أَسْتَغْفِرُ اللَّهَ', meaning: 'I seek forgiveness from Allah', goal: null },
 ];
 
 const PINCH_DUA_IDS = new Set(['distress', 'leave-home']);
@@ -40,7 +42,7 @@ function localDateKey(date = new Date()): string {
 function loadDhikrDay(): DhikrDay {
   const fresh: DhikrDay = {
     date: localDateKey(),
-    counts: { subhanallah: 0, alhamdulillah: 0, allahuakbar: 0 },
+    counts: { subhanallah: 0, alhamdulillah: 0, allahuakbar: 0, laIlahaIllallah: 0, astaghfirullah: 0 },
   };
   try {
     const saved = localStorage.getItem(DHIKR_STORAGE_KEY);
@@ -135,7 +137,7 @@ export default function GuidancePage() {
 
   const resetDhikr = () => setDhikrDay({
     date: localDateKey(),
-    counts: { subhanallah: 0, alhamdulillah: 0, allahuakbar: 0 },
+    counts: { subhanallah: 0, alhamdulillah: 0, allahuakbar: 0, laIlahaIllallah: 0, astaghfirullah: 0 },
   });
 
   return (
@@ -170,21 +172,22 @@ export default function GuidancePage() {
           </div>
           <button type="button" onClick={resetDhikr} className="rounded-full px-3 py-2 text-xs font-medium text-mut hover:bg-surface2">Reset</button>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {DHIKR_ITEMS.map((item) => {
             const count = dhikrDay.counts[item.id];
-            const complete = count >= item.goal;
+            const complete = item.goal !== null && count >= item.goal;
             return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => countDhikr(item.id)}
-                aria-label={`${item.label}, ${count} of ${item.goal}. Tap to count.`}
+                aria-label={`${item.label}, ${item.goal === null ? `${count} counted` : `${count} of ${item.goal}`}. Tap to count.`}
                 className={`pressable flex min-h-28 flex-col items-center justify-center rounded-xl border px-2 py-3 text-center transition-colors ${complete ? 'border-accent bg-accent/10' : 'border-line bg-surface2 hover:border-accent/40'}`}
               >
                 <span lang="ar" dir="rtl" className="ar-uthmani text-lg text-ink">{item.arabic}</span>
                 <span className="mt-1 text-[11px] font-medium text-mut">{item.label}</span>
-                <span className="mt-1 text-sm font-bold tabular-nums text-accent">{count}<span className="font-normal text-mut"> / {item.goal}</span></span>
+                {item.meaning && <span className="mt-1 text-[10px] leading-tight text-mut">{item.meaning}</span>}
+                <span className="mt-1 text-sm font-bold tabular-nums text-accent">{count}<span className="font-normal text-mut"> / {item.goal === null ? '∞' : item.goal}</span></span>
               </button>
             );
           })}
