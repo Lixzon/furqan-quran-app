@@ -5,8 +5,10 @@ import { KEYS } from '../persist';
 import {
   DAY_KEY_VERSION,
   ISTIQAMAH_MILESTONES,
+  activityDayKey,
   countDailyActivity,
   emptyProgression,
+  isActiveDay,
   migrateProgression,
   todayKey,
   withLocalDaysBackfilled,
@@ -53,17 +55,8 @@ const initialState: ProgressState = {
   ),
 };
 
-function dateKey(at: number): string {
-  return new Date(at).toISOString().slice(0, 10);
-}
-
 function recordActivity(state: ProgressState, entry: ActivityEntry): void {
   state.lastPosition = entry;
-  const day = dateKey(entry.at);
-  state.dailyActivity[day] = true;
-  // Every recorded ayah or listening event flows through the one streak
-  // function, so there is a single code path for counting a day.
-  countDailyActivity(state.progression, day);
   state.ayahsReached[entry.surah] = Math.max(state.ayahsReached[entry.surah] ?? 0, entry.ayah);
   const previous = state.activity[0];
   if (!previous || previous.surah !== entry.surah || previous.ayah !== entry.ayah || previous.kind !== entry.kind) {
@@ -72,6 +65,12 @@ function recordActivity(state: ProgressState, entry: ActivityEntry): void {
   } else {
     state.activity[0] = entry;
   }
+}
+
+function completeActivityDay(state: ProgressState, at: number): void {
+  const day = activityDayKey(new Date(at), state.dailyActivity);
+  state.dailyActivity[day] = true;
+  countDailyActivity(state.progression, day);
 }
 
 const progressSlice = createSlice({
@@ -106,6 +105,9 @@ const progressSlice = createSlice({
     markListened(state, action: PayloadAction<number>) {
       const surah = action.payload;
       state.lastListened[surah] = Date.now();
+    },
+    markRecommendedRecitation(state) {
+      completeActivityDay(state, Date.now());
     },
     markSurahComplete(state, action: PayloadAction<{ surah: number; value: boolean }>) {
       state.surahCompleted[action.payload.surah] = action.payload.value;
@@ -172,6 +174,21 @@ const progressSlice = createSlice({
     },
 
     /**
+     * Records a minute of foreground reading. The day is completed once the
+     * engine's active criteria are met (see `isActiveDay`), after which further
+     * minutes only bump the tally.
+     */
+    addReadMinute(state, action: PayloadAction<{ at: number }>) {
+      const day = activityDayKey(new Date(action.payload.at), state.dailyActivity);
+      const minutes = state.progression.dailyReadMinutes;
+      minutes[day] = (minutes[day] ?? 0) + 1;
+      if (!state.dailyActivity[day] && isActiveDay(minutes[day])) {
+        state.dailyActivity[day] = true;
+        countDailyActivity(state.progression, day);
+      }
+    },
+
+    /**
      * Credits an action that leaves no other trace (sharing, copying) so the XP
      * it earns is not forgotten on the next reload. See `lib/xp.ts`.
      */
@@ -217,6 +234,7 @@ export const {
   rememberRead,
   rememberListened,
   markListened,
+  markRecommendedRecitation,
   markSurahComplete,
   setJuzCompleted,
   clearAllProgress,
@@ -228,6 +246,7 @@ export const {
   setIstiqamahGoal,
   celebrateMilestone,
   addListenMinute,
+  addReadMinute,
   recordXpAction,
   devAddStreakDays,
   devSetStreak,

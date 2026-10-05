@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DUAS, DUA_THEME_LABELS } from '../data/duas';
 import { QUOTES, quoteOfTheDayIndex } from '../data/quotes';
+import { GUIDANCE_CATEGORIES, QURAN_GUIDANCE } from '../data/quranGuidanceData';
 import { useAppDispatch, useAppSelector } from '../store';
 import { isDuaLiked, isQuoteLiked, toggleLikedDua, toggleLikedQuote } from '../store/slices/likesSlice';
 import { push } from '../store/slices/toastSlice';
 import { PageHeader } from '../components/ui/common';
 import { Icon } from '../components/ui/Icon';
 import { LikeButton } from '../components/ui/LikeButton';
+import { player } from '../audio/controller';
 
-type GuidanceTab = 'all' | 'duas' | 'sayings' | 'pinch';
+type GuidanceTab = 'all' | 'duas' | 'sayings' | 'pinch' | 'recommendations';
 type DhikrKey = 'subhanallah' | 'alhamdulillah' | 'allahuakbar' | 'laIlahaIllallah' | 'astaghfirullah';
 
 const TABS: Array<{ id: GuidanceTab; label: string }> = [
@@ -17,6 +19,7 @@ const TABS: Array<{ id: GuidanceTab; label: string }> = [
   { id: 'duas', label: 'Duas' },
   { id: 'sayings', label: 'Sayings' },
   { id: 'pinch', label: 'In a Pinch' },
+  { id: 'recommendations', label: 'Qur’an routines' },
 ];
 
 const DHIKR_ITEMS: Array<{ id: DhikrKey; label: string; arabic: string; meaning?: string; goal: number | null }> = [
@@ -56,7 +59,9 @@ function loadDhikrDay(): DhikrDay {
 
 export default function GuidancePage() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const likes = useAppSelector((state) => state.likes);
+  const defaultReciter = useAppSelector((state) => state.settings.defaultReciter);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get('tab');
   const [tab, setTab] = useState<GuidanceTab>(() =>
@@ -212,6 +217,58 @@ export default function GuidancePage() {
       {tab === 'pinch' && (
         <div className="mb-3 rounded-xl border border-line bg-surface2 px-3 py-2 text-xs leading-relaxed text-mut">
           Short reminders for moments of difficulty. Sources are shown on each item.
+        </div>
+      )}
+
+      {tab === 'recommendations' && (
+        <div className="space-y-5">
+          {GUIDANCE_CATEGORIES.map((category) => {
+            const recommendations = QURAN_GUIDANCE.filter((item) => item.category === category.id);
+            return (
+              <section key={category.id} aria-label={category.label}>
+                <h2 className="mb-2 text-sm font-semibold text-ink">{category.label}</h2>
+                <div className="space-y-2">
+                  {recommendations.map((item) => (
+                    <article key={item.id} className="rounded-2xl border border-line bg-surface p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-semibold text-ink">{item.title}</h3>
+                          <p className="mt-0.5 text-xs text-accent">{item.timing ? `${item.timing} · ` : ''}{item.reference}</p>
+                        </div>
+                        <Icon name="book" size={18} className="shrink-0 text-accent" />
+                      </div>
+                      <p className="mt-2 text-sm leading-relaxed text-ink2">{item.summary}</p>
+                      <p className="mt-2 text-xs leading-relaxed text-mut">{item.sourceNote}</p>
+                      <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            player.playRecommendedRecitation(item.surahs[0], {
+                              reciter: defaultReciter,
+                              startAyahIndex: item.startAyah ? item.startAyah - 1 : null,
+                            })
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-full bg-surface2 px-3 py-2 text-xs font-medium text-ink pressable hover:text-accent"
+                        >
+                          <Icon name="play" size={14} /> Listen
+                        </button>
+                        {item.surahs.map((surahNumber) => (
+                          <button
+                            key={surahNumber}
+                            type="button"
+                            onClick={() => navigate(`/surah/${surahNumber}?ayah=${surahNumber === item.surahs[0] ? item.startAyah ?? 1 : 1}`)}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-surface2 px-3 py-2 text-xs font-medium text-ink pressable hover:text-accent"
+                          >
+                            <Icon name="book" size={14} /> Read {item.surahs.length > 1 ? `Surah ${surahNumber}` : 'in reader'}
+                          </button>
+                        ))}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </div>
       )}
 

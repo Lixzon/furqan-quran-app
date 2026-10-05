@@ -21,15 +21,14 @@ export function Toggle({
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 ${
-        checked ? 'bg-accent' : 'bg-surface3'
-      } ${disabled ? 'opacity-40' : ''}`}
+      className={`relative inline-flex h-[22px] w-10 shrink-0 items-center rounded-full border transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
+        checked ? 'border-accent bg-accent' : 'border-line2 bg-surface2'
+      } ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
     >
       <span
-        className={`inline-block h-4.5 w-4.5 transform rounded-full bg-white shadow transition-transform duration-200 ${
-          checked ? 'translate-x-[1.4rem]' : 'translate-x-1'
+        className={`absolute left-[3px] size-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out ${
+          checked ? 'translate-x-[18px]' : ''
         }`}
-        style={{ height: 18, width: 18 }}
       />
     </button>
   );

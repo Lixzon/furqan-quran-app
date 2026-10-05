@@ -1,7 +1,7 @@
 import { store } from '../store';
 import { patch, type PlayerState } from '../store/slices/playerSlice';
 import { push } from '../store/slices/toastSlice';
-import { markListened, rememberListened } from '../store/slices/progressSlice';
+import { markListened, markRecommendedRecitation, rememberListened } from '../store/slices/progressSlice';
 import { reciterById } from '../lib/constants';
 import { getSurahTimingData, resolveAudioSourceUrl, type TimingSegment } from '../lib/audioTiming';
 import { isAudioDownloaded, getDownloadedAudioUrl, getRangedAudioUrl } from '../services/audioStore';
@@ -50,6 +50,9 @@ class PlayerController {
    *  Set when the reader deliberately seeks, so the highlight cannot jump
    *  backwards to the previous ayah right after the jump. */
   private indexFloor: number | null = null;
+  private stopAfterAyahIndex: number | null = null;
+  private singleAyahEnded: (() => void) | null = null;
+  private recommendedRecitation = false;
 
   /* ------------------------------------------------ element --------- */
   private ensureEl(): HTMLAudioElement {
@@ -302,6 +305,13 @@ class PlayerController {
     return (ayahIndex / Math.max(1, count)) * duration;
   }
 
+  private ayahEndTime(ayahIndex: number, count: number, duration: number): number {
+    if (this.realTiming && this.realTiming.length >= count) {
+      return this.realTiming[ayahIndex]?.end ?? duration;
+    }
+    return ayahIndex + 1 < count ? this.ayahStartTime(ayahIndex + 1, count, duration) : duration;
+  }
+
   private computeAyahIndex(time: number, duration: number, count: number): number {
     if (count <= 0 || duration <= 0) return 0;
     if (this.realTiming && this.realTiming.length >= count) {
@@ -360,6 +370,25 @@ class PlayerController {
     if (this.indexFloor !== null) {
       if (idx >= this.indexFloor) this.indexFloor = null;
       else idx = this.indexFloor;
+    }
+
+    if (this.stopAfterAyahIndex !== null && idx > this.stopAfterAyahIndex) {
+      const target = this.stopAfterAyahIndex;
+      const stopAt = this.ayahEndTime(target, s.ayahCount, d);
+      const onEnded = this.singleAyahEnded;
+      this.stopAfterAyahIndex = null;
+      this.singleAyahEnded = null;
+      this.indexFloor = null;
+      el.pause();
+      try {
+        el.currentTime = stopAt;
+      } catch {
+        /* ignore */
+      }
+      this.patch({ ayah: target, currentTime: stopAt, isPlaying: false, buffering: false });
+      this.stopTimelineSampler();
+      onEnded?.();
+      return;
     }
 
     const toPatch: Partial<PlayerState> = { currentTime: t };
@@ -428,7 +457,18 @@ class PlayerController {
 
   private onEnded(): void {
     const s = this.getState();
+    if (this.stopAfterAyahIndex !== null) {
+      const target = this.stopAfterAyahIndex;
+      const onAyahEnded = this.singleAyahEnded;
+      this.stopAfterAyahIndex = null;
+      this.singleAyahEnded = null;
+      this.patch({ isPlaying: false, buffering: false, ayah: target });
+      onAyahEnded?.();
+      return;
+    }
     if (s.surah !== null) store.dispatch(markListened(s.surah));
+    if (this.recommendedRecitation) store.dispatch(markRecommendedRecitation());
+    this.recommendedRecitation = false;
 
     if (s.stopAfterSurah) {
       this.patch({ isPlaying: false, stopAfterSurah: false, ayah: s.ayahCount ? s.ayahCount - 1 : s.ayah });
@@ -491,9 +531,19 @@ class PlayerController {
     });
   }
 
-  playSingleSurah(surah: number, opts: { reciter?: string; startAyahIndex?: number | null } = {}): void {
+  playSingleSurah(surah: number, opts: {
+    reciter?: string;
+    startAyahIndex?: number | null;
+    stopAfterAyahIndex?: number | null;
+    onAyahEnded?: () => void;
+    stopAfterSurah?: boolean;
+    recommended?: boolean;
+  } = {}): void {
     const s = this.getState();
     const reciter = opts.reciter ?? s.reciter;
+    this.stopAfterAyahIndex = opts.stopAfterAyahIndex ?? null;
+    this.singleAyahEnded = opts.onAyahEnded ?? null;
+    this.recommendedRecitation = opts.recommended ?? false;
     this.patch({
       playlistId: null,
       queueName: null,
@@ -504,12 +554,22 @@ class PlayerController {
       repeat: 'off',
       reciter,
       loopSurah: false,
+      stopAfterSurah: opts.stopAfterSurah ?? false,
       isPlaying: false,
     });
     void this.loadCurrent(true, opts.startAyahIndex ?? null);
     void this.surahMeta(surah).then((m) => {
       this.updateMediaSession(m.englishName, reciterLabel(reciter));
     });
+  }
+
+  /**
+   * Plays a surah from a guidance recommendation. Reaching the end of that
+   * surah satisfies the day's "recommended recitation" criterion in the streak
+   * engine; playback then flows on to the following surah as usual.
+   */
+  playRecommendedRecitation(surah: number, opts: { reciter?: string; startAyahIndex?: number | null } = {}): void {
+    this.playSingleSurah(surah, { ...opts, recommended: true });
   }
 
   /** Attach text-length weights for more accurate ayah highlighting. */

@@ -6,7 +6,7 @@ import { useAppDispatch, useAppSelector } from '../store';
 import { player } from '../audio/controller';
 import { getIndoPakSurah, getSurah } from '../lib/dataClient';
 import { useQuran } from '../data/QuranProvider';
-import { rememberRead } from '../store/slices/progressSlice';
+import { addReadMinute, rememberRead } from '../store/slices/progressSlice';
 import { toggleAyahBookmark } from '../store/slices/bookmarksSlice';
 import type { AyahBookmark } from '../store/slices/bookmarksSlice';
 import {
@@ -25,6 +25,7 @@ import { Icon } from '../components/ui/Icon';
 import { Slider, Toggle } from '../components/ui/controls';
 import { Modal } from '../components/ui/Modal';
 import { SurahArtwork } from '../components/ui/SurahArtwork';
+import { VerseActionModal } from '../components/VerseActionModal';
 import { ErrorBlock, SkeletonRows } from '../components/ui/common';
 import type { AyahData, SettingsState, SurahFull, ThemeMode } from '../types';
 
@@ -48,6 +49,7 @@ export default function SurahReader() {
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
   const [activeAyah, setActiveAyah] = useState(0);
+  const [focusedAyahIndex, setFocusedAyahIndex] = useState<number | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'book'>('list');
   const [bookPage, setBookPage] = useState(0);
@@ -264,6 +266,14 @@ export default function SurahReader() {
     if (!surah) return;
     dispatch(rememberRead({ surah: surah.number, ayah: activeAyah + 1, name: surah.englishName }));
   }, [activeAyah, surah, dispatch]);
+
+  useEffect(() => {
+    if (!surah) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') dispatch(addReadMinute({ at: Date.now() }));
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [dispatch, surah?.number]);
 
   // Follow the sounding ayah while audio plays on this surah.
   useEffect(() => {
@@ -486,6 +496,7 @@ export default function SurahReader() {
                 lineSpacing={settings.lineSpacing}
                 sounding={isActiveSession && playerState.isPlaying && playerState.ayah === i}
                 selected={activeAyah === i}
+                onOpenFocus={() => setFocusedAyahIndex(i)}
                 registerRef={(el) => {
                   if (el) refs.current.set(i, el);
                   else refs.current.delete(i);
@@ -515,6 +526,7 @@ export default function SurahReader() {
           isPlaying={playerState.isPlaying}
           activeAyah={activeAyah}
           onSelect={handleSelect}
+          onOpenFocus={setFocusedAyahIndex}
           bookmarkedIds={bookmarkIds}
           onToggleBookmark={(item) => dispatch(toggleAyahBookmark(item))}
           onTurn={turnPage}
@@ -543,6 +555,34 @@ export default function SurahReader() {
         settings={settings}
         dispatch={dispatch}
       />
+      {focusedAyahIndex !== null && surah.ayahs[focusedAyahIndex] && (() => {
+        const ayah = surah.ayahs[focusedAyahIndex];
+        const arabic = settings.scriptType === 'indopak' ? indoPakAyahs[focusedAyahIndex] ?? ayah.ar : ayah.ar;
+        const bookmark = {
+          id: `${surah.number}:${ayah.i}`,
+          surah: surah.number,
+          ayah: ayah.i,
+          surahName: surah.englishName,
+          arabic,
+          translation: ayah.tr,
+        };
+        return (
+          <VerseActionModal
+            open
+            onClose={() => setFocusedAyahIndex(null)}
+            surahNumber={surah.number}
+            surahName={surah.englishName}
+            ayahNumber={ayah.i}
+            arabic={arabic}
+            translation={ayah.tr}
+            transliteration={ayah.tl}
+            reciter={settings.defaultReciter}
+            bookmark={bookmark}
+            isBookmarked={bookmarkIds.has(bookmark.id)}
+            onToggleBookmark={(item) => dispatch(toggleAyahBookmark(item))}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -567,6 +607,7 @@ function AyahBlock({
   selected,
   registerRef,
   onSelect,
+  onOpenFocus,
   virtualIndex,
   style,
 }: {
@@ -588,6 +629,7 @@ function AyahBlock({
   selected: boolean;
   registerRef: (el: HTMLDivElement | null) => void;
   onSelect: () => void;
+  onOpenFocus: () => void;
   virtualIndex?: number;
   style?: React.CSSProperties;
 }) {
@@ -630,7 +672,10 @@ function AyahBlock({
     <div
       ref={registerRef}
       data-index={virtualIndex}
-      onClick={onSelect}
+      onClick={() => {
+        onSelect();
+        onOpenFocus();
+      }}
       style={style}
       className={`ayah-row group relative scroll-mt-24 cursor-pointer border-b border-line px-3 py-5 transition-colors ${
         sounding ? 'ayah-active' : selected ? 'bg-accent/6 ring-1 ring-accent/30' : 'hover:bg-surface'
@@ -737,6 +782,7 @@ function BookView({
   isPlaying,
   activeAyah,
   onSelect,
+  onOpenFocus,
   bookmarkedIds,
   onToggleBookmark,
   onTurn,
@@ -758,6 +804,7 @@ function BookView({
   isPlaying: boolean;
   activeAyah: number;
   onSelect: (index: number) => void;
+  onOpenFocus: (index: number) => void;
   bookmarkedIds: Set<string>;
   onToggleBookmark: (bookmark: Omit<AyahBookmark, 'note' | 'createdAt'>) => void;
   onTurn: (direction: -1 | 1) => void;
@@ -817,6 +864,7 @@ function BookView({
                 selected={activeAyah === index}
                 registerRef={() => undefined}
                 onSelect={() => onSelect(index)}
+                onOpenFocus={() => onOpenFocus(index)}
               />
             );
           })}

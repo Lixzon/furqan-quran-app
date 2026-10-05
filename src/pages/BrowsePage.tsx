@@ -13,7 +13,8 @@ import { useVoiceSearch } from '../components/search/VoiceSearchModal';
 import { useDownloadedSet } from '../services/useDownloads';
 import { todayKey } from '../lib/progression';
 import type { SurahMeta } from '../types';
-import { islamicQuoteOfTheDay } from '../data/quotes';
+import { ISLAMIC_QUOTES, islamicQuoteOfTheDay } from '../data/quotes';
+import { recommendationsForNow } from '../data/quranGuidanceData';
 
 type Tab = 'surah' | 'juz';
 
@@ -28,6 +29,10 @@ export default function BrowsePage() {
 
   const [tab, setTab] = useState<Tab>('surah');
   const [query, setQuery] = useState('');
+  const [reminderQuoteIndex, setReminderQuoteIndex] = useState(() => {
+    const todayQuote = islamicQuoteOfTheDay(new Date());
+    return Math.max(0, ISLAMIC_QUOTES.findIndex((quote) => quote.id === todayQuote.id));
+  });
 
   // Which surahs are already stored for the reader's default reciter.
   const downloaded = useDownloadedSet(defaultReciter);
@@ -53,7 +58,8 @@ export default function BrowsePage() {
   const today = todayKey();
   const hasCheckedIn = !!progress.dailyActivity[today];
   const checkInSurah = progress.lastPosition?.surah ?? 1;
-  const dailyQuote = islamicQuoteOfTheDay(new Date());
+  const dailyQuote = ISLAMIC_QUOTES[reminderQuoteIndex];
+  const currentRecommendations = recommendationsForNow(new Date());
   const streak = progress.progression.currentStreak;
   const banner = useMemo(() => {
     const now = new Date();
@@ -122,6 +128,14 @@ export default function BrowsePage() {
     }
   };
 
+  // Listening to a recommended surah satisfies the day's recitation criterion.
+  const startRecommended = (surah: number, startAyah?: number) => {
+    player.playRecommendedRecitation(surah, {
+      reciter: defaultReciter,
+      startAyahIndex: startAyah ? startAyah - 1 : null,
+    });
+  };
+
   return (
     <div className="page-enter">
       <div className="mb-4 text-center">
@@ -177,11 +191,52 @@ export default function BrowsePage() {
         <p className="mt-2 text-sm font-medium leading-relaxed">“{dailyQuote.text}”</p>
         <div className="mt-2 flex items-end justify-between gap-3">
           <p className="text-xs opacity-90">{dailyQuote.by} · {dailyQuote.source}</p>
-          <button type="button" onClick={() => navigate('/quotes')} aria-label="Explore sayings and duas" className="shrink-0 rounded-full bg-white/20 p-2 pressable">
-            <Icon name="forward" size={16} />
+          <button
+            type="button"
+            onClick={() => setReminderQuoteIndex((index) => (index + 1) % ISLAMIC_QUOTES.length)}
+            aria-label="Next Qur’an reminder"
+            title="Next reminder"
+            className="shrink-0 rounded-full p-2 text-onaccent/85 transition-transform hover:translate-x-0.5 hover:text-onaccent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-onaccent/70"
+          >
+            <Icon name="forward" size={20} />
           </button>
         </div>
       </div>
+
+      <section className="mb-4" aria-label="Recommended recitations">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-mut">For this moment</h2>
+          <button type="button" onClick={() => navigate('/guidance?tab=recommendations')} className="text-xs font-medium text-accent hover:underline">All routines</button>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {currentRecommendations.map((item) => (
+            <div
+              key={item.id}
+              className="flex min-w-0 items-center gap-1 rounded-xl border border-line bg-surface p-2 pl-3 pressable hover:border-accent/40"
+            >
+              <button
+                type="button"
+                onClick={() => navigate(`/surah/${item.surahs[0]}?ayah=${item.startAyah ?? 1}`)}
+                className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-ink">{item.title}</span>
+                  <span className="mt-0.5 block text-xs text-mut">{item.timing ?? item.reference} · {item.reference}</span>
+                </span>
+                <Icon name="forward" size={17} className="shrink-0 text-accent" />
+              </button>
+              <button
+                type="button"
+                aria-label={`Listen to ${item.title}`}
+                onClick={() => startRecommended(item.surahs[0], item.startAyah)}
+                className="shrink-0 rounded-full p-2 text-accent transition-colors hover:bg-surface2"
+              >
+                <Icon name="play" size={18} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="mb-4 rounded-2xl bg-surface p-3">
         <div className="flex items-center justify-between gap-3">

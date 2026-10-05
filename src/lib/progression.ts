@@ -1,4 +1,24 @@
 import type { AccentId, ProgressionState, ThemeMode } from '../types';
+import { DAY_KEY_VERSION, dateKey, daysBetween, shiftDateKey } from '../utils/streakEngine';
+
+// The calendar and streak rules live in the dedicated engine module; they are
+// re-exported here so existing `lib/progression` imports keep working.
+export {
+  DAY_KEY_VERSION,
+  FREEZE_AWARD_AMOUNT,
+  FREEZE_AWARD_EVERY_DAYS,
+  FREEZE_CAP,
+  GRACE_WINDOW_END_HOUR,
+  READ_MINUTES_FOR_ACTIVE_DAY,
+  activityDayKey,
+  countDailyActivity,
+  dateKey,
+  daysBetween,
+  isActiveDay,
+  shiftDateKey,
+  todayKey,
+} from '../utils/streakEngine';
+export type { StreakOutcome } from '../utils/streakEngine';
 
 function isLocalDevOverrideEnabled(): boolean {
   if (typeof window === 'undefined') return false;
@@ -85,27 +105,11 @@ export const BADGE_TONES: Record<TierDefinition['badge'], string> = {
   master: '#f0c53f',
 };
 
-/** Max Ruksah (streak freezes) a reader can hold. Running out is possible. */
-export const FREEZE_CAP = 2;
-
-/** Ruksah are awarded once a full month of consistency has been kept. */
-export const FREEZE_AWARD_EVERY_DAYS = 30;
-
-/** Ruksah granted per award, subject to {@link FREEZE_CAP}. */
-export const FREEZE_AWARD_AMOUNT = 2;
-
 /** Milestones where the reader is invited to choose their next goal. */
 export const ISTIQAMAH_MILESTONES = [25, 50, 75, 100];
 
 /** Total ayahs in the Qur'an, used for the yearly khatm estimate. */
 export const TOTAL_QURAN_AYAHS = 6236;
-
-/**
- * Bumped whenever the rule for turning an instant into a day key changes.
- * Version 1 was the UTC day; version 2 is the reader's local day. A stored
- * state with no version predates this and was written under the UTC rule.
- */
-export const DAY_KEY_VERSION = 2;
 
 export const emptyProgression: ProgressionState = {
   currentStreak: 0,
@@ -119,6 +123,7 @@ export const emptyProgression: ProgressionState = {
   freezeNoticeFor: null,
   dailyGoalCelebratedDate: null,
   dailyListenMinutes: {},
+  dailyReadMinutes: {},
   dayKeyVersion: DAY_KEY_VERSION,
   counters: { shares: 0, copies: 0 },
 };
@@ -208,6 +213,7 @@ export function migrateProgression(
       shares: Math.max(0, source.counters?.shares ?? 0),
       copies: Math.max(0, source.counters?.copies ?? 0),
     },
+    dailyReadMinutes: source.dailyReadMinutes ?? {},
   } as ProgressionState & LegacyProgression;
 
   // Drop the pre-unification keys so a single set of fields is ever persisted.
@@ -246,102 +252,6 @@ export function migrateProgression(
   progression.dayKeyVersion = DAY_KEY_VERSION;
 
   return progression;
-}
-
-export type StreakOutcome =
-  /** Today has already been counted. */
-  | 'already-counted'
-  /** Streak extended from yesterday. */
-  | 'continued'
-  /** First day, or a new run after a gap. */
-  | 'started'
-  /** One day was missed and a Ruksah was spent automatically to bridge it. */
-  | 'freeze-used';
-
-/**
- * The single place streak maths happens. Called by every activity recorder
- * (`rememberRead`, `rememberListened`) and by `recordDailyActivity`.
- *
- * Mutates the passed state so it works for both Immer drafts and plain objects.
- *
- * A Ruksah is spent automatically: when exactly one day was missed and the
- * reader has one in stock, it is consumed to bridge that day so the streak
- * survives without any prompt. The reader is told afterwards via
- * `freezeNoticeFor`, which the streak hub turns into a notice.
- */
-export function countDailyActivity(progression: ProgressionState, today: string): StreakOutcome {
-  if (progression.lastActiveDate === today) return 'already-counted';
-
-  const yesterday = shiftDateKey(today, -1);
-  const twoDaysAgo = shiftDateKey(today, -2);
-  let protectedDay: string | null = null;
-
-  if (progression.lastActiveDate === null) {
-    progression.currentStreak = 1;
-  } else if (progression.lastActiveDate === yesterday) {
-    progression.currentStreak += 1;
-  } else if (progression.lastActiveDate === twoDaysAgo && progression.streakFreezes > 0) {
-    // A Ruksah covers exactly one missed day; longer gaps restart the run.
-    progression.streakFreezes -= 1;
-    if (!progression.freezeUsedDates.includes(yesterday)) progression.freezeUsedDates.push(yesterday);
-    progression.freezeNoticeFor = yesterday;
-    progression.currentStreak += 1;
-    protectedDay = yesterday;
-  } else {
-    progression.currentStreak = 1;
-  }
-
-  progression.lastActiveDate = today;
-  progression.highestStreak = Math.max(progression.highestStreak, progression.currentStreak);
-
-  // A full month of consistency earns a fresh set of Ruksah, up to the cap.
-  if (
-    progression.currentStreak > 0 &&
-    progression.currentStreak % FREEZE_AWARD_EVERY_DAYS === 0 &&
-    progression.streakFreezes < FREEZE_CAP
-  ) {
-    progression.streakFreezes = Math.min(FREEZE_CAP, progression.streakFreezes + FREEZE_AWARD_AMOUNT);
-  }
-
-  if (protectedDay) return 'freeze-used';
-  return progression.currentStreak === 1 ? 'started' : 'continued';
-}
-
-/**
- * `yyyy-mm-dd` in the reader's own calendar.
- *
- * This must use the local date parts rather than `toISOString()`: the ISO form
- * is UTC, so for a reader in Jakarta or Karachi the reading day would roll over
- * mid-morning local time and a late-evening session could land on the wrong day.
- */
-export function dateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-export function todayKey(): string {
-  return dateKey(new Date());
-}
-
-/**
- * Shifts a day key by a number of days. This is pure calendar arithmetic on the
- * key itself, not on an instant, so the UTC internals are correct and
- * deliberate — do not "fix" them to local time.
- */
-export function shiftDateKey(key: string, days: number): string {
-  const [year, month, day] = key.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-export function daysBetween(fromKey: string, toKey: string): number {
-  const from = Date.parse(`${fromKey}T00:00:00Z`);
-  const to = Date.parse(`${toKey}T00:00:00Z`);
-  if (!Number.isFinite(from) || !Number.isFinite(to)) return Number.POSITIVE_INFINITY;
-  return Math.round((to - from) / 86_400_000);
 }
 
 export function tierForDays(days: number): TierDefinition {

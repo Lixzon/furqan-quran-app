@@ -8,6 +8,7 @@ import { ToastHost } from './components/ui/ToastHost';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { APP_NAME, APP_TAGLINE } from './lib/constants';
 import { islamicQuoteOfTheDay } from './data/quotes';
+import { todayKey } from './lib/progression';
 import { ProgressionHost } from './components/layout/ProgressionHost';
 import { VoiceSearchProvider } from './components/search/VoiceSearchModal';
 import { VoiceMatchDrawer, VoiceMatchBackPill } from './components/VoiceMatchDrawer';
@@ -84,7 +85,7 @@ function ReminderHost() {
     const check = () => {
       if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
       const now = new Date();
-      const date = now.toISOString().slice(0, 10);
+      const date = todayKey();
       const [hour, minute] = notifications.reminderTime.split(':').map(Number);
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
       const reminderMinutes = (hour || 0) * 60 + (minute || 0);

@@ -13,6 +13,8 @@ export function Modal({
   dismissable = true,
   size = 'md',
   variant = 'default',
+  overlayClassName,
+  preserveBackground = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +24,8 @@ export function Modal({
   dismissable?: boolean;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   variant?: 'default' | 'frosted';
+  overlayClassName?: string;
+  preserveBackground?: boolean;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -67,20 +71,24 @@ export function Modal({
     const appRoot = document.getElementById('root');
     if (!appRoot) return;
 
+    const previousAria = appRoot.getAttribute('aria-hidden');
     const previousDisplay = appRoot.style.display;
     const previousVisibility = appRoot.style.visibility;
-    const previousAria = appRoot.getAttribute('aria-hidden');
-    appRoot.style.display = 'none';
-    appRoot.style.visibility = 'hidden';
+    if (!preserveBackground) {
+      appRoot.style.display = 'none';
+      appRoot.style.visibility = 'hidden';
+    }
     appRoot.setAttribute('aria-hidden', 'true');
 
     return () => {
-      appRoot.style.display = previousDisplay;
-      appRoot.style.visibility = previousVisibility;
+      if (!preserveBackground) {
+        appRoot.style.display = previousDisplay;
+        appRoot.style.visibility = previousVisibility;
+      }
       if (previousAria === null) appRoot.removeAttribute('aria-hidden');
       else appRoot.setAttribute('aria-hidden', previousAria);
     };
-  }, [open]);
+  }, [open, preserveBackground]);
 
   if (!open) return null;
   const widths: Record<string, string> = {
@@ -95,7 +103,7 @@ export function Modal({
     return createPortal(
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          className="frosted-overlay absolute inset-0 bg-black/30 backdrop-blur-md anim-fade"
+          className={`frosted-overlay absolute inset-0 ${overlayClassName ?? 'bg-black/30 backdrop-blur-md anim-fade'}`}
           onClick={() => (dismissable ? onClose() : undefined)}
           aria-hidden="true"
         />

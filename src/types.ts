@@ -92,7 +92,7 @@ export interface ProgressState {
   lastPosition: ActivityEntry | null;
   /** Small chronological activity log used by history and recent-item views. */
   activity: ActivityEntry[];
-  /** ISO date keys for days with at least one reading/listening event. */
+  /** Local date keys for days that met the reading or recitation activity criteria. */
   dailyActivity: Record<string, boolean>;
   /** Count of ayahs reached at least once per surah. */
   ayahsReached: Record<number, number>;
@@ -135,6 +135,8 @@ export interface ProgressionState {
   dailyGoalCelebratedDate: string | null;
   /** Minutes of recitation listened per ISO date. */
   dailyListenMinutes: Record<string, number>;
+  /** Foreground reading minutes per local date. */
+  dailyReadMinutes: Record<string, number>;
   /**
    * Which day-key rule wrote this state. 1 = UTC days (legacy), 2 = local days.
    * Used to run the UTC -> local repair exactly once per install.
