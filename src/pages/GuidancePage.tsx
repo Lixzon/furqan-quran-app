@@ -4,7 +4,6 @@ import { GUIDANCE_CATEGORIES, QURAN_GUIDANCE, type GuidanceCategoryId } from '..
 import { useAppSelector } from '../store';
 import { PageHeader } from '../components/ui/common';
 import { Icon } from '../components/ui/Icon';
-import { Segmented } from '../components/ui/controls';
 import { player } from '../audio/controller';
 import { SurahArtwork } from '../components/ui/SurahArtwork';
 
@@ -33,13 +32,25 @@ export default function GuidancePage() {
   return (
     <div className="page-enter">
       <PageHeader title="Quran guidance" subtitle="Reading paths and selected passages for different moments." />
-      <div className="mb-4 overflow-x-auto">
-        <Segmented
-          value={filter}
-          onChange={setFilter}
-          options={FILTERS.map((item) => ({ value: item.value, label: item.label }))}
-          size="sm"
-        />
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" role="group" aria-label="Filter Quran guidance">
+        {FILTERS.map((item) => {
+          const active = item.value === filter;
+          return (
+            <button
+              key={item.value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setFilter(item.value)}
+              className={`min-h-10 min-w-0 rounded-xl border px-3 py-2 text-xs font-medium transition-colors sm:rounded-full ${
+                active
+                  ? 'border-accent bg-accent text-onaccent shadow'
+                  : 'border-line bg-surface2 text-mut hover:text-ink'
+              }`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
       </div>
       <div className="space-y-5">
         {groups.map((group) => (

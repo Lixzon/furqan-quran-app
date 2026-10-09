@@ -21,13 +21,13 @@ export function Toggle({
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-[22px] w-10 shrink-0 items-center rounded-full border transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
+      className={`relative box-border inline-flex h-6 w-10 min-w-10 max-w-10 flex-none items-center overflow-hidden rounded-full border p-0 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
         checked ? 'border-accent bg-accent' : 'border-line2 bg-surface2'
       } ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
     >
       <span
-        className={`absolute left-[3px] size-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out ${
-          checked ? 'translate-x-[18px]' : ''
+        className={`pointer-events-none absolute left-[3px] top-1/2 size-4 -translate-y-1/2 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out ${
+          checked ? 'translate-x-[18px]' : 'translate-x-0'
         }`}
       />
     </button>
