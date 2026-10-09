@@ -63,7 +63,7 @@ export default defineConfig({
       injectRegister: false, // we register via virtual:pwa-register in main.tsx
       manifest,
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,json,svg,png,ico,ttf,woff2}'],
+        globPatterns: ['**/*.{js,css,html,json,svg,png,ico,ttf,woff2,mp3}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
     }),

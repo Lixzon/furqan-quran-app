@@ -37,6 +37,7 @@ class PlayerController {
   private pendingStartAyah: number | null = null;
   private sleepTimerId: number | null = null;
   private loadToken = 0;
+  private playbackIntentToken = 0;
   private fallbackToken = 0;
   private realTiming: Array<{ start: number; end: number }> | null = null;
   private timelineTimer: number | null = null;
@@ -186,27 +187,35 @@ class PlayerController {
     }
   }
 
-  private async playElement(): Promise<void> {
+  private async playElement(intentToken = this.playbackIntentToken): Promise<void> {
     const el = this.ensureEl();
     try {
       await el.play();
+      if (intentToken !== this.playbackIntentToken) {
+        el.pause();
+        this.patch({ isPlaying: false, buffering: false });
+        return;
+      }
       this.patch({ isPlaying: true });
     } catch {
       // Autoplay may be blocked (e.g. no user gesture yet). Surface once.
-      this.patch({ isPlaying: false, buffering: false });
+      if (intentToken === this.playbackIntentToken) this.patch({ isPlaying: false, buffering: false });
     }
   }
 
   /** Loads whatever the queue currently points at and (optionally) plays. */
   private async loadCurrent(autoplay: boolean, startAyahIndex: number | null = null): Promise<void> {
+    const intentToken = ++this.playbackIntentToken;
     const s = this.getState();
     if (s.queue.length === 0 || s.order.length === 0) return;
     const surah = s.queue[s.order[s.pos]];
     if (surah === undefined) return;
     const count = await this.resolveAyahCount(surah, s.ayahCount);
+    if (intentToken !== this.playbackIntentToken) return;
     this.patch({ ayahCount: count });
     await this.loadSurah(surah, s.reciter, count, startAyahIndex);
-    if (autoplay) await this.playElement();
+    if (intentToken !== this.playbackIntentToken) return;
+    if (autoplay) await this.playElement(intentToken);
   }
 
   private updateMediaSession(surahName: string, reciterLabel: string): void {
@@ -615,18 +624,21 @@ class PlayerController {
   async play(): Promise<void> {
     const s = this.getState();
     if (s.surah === null) return;
+    const intentToken = ++this.playbackIntentToken;
     const el = this.ensureEl();
     // Restart if we reached the very end while paused.
     if (Number.isFinite(el.duration) && el.duration > 0 && el.currentTime >= el.duration - 0.4) {
       el.currentTime = 0;
     }
-    await this.playElement();
+    await this.playElement(intentToken);
   }
 
   pause(): void {
+    this.playbackIntentToken += 1;
+    this.loadToken += 1;
     const el = this.ensureEl();
     el.pause();
-    this.patch({ isPlaying: false });
+    this.patch({ isPlaying: false, buffering: false });
   }
 
   togglePlay(): void {
@@ -665,6 +677,8 @@ class PlayerController {
   }
 
   stop(): void {
+    this.playbackIntentToken += 1;
+    this.loadToken += 1;
     const el = this.ensureEl();
     if (this.sleepTimerId !== null) {
       window.clearTimeout(this.sleepTimerId);

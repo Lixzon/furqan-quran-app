@@ -24,6 +24,8 @@ import { setVoiceLanguage } from '../../store/slices/settingsSlice';
 interface VoiceSearchContextValue {
   /** Opens the recitation-search sheet from anywhere in the app. */
   open: () => void;
+  /** Whether speech recognition is actively listening to the microphone. */
+  isListening: boolean;
 }
 
 const VoiceSearchContext = createContext<VoiceSearchContextValue | null>(null);
@@ -36,11 +38,19 @@ export function useVoiceSearch(): VoiceSearchContextValue {
 
 export function VoiceSearchProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const value = useMemo<VoiceSearchContextValue>(() => ({ open: () => setOpen(true) }), []);
+  const [isListening, setIsListening] = useState(false);
+  const value = useMemo<VoiceSearchContextValue>(
+    () => ({ open: () => setOpen(true), isListening }),
+    [isListening],
+  );
   return (
     <VoiceSearchContext.Provider value={value}>
       {children}
-      <VoiceSearchModal open={open} onClose={() => setOpen(false)} />
+      <VoiceSearchModal
+        open={open}
+        onClose={() => setOpen(false)}
+        onListeningChange={setIsListening}
+      />
     </VoiceSearchContext.Provider>
   );
 }
@@ -57,7 +67,15 @@ const LANGUAGES = [
 
 const SEARCH_DEBOUNCE_MS = 220;
 
-function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+function VoiceSearchModal({
+  open,
+  onClose,
+  onListeningChange,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onListeningChange: (isListening: boolean) => void;
+}) {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const script = useAppSelector((s) => s.settings.script);
@@ -79,6 +97,10 @@ function VoiceSearchModal({ open, onClose }: { open: boolean; onClose: () => voi
   const { status, transcript, cancel: cancelSpeech } = speech;
   const isListening = status === 'listening';
   const isBusy = isListening || status === 'processing';
+
+  useEffect(() => {
+    onListeningChange(open && isListening);
+  }, [isListening, onListeningChange, open]);
 
   useEffect(() => {
     if (open) setLang(voiceLanguage);

@@ -541,6 +541,9 @@ button {
 .anim-fade {
   animation: q-fade 0.25s ease both;
 }
+.ambient-suggestion {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
 .anim-pop {
   animation: q-pop 0.2s ease both;
 }
@@ -634,8 +637,8 @@ button {
 /* ---------- Istiqamah progression flair ---------- */
 /* Header flame: lit and glowing once today's goal is met, flat grey until then. */
 .streak-flame-on svg {
-  filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 60%, transparent));
-  animation: q-flame 2.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 7px rgb(255 166 71 / 78%));
+  animation: q-flame-ignite 0.9s ease-out, q-flame 2.6s ease-in-out 0.9s infinite;
   transform-origin: 50% 88%;
 }
 .streak-flame-off {
@@ -650,6 +653,11 @@ button {
 @keyframes q-flame {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.06); }
+}
+@keyframes q-flame-ignite {
+  0% { transform: scale(.8); filter: drop-shadow(0 0 0 rgb(255 166 71 / 0%)); }
+  45% { transform: scale(1.28); filter: drop-shadow(0 0 12px rgb(255 166 71 / 95%)); }
+  100% { transform: scale(1); filter: drop-shadow(0 0 7px rgb(255 166 71 / 78%)); }
 }
 .confetti-layer {
   position: absolute;
@@ -744,6 +752,20 @@ button {
 }
 .mic-listening {
   animation: q-mic-halo 1.7s ease-out infinite;
+}
+@keyframes q-mic-spectrum {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgb(34 211 238 / 65%), 0 0 14px 4px rgb(34 211 238 / 45%);
+  }
+  33% {
+    box-shadow: 0 0 0 2px rgb(167 139 250 / 70%), 0 0 18px 5px rgb(167 139 250 / 55%);
+  }
+  66% {
+    box-shadow: 0 0 0 2px rgb(244 114 182 / 70%), 0 0 18px 5px rgb(244 114 182 / 50%);
+  }
+}
+.mic-header-listening {
+  animation: q-mic-spectrum 1.8s ease-in-out infinite;
 }
 @keyframes q-mic-ripple {
   from {

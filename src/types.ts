@@ -234,6 +234,27 @@ export type AudioQuality = '32kbps' | '64kbps' | '128kbps';
  * granted by the 365-day Istiqamah milestone.
  */
 export type AssistantLayout = 'classic' | 'guided' | 'immersive';
+export type ProfileAvatarId =
+  | 'crescent'
+  | 'sunrise'
+  | 'ocean'
+  | 'mountain'
+  | 'qarawiyyin'
+  | 'arch'
+  | 'dome'
+  | 'quran'
+  | 'kaaba'
+  | 'nabawi'
+  | 'domeRock'
+  | 'alAqsa'
+  | 'madinah'
+  | 'minaret'
+  | 'desert'
+  | 'palm'
+  | 'stars'
+  | 'galaxy'
+  | 'geometric'
+  | 'lantern';
 
 export interface SettingsState {
   arabicFontSize: number;
@@ -281,6 +302,7 @@ export interface SettingsState {
     reminderTime: string;
   };
   dailyReadingGoalMinutes: number;
+  profileAvatar: ProfileAvatarId;
   hifzRepetitionEnabled: boolean;
   wordByWordEnabled: boolean;
   ambientSoundsEnabled: boolean;

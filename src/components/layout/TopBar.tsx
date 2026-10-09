@@ -1,50 +1,65 @@
+import { useState } from 'react';
 import { APP_NAME } from '../../lib/constants';
 import { useAppSelector } from '../../store';
-import { Icon } from '../ui/Icon';
-import { MihrabLogo } from '../ui/MihrabLogo';
+import { useLocation } from 'react-router-dom';
 import { useVoiceSearch } from '../search/VoiceSearchModal';
-import { useNavigate } from 'react-router-dom';
+import { QuranSearchModal } from '../search/QuranSearchModal';
+import { MihrabLogo } from '../ui/MihrabLogo';
+import { StreakHub } from '../ui/StreakHub';
+import { Icon } from '../ui/Icon';
 
 /**
- * Minimal top bar with the app identity and a direct path to the profile page.
- * The mic action stays available for the Recite flow, while the streak and
- * settings pills are intentionally kept off the global header.
+ * Minimal global top bar. Voice search belongs to the Read screen; profile
+ * controls belong to the Settings and Profile surfaces.
  */
 export function TopBar() {
   const readingMode = useAppSelector((s) => s.settings.readingMode);
-  const navigate = useNavigate();
+  const location = useLocation();
   const voiceSearch = useVoiceSearch();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const isReadHome = location.pathname === '/';
   if (readingMode) return null;
 
   return (
-    <header className="safe-t sticky top-0 z-40 border-b border-line bg-canvas/85 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-2">
-        <div className="flex items-center gap-2">
-          <MihrabLogo size={28} />
-          <span className="text-sm font-bold text-ink">{APP_NAME}</span>
-        </div>
+    <>
+      <header className="safe-t sticky top-0 z-40 border-b border-line bg-canvas/85 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-3 py-2 sm:px-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <StreakHub />
+            <MihrabLogo size={28} />
+            <span className="hidden truncate text-sm font-bold text-ink sm:inline">{APP_NAME}</span>
+          </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={voiceSearch.open}
-            aria-label="Recite and find the verse by speech"
-            title="Recite: find a verse by listening to it"
-            className="pressable inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-accent/20 bg-accent/10 p-0 text-accent transition-colors hover:bg-accent/15"
-          >
-            <Icon name="mic" size={18} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate('/profile')}
-            aria-label="Open profile"
-            className="pressable inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-line bg-surface2 p-0 text-muted transition-colors hover:text-ink"
-          >
-            <Icon name="user" size={18} />
-          </button>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search Quran chapters"
+              title="Search Quran chapters in Arabic or English"
+              className="pressable inline-flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface2 text-muted transition hover:text-ink"
+            >
+              <Icon name="search" size={18} />
+            </button>
+            {isReadHome && (
+              <button
+                type="button"
+                onClick={voiceSearch.open}
+                aria-label={voiceSearch.isListening ? 'Voice search is listening' : 'Search by reciting a verse'}
+                aria-pressed={voiceSearch.isListening}
+                title={voiceSearch.isListening ? 'Listening for a recited verse' : 'Search for a verse by reciting'}
+                className={`pressable relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border p-0 transition ${
+                  voiceSearch.isListening
+                    ? 'mic-header-listening border-fuchsia-300/60 bg-violet-600 text-white'
+                    : 'border-line bg-surface2 text-muted hover:text-ink'
+                }`}
+              >
+                <Icon name="mic" size={18} />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+      <QuranSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+    </>
   );
 }

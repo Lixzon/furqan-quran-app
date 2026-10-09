@@ -3,6 +3,7 @@ import { useAppSelector } from '../store';
 import { PageHeader } from '../components/ui/common';
 import { Icon } from '../components/ui/Icon';
 import { totalLikedItems } from '../store/slices/likesSlice';
+import { ProfileAvatar } from '../components/ui/ProfileAvatar';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -26,7 +27,14 @@ export default function ProfilePage() {
   return (
     <div className="page-enter">
       <PageHeader
-        title="Profile"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-surface2">
+              <ProfileAvatar id={settings.profileAvatar} size={30} />
+            </span>
+            Profile
+          </span>
+        }
         subtitle="Your reading routine, badges and preferences."
         right={
           <button
@@ -47,7 +55,7 @@ export default function ProfilePage() {
             <div className="mt-1 text-xl font-bold text-ink">You are building consistency</div>
           </div>
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-onaccent">
-            <Icon name="user" size={22} />
+            <ProfileAvatar id={settings.profileAvatar} size={38} />
           </div>
         </div>
 

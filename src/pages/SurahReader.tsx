@@ -7,6 +7,7 @@ import { player } from '../audio/controller';
 import { getIndoPakSurah, getSurah } from '../lib/dataClient';
 import { useQuran } from '../data/QuranProvider';
 import { addReadMinute, rememberRead } from '../store/slices/progressSlice';
+import { push } from '../store/slices/toastSlice';
 import { toggleAyahBookmark } from '../store/slices/bookmarksSlice';
 import type { AyahBookmark } from '../store/slices/bookmarksSlice';
 import {
@@ -28,7 +29,12 @@ import { SurahArtwork } from '../components/ui/SurahArtwork';
 import { VerseActionModal } from '../components/VerseActionModal';
 import { SessionEndModal } from '../components/SessionEndModal';
 import { insightForAyah } from '../data/quranInsightsData';
-import { startAmbientSound, type AmbientSoundHandle } from '../audio/ambientSound';
+import {
+  AMBIENT_SOUND_TRACKS,
+  startAmbientSound,
+  type AmbientSoundHandle,
+  type AmbientSoundTrack,
+} from '../audio/ambientSound';
 import { activityDayKey } from '../lib/progression';
 import { ErrorBlock, SkeletonRows } from '../components/ui/common';
 import type { AyahData, SettingsState, SurahFull, ThemeMode } from '../types';
@@ -60,10 +66,60 @@ export default function SurahReader() {
   const [viewMode, setViewMode] = useState<'list' | 'book'>('list');
   const [bookPage, setBookPage] = useState(0);
   const [sessionFinished, setSessionFinished] = useState(false);
+  const [ambientPromptMounted, setAmbientPromptMounted] = useState(false);
+  const [ambientPromptDismissed, setAmbientPromptDismissed] = useState(false);
+  const [ambientActive, setAmbientActive] = useState(false);
+  const [ambientTrack, setAmbientTrack] = useState<AmbientSoundTrack | null>(null);
+  const ambientHandleRef = useRef<AmbientSoundHandle | null>(null);
+
+  const stopAmbient = useCallback(() => {
+    ambientHandleRef.current?.stop();
+    ambientHandleRef.current = null;
+  }, []);
+
+  const startAmbient = useCallback(() => {
+    stopAmbient();
+    const handle = startAmbientSound(
+      settings.ambientSoundVolume,
+      setAmbientTrack,
+      (error) => {
+        stopAmbient();
+        setAmbientActive(false);
+        setAmbientTrack(null);
+        setAmbientPromptDismissed(false);
+        dispatch(push(`Could not continue the nature sounds: ${error.message}`, 'error'));
+      },
+    );
+    if (!handle) {
+      setAmbientPromptDismissed(false);
+      dispatch(push('Ambient audio is not available in this browser.', 'error'));
+      return;
+    }
+    ambientHandleRef.current = handle;
+    setAmbientActive(true);
+  }, [dispatch, settings.ambientSoundVolume, stopAmbient]);
+
+  useLayoutEffect(() => {
+    stopAmbient();
+    player.pause();
+    setSessionFinished(false);
+    setAmbientPromptMounted(false);
+    setAmbientPromptDismissed(false);
+    setAmbientActive(false);
+    setAmbientTrack(null);
+  }, [surahNumber, stopAmbient]);
 
   useEffect(() => {
-    setSessionFinished(false);
-  }, [surahNumber]);
+    if (surah) setAmbientPromptMounted(true);
+  }, [surah?.number]);
+
+  useEffect(() => {
+    if (!ambientPromptDismissed || ambientActive) return;
+    const timeout = window.setTimeout(() => setAmbientPromptMounted(false), 250);
+    return () => window.clearTimeout(timeout);
+  }, [ambientPromptDismissed, ambientActive]);
+
+  useEffect(() => () => stopAmbient(), [stopAmbient]);
 
   useEffect(() => {
     let alive = true;
@@ -278,19 +334,24 @@ export default function SurahReader() {
     dispatch(rememberRead({ surah: surah.number, ayah: activeAyah + 1, name: surah.englishName }));
   }, [activeAyah, surah, dispatch]);
 
+  useLayoutEffect(() => {
+    if (!playerState.isPlaying) return;
+    stopAmbient();
+    setAmbientActive(false);
+    setAmbientTrack(null);
+    setAmbientPromptDismissed(false);
+  }, [playerState.isPlaying, stopAmbient]);
+
   useEffect(() => {
-    if (!surah || !settings.ambientSoundsEnabled || playerState.isPlaying) return;
-    let handle: AmbientSoundHandle | null = null;
-    let alive = true;
-    void startAmbientSound(settings.ambientSoundVolume).then((next) => {
-      if (!alive) next?.stop();
-      else handle = next;
-    }).catch(() => undefined);
-    return () => {
-      alive = false;
-      handle?.stop();
-    };
-  }, [surah?.number, playerState.isPlaying, settings.ambientSoundsEnabled, settings.ambientSoundVolume]);
+    ambientHandleRef.current?.setVolume(settings.ambientSoundVolume);
+  }, [settings.ambientSoundVolume]);
+
+  const prepareForRecitation = useCallback(() => {
+    stopAmbient();
+    setAmbientActive(false);
+    setAmbientTrack(null);
+    setAmbientPromptDismissed(true);
+  }, [stopAmbient]);
 
   // Follow the sounding ayah while audio plays on this surah.
   useEffect(() => {
@@ -329,13 +390,21 @@ export default function SurahReader() {
     if (!surah) return;
     if (isActiveSession) {
       if (playerState.isPlaying) player.pause();
-      else void player.play();
+      else {
+        prepareForRecitation();
+        void player.play();
+      }
     } else {
+      prepareForRecitation();
       player.playSingleSurah(surah.number, {
         reciter: settings.defaultReciter,
         startAyahIndex: activeAyah,
       });
     }
+  };
+
+  const dismissAmbientPrompt = () => {
+    setAmbientPromptDismissed(true);
   };
 
   const handleQuickVisibility = () => {
@@ -444,6 +513,75 @@ export default function SurahReader() {
         }
       />
 
+      {ambientPromptMounted && (
+        <div
+          aria-hidden={playerState.isPlaying || (ambientPromptDismissed && !ambientActive)}
+          className={`ambient-suggestion anim-fade-up mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-white shadow-lg backdrop-blur-md ${
+            playerState.isPlaying || (ambientPromptDismissed && !ambientActive) ? 'pointer-events-none translate-y-1 opacity-0' : 'translate-y-0 opacity-100'
+          }`}
+        >
+          {ambientActive ? (
+            <>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">Now playing · {ambientTrack?.label ?? 'Nature sounds'}</div>
+                <div className="mt-0.5 text-xs text-white/65">{AMBIENT_SOUND_TRACKS.length} real nature recordings shuffle without repeats. Qur’an recitation takes priority.</div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  disabled={playerState.isPlaying}
+                  onClick={() => ambientHandleRef.current?.shuffleNext()}
+                  aria-label="Shuffle to another nature sound"
+                  className="rounded-full bg-emerald-500/90 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-50"
+                >
+                  Shuffle now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    stopAmbient();
+                    setAmbientActive(false);
+                    setAmbientTrack(null);
+                    setAmbientPromptDismissed(true);
+                  }}
+                  className="rounded-full border border-white/20 px-3 py-2 text-xs font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+                >
+                  Turn off
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">Enhance your reading focus with calming nature sounds?</div>
+                <div className="mt-0.5 text-xs text-white/65">{AMBIENT_SOUND_TRACKS.length} real field recordings shuffle in the background. Recitation always takes priority.</div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  disabled={playerState.isPlaying || ambientPromptDismissed}
+                  onClick={() => {
+                    startAmbient();
+                    dismissAmbientPrompt();
+                  }}
+                  className="rounded-full bg-emerald-500/90 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-400"
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  disabled={playerState.isPlaying || ambientPromptDismissed}
+                  onClick={dismissAmbientPrompt}
+                  className="rounded-full border border-white/20 px-3 py-2 text-xs font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+                >
+                  No / Dismiss
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="reader-surah-hero relative mt-3 mb-3 overflow-hidden rounded-3xl border border-line bg-surface/70 px-4 py-3 text-center shadow-card backdrop-blur-sm">
         <SurahArtwork surah={surah.number} className="opacity-70" />
         <div className="relative">
@@ -460,6 +598,16 @@ export default function SurahReader() {
             بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
           </div>
         )}
+        <button
+          type="button"
+          onClick={handlePlay}
+          aria-label={isActiveSession && playerState.isPlaying ? 'Pause Audio' : 'Play Audio'}
+          aria-pressed={isActiveSession && playerState.isPlaying}
+          className="pressable mx-auto mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-onaccent shadow-card transition hover:brightness-110"
+        >
+          <Icon name={isActiveSession && playerState.isPlaying ? 'pause' : 'play'} size={17} />
+          {isActiveSession && playerState.isPlaying ? 'Pause Audio' : 'Play Audio'}
+        </button>
         </div>
       </div>
 

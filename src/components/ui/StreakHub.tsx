@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAppSelector } from '../../store';
-import { nextTier, todayKey } from '../../lib/progression';
+import { activityDayKey, nextTier } from '../../lib/progression';
 import { Icon } from './Icon';
 import { StreakFlame } from './StreakFlame';
 import { IstiqamahTracker } from './IstiqamahTracker';
@@ -14,11 +14,13 @@ import { IstiqamahTracker } from './IstiqamahTracker';
  */
 export function StreakHub() {
   const progression = useAppSelector((s) => s.progress.progression);
+  const dailyActivity = useAppSelector((s) => s.progress.dailyActivity);
+  const goalMinutes = useAppSelector((s) => s.settings.dailyReadingGoalMinutes);
   const [open, setOpen] = useState(false);
 
-  // The streak's own definition of a counted day, so the flame and the number
-  // can never disagree.
-  const doneToday = progression.lastActiveDate === todayKey();
+  const activityDay = activityDayKey(new Date(), dailyActivity);
+  const todayMinutes = progression.dailyReadMinutes[activityDay] ?? 0;
+  const doneToday = progression.lastActiveDate === activityDay || todayMinutes >= goalMinutes;
   const upcoming = nextTier(progression.currentStreak);
   const toGo = upcoming ? Math.max(0, upcoming.days - progression.currentStreak) : 0;
 

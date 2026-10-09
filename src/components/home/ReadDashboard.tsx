@@ -1,14 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { getSurah } from '../../lib/dataClient';
-import { dateKey, shiftDateKey, TOTAL_QURAN_AYAHS } from '../../lib/progression';
+import { TOTAL_QURAN_AYAHS } from '../../lib/progression';
 import { toggleAyahBookmark } from '../../store/slices/bookmarksSlice';
 import { push } from '../../store/slices/toastSlice';
 import { player } from '../../audio/controller';
 import { useQuran } from '../../data/QuranProvider';
 import { Icon } from '../ui/Icon';
-import { GoalTracker } from './GoalTracker';
 import { ReadScene, type ReadSceneType } from './ReadScene';
 import { QURAN_GUIDANCE } from '../../data/quranGuidanceData';
 import type { AyahData } from '../../types';
@@ -45,14 +44,6 @@ export function ReadDashboard() {
   const verseIsBookmarked = verse
     ? bookmarks.some((bookmark) => bookmark.id === `${verse.surah}:${verse.ayah.i}`)
     : false;
-
-  const recentWeek = useMemo(() => {
-    const today = dateKey(new Date());
-    return Array.from({ length: 7 }, (_, index) => {
-      const key = shiftDateKey(today, index - 6);
-      return { key, complete: !!progress.dailyActivity[key], label: new Date(`${key}T12:00:00`).toLocaleDateString(undefined, { weekday: 'narrow' }) };
-    });
-  }, [progress.dailyActivity]);
 
   useEffect(() => {
     if (!surahs?.length) return;
@@ -107,22 +98,6 @@ export function ReadDashboard() {
 
   return (
     <section className="mb-5 space-y-3" aria-label="Daily reading dashboard">
-      <div className="grid grid-cols-2 gap-2.5">
-        <div className="rounded-2xl border border-line bg-surface p-3.5">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-ink"><Icon name="sparkle" size={15} className="text-accent" /> Streak</div>
-          <div className="mt-1 text-2xl font-bold tabular-nums text-ink">{progress.progression.currentStreak}<span className="ml-1 text-xs font-medium text-mut">days</span></div>
-          <div className="mt-2 flex items-center justify-between gap-1" aria-label="Last seven days">
-            {recentWeek.map((day) => (
-              <div key={day.key} className="flex flex-col items-center gap-1">
-                <span className={`h-2.5 w-2.5 rounded-full ${day.complete ? 'bg-accent' : 'bg-surface3'}`} aria-label={`${day.label}: ${day.complete ? 'goal reached' : 'not complete'}`} />
-                <span className="text-[9px] text-mut">{day.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <GoalTracker />
-      </div>
-
       {verse && (
         <article className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-black/40 p-4 text-white shadow-card backdrop-blur-md transition-all duration-300 hover:scale-[1.01] hover:shadow-emerald-900/20">
           <ReadScene scene="quran" />

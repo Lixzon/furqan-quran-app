@@ -32,6 +32,7 @@ import {
   setNotificationPreference,
   setReminderTime,
   setDailyReadingGoalMinutes,
+  setProfileAvatar,
   setHifzRepetitionEnabled,
   setWordByWordEnabled,
   setAmbientSoundsEnabled,
@@ -64,6 +65,7 @@ import { Icon, type IconName } from '../components/ui/Icon';
 import { Segmented, Slider, Toggle } from '../components/ui/controls';
 import { Modal } from '../components/ui/Modal';
 import { MihrabLogo } from '../components/ui/MihrabLogo';
+import { PROFILE_AVATARS, ProfileAvatar } from '../components/ui/ProfileAvatar';
 import { createBackupJson, parseBackupJson, restoreBackup, type FurqanBackup } from '../lib/backup';
 import { totalLikedItems } from '../store/slices/likesSlice';
 import type { ThemeMode } from '../types';
@@ -94,6 +96,7 @@ export default function SettingsPage() {
     typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
   );
   const [pendingBackup, setPendingBackup] = useState<FurqanBackup | null>(null);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
 
   const streak = progress.progression.currentStreak;
   const readingThemesUnlocked = isReadingThemesUnlocked(streak);
@@ -177,7 +180,55 @@ export default function SettingsPage() {
 
   return (
     <div className="page-enter">
-      <PageHeader title="Settings" subtitle="Theme, reading & playback preferences." />
+      <PageHeader
+        title="Settings"
+        subtitle="Theme, reading & playback preferences."
+        right={
+          <button
+            type="button"
+            onClick={() => navigate('/profile')}
+            aria-label="Open profile"
+            className="pressable inline-flex h-12 w-12 items-center justify-center rounded-full border border-line bg-surface2 text-muted hover:text-ink"
+          >
+            <ProfileAvatar id={settings.profileAvatar} size={26} />
+          </button>
+        }
+      />
+
+      <Section title="Profile avatar" icon="user" />
+      <Card>
+        <div className="flex items-center gap-3">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-line bg-surface2">
+            <ProfileAvatar id={settings.profileAvatar} size={36} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-ink">Choose a calm motif</div>
+            <div className="text-xs text-mut">Nature and Islamic heritage, with no living figures.</div>
+          </div>
+          <button type="button" onClick={() => setAvatarPickerOpen(true)} className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-onaccent">
+            Choose
+          </button>
+        </div>
+      </Card>
+      <Modal open={avatarPickerOpen} onClose={() => setAvatarPickerOpen(false)} title="Choose your avatar" size="md">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {PROFILE_AVATARS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={settings.profileAvatar === id}
+              onClick={() => {
+                dispatch(setProfileAvatar(id));
+                setAvatarPickerOpen(false);
+              }}
+              className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border p-3 transition ${settings.profileAvatar === id ? 'border-accent bg-accent/10 ring-1 ring-accent/40' : 'border-line bg-surface2'}`}
+            >
+              <ProfileAvatar id={id} size={38} />
+              <span className="text-center text-xs font-medium text-ink">{label}</span>
+            </button>
+          ))}
+        </div>
+      </Modal>
 
       {/* ---- Appearance ---- */}
       <Section title="Appearance" icon="sun" />

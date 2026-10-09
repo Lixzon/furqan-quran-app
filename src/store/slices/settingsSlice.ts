@@ -55,6 +55,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     reminderTime: '20:00',
   },
   dailyReadingGoalMinutes: 5,
+  profileAvatar: 'crescent',
   hifzRepetitionEnabled: false,
   wordByWordEnabled: false,
   ambientSoundsEnabled: false,
@@ -106,6 +107,7 @@ export function normalizeSettings(stored: Partial<SettingsState>): SettingsState
     autoClearCacheThreshold: stored.autoClearCacheThreshold ?? 1000,
     notifications: { ...DEFAULT_SETTINGS.notifications, ...stored.notifications },
     dailyReadingGoalMinutes: Math.min(60, Math.max(5, Math.round(stored.dailyReadingGoalMinutes ?? 5))),
+    profileAvatar: stored.profileAvatar ?? DEFAULT_SETTINGS.profileAvatar,
     hifzRepetitionEnabled: stored.hifzRepetitionEnabled ?? false,
     wordByWordEnabled: stored.wordByWordEnabled ?? false,
     ambientSoundsEnabled: stored.ambientSoundsEnabled ?? false,
@@ -250,6 +252,9 @@ const settingsSlice = createSlice({
     setDailyReadingGoalMinutes(state, action: PayloadAction<number>) {
       state.dailyReadingGoalMinutes = Math.min(60, Math.max(5, Math.round(action.payload)));
     },
+    setProfileAvatar(state, action: PayloadAction<SettingsState['profileAvatar']>) {
+      state.profileAvatar = action.payload;
+    },
     setHifzRepetitionEnabled(state, action: PayloadAction<boolean>) {
       state.hifzRepetitionEnabled = action.payload;
     },
@@ -310,6 +315,7 @@ export const {
   setNotificationPreference,
   setReminderTime,
   setDailyReadingGoalMinutes,
+  setProfileAvatar,
   setHifzRepetitionEnabled,
   setWordByWordEnabled,
   setAmbientSoundsEnabled,
