@@ -280,6 +280,13 @@ export interface SettingsState {
     nightlyMulk: boolean;
     reminderTime: string;
   };
+  dailyReadingGoalMinutes: number;
+  hifzRepetitionEnabled: boolean;
+  wordByWordEnabled: boolean;
+  ambientSoundsEnabled: boolean;
+  ambientSoundVolume: number;
+  khatamPlannerEnabled: boolean;
+  khatamTargetDays: number;
 }
 
 export interface ThemeState {

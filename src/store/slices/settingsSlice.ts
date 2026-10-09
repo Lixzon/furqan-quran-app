@@ -54,6 +54,13 @@ export const DEFAULT_SETTINGS: SettingsState = {
     nightlyMulk: false,
     reminderTime: '20:00',
   },
+  dailyReadingGoalMinutes: 5,
+  hifzRepetitionEnabled: false,
+  wordByWordEnabled: false,
+  ambientSoundsEnabled: false,
+  ambientSoundVolume: 0.2,
+  khatamPlannerEnabled: false,
+  khatamTargetDays: 60,
 };
 
 export function normalizeSettings(stored: Partial<SettingsState>): SettingsState {
@@ -98,6 +105,13 @@ export function normalizeSettings(stored: Partial<SettingsState>): SettingsState
     voiceLanguage: stored.voiceLanguage ?? 'ar-SA',
     autoClearCacheThreshold: stored.autoClearCacheThreshold ?? 1000,
     notifications: { ...DEFAULT_SETTINGS.notifications, ...stored.notifications },
+    dailyReadingGoalMinutes: Math.min(60, Math.max(5, Math.round(stored.dailyReadingGoalMinutes ?? 5))),
+    hifzRepetitionEnabled: stored.hifzRepetitionEnabled ?? false,
+    wordByWordEnabled: stored.wordByWordEnabled ?? false,
+    ambientSoundsEnabled: stored.ambientSoundsEnabled ?? false,
+    ambientSoundVolume: Math.min(1, Math.max(0, stored.ambientSoundVolume ?? 0.2)),
+    khatamPlannerEnabled: stored.khatamPlannerEnabled ?? false,
+    khatamTargetDays: Math.min(365, Math.max(7, Math.round(stored.khatamTargetDays ?? 60))),
   };
 }
 
@@ -233,6 +247,27 @@ const settingsSlice = createSlice({
     setReminderTime(state, action: PayloadAction<string>) {
       state.notifications.reminderTime = action.payload;
     },
+    setDailyReadingGoalMinutes(state, action: PayloadAction<number>) {
+      state.dailyReadingGoalMinutes = Math.min(60, Math.max(5, Math.round(action.payload)));
+    },
+    setHifzRepetitionEnabled(state, action: PayloadAction<boolean>) {
+      state.hifzRepetitionEnabled = action.payload;
+    },
+    setWordByWordEnabled(state, action: PayloadAction<boolean>) {
+      state.wordByWordEnabled = action.payload;
+    },
+    setAmbientSoundsEnabled(state, action: PayloadAction<boolean>) {
+      state.ambientSoundsEnabled = action.payload;
+    },
+    setAmbientSoundVolume(state, action: PayloadAction<number>) {
+      state.ambientSoundVolume = Math.min(1, Math.max(0, action.payload));
+    },
+    setKhatamPlannerEnabled(state, action: PayloadAction<boolean>) {
+      state.khatamPlannerEnabled = action.payload;
+    },
+    setKhatamTargetDays(state, action: PayloadAction<number>) {
+      state.khatamTargetDays = Math.min(365, Math.max(7, Math.round(action.payload)));
+    },
   },
 });
 
@@ -274,5 +309,12 @@ export const {
   setAssistantLayout,
   setNotificationPreference,
   setReminderTime,
+  setDailyReadingGoalMinutes,
+  setHifzRepetitionEnabled,
+  setWordByWordEnabled,
+  setAmbientSoundsEnabled,
+  setAmbientSoundVolume,
+  setKhatamPlannerEnabled,
+  setKhatamTargetDays,
 } = settingsSlice.actions;
 export default settingsSlice.reducer;

@@ -67,12 +67,6 @@ function recordActivity(state: ProgressState, entry: ActivityEntry): void {
   }
 }
 
-function completeActivityDay(state: ProgressState, at: number): void {
-  const day = activityDayKey(new Date(at), state.dailyActivity);
-  state.dailyActivity[day] = true;
-  countDailyActivity(state.progression, day);
-}
-
 const progressSlice = createSlice({
   name: 'progress',
   initialState,
@@ -105,9 +99,6 @@ const progressSlice = createSlice({
     markListened(state, action: PayloadAction<number>) {
       const surah = action.payload;
       state.lastListened[surah] = Date.now();
-    },
-    markRecommendedRecitation(state) {
-      completeActivityDay(state, Date.now());
     },
     markSurahComplete(state, action: PayloadAction<{ surah: number; value: boolean }>) {
       state.surahCompleted[action.payload.surah] = action.payload.value;
@@ -178,11 +169,11 @@ const progressSlice = createSlice({
      * engine's active criteria are met (see `isActiveDay`), after which further
      * minutes only bump the tally.
      */
-    addReadMinute(state, action: PayloadAction<{ at: number }>) {
+    addReadMinute(state, action: PayloadAction<{ at: number; goalMinutes?: number }>) {
       const day = activityDayKey(new Date(action.payload.at), state.dailyActivity);
       const minutes = state.progression.dailyReadMinutes;
       minutes[day] = (minutes[day] ?? 0) + 1;
-      if (!state.dailyActivity[day] && isActiveDay(minutes[day])) {
+      if (!state.dailyActivity[day] && isActiveDay(minutes[day], false, action.payload.goalMinutes)) {
         state.dailyActivity[day] = true;
         countDailyActivity(state.progression, day);
       }
@@ -234,7 +225,6 @@ export const {
   rememberRead,
   rememberListened,
   markListened,
-  markRecommendedRecitation,
   markSurahComplete,
   setJuzCompleted,
   clearAllProgress,

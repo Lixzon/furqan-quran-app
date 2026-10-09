@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { Modal } from './ui/Modal';
 import { Icon } from './ui/Icon';
 import { player } from '../audio/controller';
 import type { AyahBookmark } from '../store/slices/bookmarksSlice';
+import type { QuranVerseInsight } from '../data/quranInsightsData';
+import { wordGloss } from '../data/quranWordGlosses';
 
 export function VerseActionModal({
   open,
@@ -16,6 +19,9 @@ export function VerseActionModal({
   bookmark,
   isBookmarked,
   onToggleBookmark,
+  insight,
+  hifzEnabled = false,
+  wordByWordEnabled = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -29,23 +35,34 @@ export function VerseActionModal({
   bookmark: Omit<AyahBookmark, 'note' | 'createdAt'>;
   isBookmarked: boolean;
   onToggleBookmark: (bookmark: Omit<AyahBookmark, 'note' | 'createdAt'>) => void;
+  insight?: QuranVerseInsight;
+  hifzEnabled?: boolean;
+  wordByWordEnabled?: boolean;
 }) {
-  const playArabic = (withTranslation: boolean) => {
-    const speakTranslation = () => {
-      if (!('speechSynthesis' in window)) return;
-      const synthesis = window.speechSynthesis;
-      synthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(translation);
-      utterance.lang = 'en-US';
-      synthesis.speak(utterance);
+  const [repeatCount, setRepeatCount] = useState(3);
+  const playArabic = (withTranslation: boolean, repeats = 1) => {
+    let played = 0;
+    const playNext = () => {
+      played += 1;
+      player.playSingleSurah(surahNumber, {
+        reciter,
+        startAyahIndex: ayahNumber - 1,
+        stopAfterAyahIndex: ayahNumber - 1,
+        onAyahEnded: () => {
+          const continueRepeating = () => {
+            if (played < repeats) window.setTimeout(playNext, 180);
+          };
+          if (withTranslation && 'speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(translation);
+            utterance.lang = 'en-US';
+            utterance.onend = continueRepeating;
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
+          } else continueRepeating();
+        },
+      });
     };
-
-    player.playSingleSurah(surahNumber, {
-      reciter,
-      startAyahIndex: ayahNumber - 1,
-      stopAfterAyahIndex: ayahNumber - 1,
-      onAyahEnded: withTranslation ? speakTranslation : undefined,
-    });
+    playNext();
   };
 
   const playFromHere = () => {
@@ -55,6 +72,14 @@ export function VerseActionModal({
       stopAfterSurah: true,
     });
   };
+
+  const glossedArabic = arabic.split(/(\s+)/u).map((word, index) => {
+    if (!word.trim()) return word;
+    const gloss = wordGloss(word);
+    if (!gloss) return <span key={`${word}-${index}`}>{word}</span>;
+    const meaning = `${gloss.meaning}${gloss.root ? ` · root ${gloss.root}` : ''}`;
+    return <button key={`${word}-${index}`} type="button" title={meaning} aria-label={`${word}: ${meaning}`} className="rounded px-0.5 underline decoration-dotted decoration-accent/50 underline-offset-4 hover:bg-accent/10">{word}</button>;
+  });
 
   return (
     <Modal
@@ -67,7 +92,7 @@ export function VerseActionModal({
       overlayClassName="bg-black/60 backdrop-blur-md anim-fade"
     >
       <div className="py-2">
-        <p lang="ar" dir="rtl" className="ar-uthmani text-right text-3xl leading-loose text-ink">{arabic}</p>
+        <p lang="ar" dir="rtl" className="ar-uthmani text-right text-3xl leading-loose text-ink">{wordByWordEnabled ? glossedArabic : arabic}</p>
         {transliteration && <p className="mt-4 text-sm italic leading-relaxed text-mut">{transliteration}</p>}
         <p className="mt-4 text-base leading-relaxed text-ink2">{translation}</p>
 
@@ -82,9 +107,41 @@ export function VerseActionModal({
             onClick={() => onToggleBookmark(bookmark)}
           />
         </div>
+
+        {hifzEnabled && (
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-surface2 p-3">
+            <div>
+              <div className="text-xs font-semibold text-ink">Hifz repetition</div>
+              <div className="text-[11px] text-mut">Repeat this ayah 2–50 times</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="number" aria-label="Verse repeat count" min={2} max={50} value={repeatCount} onChange={(event) => setRepeatCount(Math.min(50, Math.max(2, Number(event.target.value) || 2)))} className="w-14 rounded-lg border border-line bg-surface px-2 py-1.5 text-center text-sm tabular-nums text-ink" />
+              <button type="button" onClick={() => playArabic(false, repeatCount)} className="rounded-full bg-accent px-3 py-2 text-xs font-semibold text-onaccent">Repeat</button>
+            </div>
+          </div>
+        )}
+
+        {insight && (
+          <section className="mt-4 space-y-2 border-t border-line pt-4" aria-label="Quran reflection">
+            <h3 className="text-sm font-semibold text-ink">Tadabbur · deeper understanding</h3>
+            <InsightBlock title="Context" text={insight.asbabAlNuzul} />
+            <InsightBlock title="Tafsir summary" text={insight.tafsirSummary} />
+            <div className="rounded-xl bg-surface2 p-3">
+              <div className="text-xs font-semibold text-ink">Reflect</div>
+              <ul className="mt-1 list-disc space-y-1 pl-4 text-xs leading-relaxed text-ink2">
+                {insight.lessons.filter(Boolean).map((lesson) => <li key={lesson}>{lesson}</li>)}
+              </ul>
+            </div>
+            <p className="text-[10px] leading-relaxed text-mut">{insight.source}. Summarized for study; consult the cited tafsir for detail.</p>
+          </section>
+        )}
       </div>
     </Modal>
   );
+}
+
+function InsightBlock({ title, text }: { title: string; text: string }) {
+  return <div className="rounded-xl bg-surface2 p-3"><div className="text-xs font-semibold text-ink">{title}</div><p className="mt-1 text-xs leading-relaxed text-ink2">{text}</p></div>;
 }
 
 function ActionButton({

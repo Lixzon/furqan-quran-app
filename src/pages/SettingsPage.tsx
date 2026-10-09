@@ -31,9 +31,16 @@ import {
   setAssistantLayout,
   setNotificationPreference,
   setReminderTime,
+  setDailyReadingGoalMinutes,
+  setHifzRepetitionEnabled,
+  setWordByWordEnabled,
+  setAmbientSoundsEnabled,
+  setAmbientSoundVolume,
+  setKhatamPlannerEnabled,
+  setKhatamTargetDays,
 } from '../store/slices/settingsSlice';
 import { clearAllProgress, devAddStreakDays, devResetStreak, devSetStreak, setIstiqamahGoal } from '../store/slices/progressSlice';
-import { BADGE_TONES, ISTIQAMAH_MILESTONES, TIERS, isTierUnlocked, tierProgress } from '../lib/progression';
+import { BADGE_TONES, ISTIQAMAH_MILESTONES, TIERS, TOTAL_QURAN_AYAHS, isTierUnlocked, tierProgress } from '../lib/progression';
 import {
   AI_UI_FEATURES,
   AI_UI_LOCKED_TEXT,
@@ -502,6 +509,48 @@ export default function SettingsPage() {
             <span className="tabular-nums">{settings.lineSpacing.toFixed(1)}</span>
           </div>
           <Slider min={1.2} max={2.6} step={0.1} value={settings.lineSpacing} onChange={(v) => dispatch(setLineSpacing(v))} ariaLabel="Reader line spacing" />
+        </div>
+      </Card>
+
+      {/* ---- Daily goal & study tools ---- */}
+      <Section title="Daily reading & study tools" icon="sparkle" />
+      <Card>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-medium text-ink">Daily reading goal</div>
+            <div className="text-xs text-mut">Reading streak unlocks at this target; reading can continue beyond it.</div>
+          </div>
+          <span className="shrink-0 text-sm font-semibold tabular-nums text-accent">{settings.dailyReadingGoalMinutes} min</span>
+        </div>
+        <Slider
+          min={5}
+          max={60}
+          step={1}
+          value={settings.dailyReadingGoalMinutes}
+          onChange={(value) => dispatch(setDailyReadingGoalMinutes(value))}
+          ariaLabel="Daily reading goal in minutes"
+        />
+        <div className="mt-3 border-t border-line pt-2">
+          <Row label="Hifz verse repetition" hint="Show a finite repeat control in the verse focus view" control={<Toggle checked={settings.hifzRepetitionEnabled} onChange={(value) => dispatch(setHifzRepetitionEnabled(value))} label="Hifz verse repetition" />} />
+          <Row label="Word-by-word glosses" hint="Show available word glosses in verse focus" control={<Toggle checked={settings.wordByWordEnabled} onChange={(value) => dispatch(setWordByWordEnabled(value))} label="Word-by-word glosses" />} />
+          <Row label="Ambient sound" hint="Soft generated ambience while reading" control={<Toggle checked={settings.ambientSoundsEnabled} onChange={(value) => dispatch(setAmbientSoundsEnabled(value))} label="Ambient sound" />} />
+          {settings.ambientSoundsEnabled && (
+            <div className="flex items-center gap-3 py-2">
+              <Icon name="volume" size={16} className="text-mut" />
+              <Slider min={0} max={0.5} step={0.01} value={settings.ambientSoundVolume} onChange={(value) => dispatch(setAmbientSoundVolume(value))} ariaLabel="Ambient sound volume" />
+              <span className="w-9 text-right text-xs tabular-nums text-mut">{Math.round(settings.ambientSoundVolume * 100)}%</span>
+            </div>
+          )}
+          <Row label="Khatam planner" hint="Set a target to pace the full Qur’an" control={<Toggle checked={settings.khatamPlannerEnabled} onChange={(value) => dispatch(setKhatamPlannerEnabled(value))} label="Khatam planner" />} />
+          {settings.khatamPlannerEnabled && (
+            <div className="pt-2">
+              <div className="mb-1 flex justify-between text-xs text-mut">
+                <span>Finish in</span>
+                <span className="font-semibold tabular-nums text-ink">{settings.khatamTargetDays} days · {Math.ceil(TOTAL_QURAN_AYAHS / settings.khatamTargetDays)} ayahs/day</span>
+              </div>
+              <Slider min={7} max={365} step={1} value={settings.khatamTargetDays} onChange={(value) => dispatch(setKhatamTargetDays(value))} ariaLabel="Khatam target days" />
+            </div>
+          )}
         </div>
       </Card>
 

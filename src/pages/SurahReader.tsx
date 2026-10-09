@@ -26,6 +26,10 @@ import { Slider, Toggle } from '../components/ui/controls';
 import { Modal } from '../components/ui/Modal';
 import { SurahArtwork } from '../components/ui/SurahArtwork';
 import { VerseActionModal } from '../components/VerseActionModal';
+import { SessionEndModal } from '../components/SessionEndModal';
+import { insightForAyah } from '../data/quranInsightsData';
+import { startAmbientSound, type AmbientSoundHandle } from '../audio/ambientSound';
+import { activityDayKey } from '../lib/progression';
 import { ErrorBlock, SkeletonRows } from '../components/ui/common';
 import type { AyahData, SettingsState, SurahFull, ThemeMode } from '../types';
 
@@ -41,6 +45,8 @@ export default function SurahReader() {
   const bookmarkItems = useAppSelector((s) => s.bookmarks.items);
   const bookmarkIds = useMemo(() => new Set(bookmarkItems.map((item) => item.id)), [bookmarkItems]);
   const lastRead = useAppSelector((s) => s.progress.lastRead[surahNumber]);
+  const dailyActivity = useAppSelector((s) => s.progress.dailyActivity);
+  const dailyReadMinutes = useAppSelector((s) => s.progress.progression.dailyReadMinutes);
   const { surahs, juz } = useQuran();
 
   const [surah, setSurah] = useState<SurahFull | null>(null);
@@ -53,6 +59,11 @@ export default function SurahReader() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'book'>('list');
   const [bookPage, setBookPage] = useState(0);
+  const [sessionFinished, setSessionFinished] = useState(false);
+
+  useEffect(() => {
+    setSessionFinished(false);
+  }, [surahNumber]);
 
   useEffect(() => {
     let alive = true;
@@ -268,12 +279,18 @@ export default function SurahReader() {
   }, [activeAyah, surah, dispatch]);
 
   useEffect(() => {
-    if (!surah) return;
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') dispatch(addReadMinute({ at: Date.now() }));
-    }, 60_000);
-    return () => window.clearInterval(timer);
-  }, [dispatch, surah?.number]);
+    if (!surah || !settings.ambientSoundsEnabled || playerState.isPlaying) return;
+    let handle: AmbientSoundHandle | null = null;
+    let alive = true;
+    void startAmbientSound(settings.ambientSoundVolume).then((next) => {
+      if (!alive) next?.stop();
+      else handle = next;
+    }).catch(() => undefined);
+    return () => {
+      alive = false;
+      handle?.stop();
+    };
+  }, [surah?.number, playerState.isPlaying, settings.ambientSoundsEnabled, settings.ambientSoundVolume]);
 
   // Follow the sounding ayah while audio plays on this surah.
   useEffect(() => {
@@ -580,9 +597,19 @@ export default function SurahReader() {
             bookmark={bookmark}
             isBookmarked={bookmarkIds.has(bookmark.id)}
             onToggleBookmark={(item) => dispatch(toggleAyahBookmark(item))}
+            insight={insightForAyah(surah.number, ayah.i)}
+            hifzEnabled={settings.hifzRepetitionEnabled}
+            wordByWordEnabled={settings.wordByWordEnabled}
           />
         );
       })()}
+      <SessionEndModal
+        active={!!surah && !sessionFinished}
+        todayMinutes={dailyReadMinutes[activityDayKey(new Date(), dailyActivity)] ?? 0}
+        goalMinutes={settings.dailyReadingGoalMinutes}
+        onMinute={() => dispatch(addReadMinute({ at: Date.now(), goalMinutes: settings.dailyReadingGoalMinutes }))}
+        onFinish={() => setSessionFinished(true)}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { store } from '../store';
 import { patch, type PlayerState } from '../store/slices/playerSlice';
 import { push } from '../store/slices/toastSlice';
-import { markListened, markRecommendedRecitation, rememberListened } from '../store/slices/progressSlice';
+import { markListened, rememberListened } from '../store/slices/progressSlice';
 import { reciterById } from '../lib/constants';
 import { getSurahTimingData, resolveAudioSourceUrl, type TimingSegment } from '../lib/audioTiming';
 import { isAudioDownloaded, getDownloadedAudioUrl, getRangedAudioUrl } from '../services/audioStore';
@@ -52,7 +52,6 @@ class PlayerController {
   private indexFloor: number | null = null;
   private stopAfterAyahIndex: number | null = null;
   private singleAyahEnded: (() => void) | null = null;
-  private recommendedRecitation = false;
 
   /* ------------------------------------------------ element --------- */
   private ensureEl(): HTMLAudioElement {
@@ -467,8 +466,6 @@ class PlayerController {
       return;
     }
     if (s.surah !== null) store.dispatch(markListened(s.surah));
-    if (this.recommendedRecitation) store.dispatch(markRecommendedRecitation());
-    this.recommendedRecitation = false;
 
     if (s.stopAfterSurah) {
       this.patch({ isPlaying: false, stopAfterSurah: false, ayah: s.ayahCount ? s.ayahCount - 1 : s.ayah });
@@ -543,7 +540,6 @@ class PlayerController {
     const reciter = opts.reciter ?? s.reciter;
     this.stopAfterAyahIndex = opts.stopAfterAyahIndex ?? null;
     this.singleAyahEnded = opts.onAyahEnded ?? null;
-    this.recommendedRecitation = opts.recommended ?? false;
     this.patch({
       playlistId: null,
       queueName: null,
@@ -564,9 +560,8 @@ class PlayerController {
   }
 
   /**
-   * Plays a surah from a guidance recommendation. Reaching the end of that
-   * surah satisfies the day's "recommended recitation" criterion in the streak
-   * engine; playback then flows on to the following surah as usual.
+  * Plays a surah from a guidance recommendation. Listening is tracked
+  * separately; only foreground reading minutes complete the daily goal.
    */
   playRecommendedRecitation(surah: number, opts: { reciter?: string; startAyahIndex?: number | null } = {}): void {
     this.playSingleSurah(surah, { ...opts, recommended: true });

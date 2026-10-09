@@ -27,7 +27,7 @@ import type { ProgressionState } from '../types';
 export const DAY_KEY_VERSION = 2;
 
 /** Minutes of foreground reading that make a day active. */
-export const READ_MINUTES_FOR_ACTIVE_DAY = 3;
+export const READ_MINUTES_FOR_ACTIVE_DAY = 5;
 
 /**
  * Local hour at which the late-night grace window closes. Activity before this
@@ -49,8 +49,12 @@ export const FREEZE_AWARD_AMOUNT = 2;
  * for {@link READ_MINUTES_FOR_ACTIVE_DAY} minutes, or completed one recommended
  * recitation.
  */
-export function isActiveDay(readMinutes: number, completedRecommendedRecitation = false): boolean {
-  return completedRecommendedRecitation || readMinutes >= READ_MINUTES_FOR_ACTIVE_DAY;
+export function isActiveDay(
+  readMinutes: number,
+  completedRecommendedRecitation = false,
+  goalMinutes = READ_MINUTES_FOR_ACTIVE_DAY,
+): boolean {
+  return completedRecommendedRecitation || readMinutes >= Math.min(60, Math.max(5, goalMinutes));
 }
 
 /**

@@ -13,8 +13,8 @@ import { useVoiceSearch } from '../components/search/VoiceSearchModal';
 import { useDownloadedSet } from '../services/useDownloads';
 import { todayKey } from '../lib/progression';
 import type { SurahMeta } from '../types';
-import { ISLAMIC_QUOTES, islamicQuoteOfTheDay } from '../data/quotes';
 import { recommendationsForNow } from '../data/quranGuidanceData';
+import { ReadDashboard } from '../components/home/ReadDashboard';
 
 type Tab = 'surah' | 'juz';
 
@@ -29,10 +29,6 @@ export default function BrowsePage() {
 
   const [tab, setTab] = useState<Tab>('surah');
   const [query, setQuery] = useState('');
-  const [reminderQuoteIndex, setReminderQuoteIndex] = useState(() => {
-    const todayQuote = islamicQuoteOfTheDay(new Date());
-    return Math.max(0, ISLAMIC_QUOTES.findIndex((quote) => quote.id === todayQuote.id));
-  });
 
   // Which surahs are already stored for the reader's default reciter.
   const downloaded = useDownloadedSet(defaultReciter);
@@ -58,9 +54,7 @@ export default function BrowsePage() {
   const today = todayKey();
   const hasCheckedIn = !!progress.dailyActivity[today];
   const checkInSurah = progress.lastPosition?.surah ?? 1;
-  const dailyQuote = ISLAMIC_QUOTES[reminderQuoteIndex];
   const currentRecommendations = recommendationsForNow(new Date());
-  const streak = progress.progression.currentStreak;
   const banner = useMemo(() => {
     const now = new Date();
     const hour = now.getHours();
@@ -108,8 +102,6 @@ export default function BrowsePage() {
       accent: 'from-accent to-accentstrong',
     };
   }, []);
-  const goal = progress.progression.istiqamahGoal;
-  const goalPct = Math.min(100, (streak / Math.max(1, goal)) * 100);
 
   if (!surahs || !juz) {
     return (
@@ -144,6 +136,8 @@ export default function BrowsePage() {
         </div>
       </div>
 
+      <ReadDashboard />
+
       <div className={`mb-4 rounded-2xl bg-gradient-to-br ${banner.accent} p-4 text-onaccent shadow-card`}>
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest opacity-90">
           <Icon name="sparkle" size={14} />
@@ -156,7 +150,7 @@ export default function BrowsePage() {
               <Icon name="book" size={14} />
               Open Surah {banner.surah}
             </button>
-            <button type="button" onClick={() => navigate('/quotes')} aria-label="Explore sayings and duas" className="shrink-0 rounded-full bg-white/20 p-2 pressable">
+            <button type="button" onClick={() => navigate('/guidance?tab=recommendations')} aria-label="Explore Quran guidance" className="shrink-0 rounded-full bg-white/20 p-2 pressable">
               <Icon name="forward" size={16} />
             </button>
           </div>
@@ -181,26 +175,6 @@ export default function BrowsePage() {
             ))}
           </div>
         )}
-      </div>
-
-      <div className="mb-4 rounded-2xl bg-gradient-to-br from-accent to-accentstrong p-4 text-onaccent shadow-card">
-        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest opacity-90">
-          <Icon name="quote" size={14} />
-          Qur’an reminder for today
-        </div>
-        <p className="mt-2 text-sm font-medium leading-relaxed">“{dailyQuote.text}”</p>
-        <div className="mt-2 flex items-end justify-between gap-3">
-          <p className="text-xs opacity-90">{dailyQuote.by} · {dailyQuote.source}</p>
-          <button
-            type="button"
-            onClick={() => setReminderQuoteIndex((index) => (index + 1) % ISLAMIC_QUOTES.length)}
-            aria-label="Next Qur’an reminder"
-            title="Next reminder"
-            className="shrink-0 rounded-full p-2 text-onaccent/85 transition-transform hover:translate-x-0.5 hover:text-onaccent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-onaccent/70"
-          >
-            <Icon name="forward" size={20} />
-          </button>
-        </div>
       </div>
 
       <section className="mb-4" aria-label="Recommended recitations">
@@ -237,21 +211,6 @@ export default function BrowsePage() {
           ))}
         </div>
       </section>
-
-      <div className="mb-4 rounded-2xl bg-surface p-3">
-        <div className="flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
-            <Icon name="sparkle" size={16} className="text-accent" />
-            {streak}-day streak
-          </span>
-          <span className="shrink-0 text-xs tabular-nums text-mut">
-            {Math.min(streak, goal)}/{goal} towards your {goal}-day goal
-          </span>
-        </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface2">
-          <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${goalPct}%` }} />
-        </div>
-      </div>
 
       <div className="mb-3 flex flex-col items-center justify-between gap-2 sm:flex-row">
         <Segmented<Tab>
@@ -303,31 +262,6 @@ export default function BrowsePage() {
         >
           <Icon name="mic" size={18} />
         </button>
-      </div>
-
-      <div className="mb-4 rounded-2xl bg-surface p-3">
-        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted">
-          <Icon name="heart" size={14} className="text-accent" />
-          In a pinch
-        </div>
-        <div className="grid gap-2 md:grid-cols-3">
-          {[
-            { category: 'Distress', title: 'Prophet Yunus', text: 'La ilaha illa anta...' },
-            { category: 'Anxiety', title: 'Sayyid al-Istighfar', text: 'Allahumma anta rabbi...' },
-            { category: 'Difficulty', title: 'Need a steady heart', text: 'A reminder that Allah is near and merciful.' },
-          ].map((item) => (
-            <button
-              key={item.title}
-              type="button"
-              onClick={() => navigate('/quotes?view=duas')}
-              className="rounded-xl border border-line bg-surface2 p-2.5 text-left pressable"
-            >
-              <div className="text-[10px] font-semibold uppercase tracking-widest text-mut">{item.category}</div>
-              <div className="mt-1 text-sm font-semibold text-ink">{item.title}</div>
-              <div className="mt-1 text-xs text-mut">{item.text}</div>
-            </button>
-          ))}
-        </div>
       </div>
 
       {tab === 'surah' ? (
