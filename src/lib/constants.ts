@@ -1,8 +1,8 @@
 import type { AccentId, DownloadQuality, Reciter, ScriptStyle } from '../types';
 
-export const APP_NAME = 'Furqan Quran';
+export const APP_NAME = 'Furqan';
 export const APP_NAME_AR = 'الفرقان';
-export const APP_TAGLINE = 'Read, Listen & Learn';
+export const APP_TAGLINE = 'The Seeker who carries the Light of Guidance across horizons.';
 export const APP_DEVELOPER = 'LIXZON';
 /** Quiet attribution shown on splash, settings, player and generated cards. */
 export const APP_ATTRIBUTION = 'by LIXZON';
@@ -10,14 +10,20 @@ export const APP_ATTRIBUTION = 'by LIXZON';
 /* ---------------- support ---------------- */
 
 export const SUPPORT = {
-  bankName: 'Kuda Business Bank',
-  accountName: 'LIXZON (Ojulari Aliy Ayodeji)',
+  bankName: 'Guaranty Trust Bank (GTB)',
+  accountName: 'Ojulari Aliy Ayodeji',
   accountNumber: '0687041418',
   currency: 'NGN',
   /** Global card checkout is enabled when this URL is configured at build time. */
   checkoutUrl: import.meta.env.VITE_SUPPORT_CHECKOUT_URL ?? '',
   playStoreUrl: import.meta.env.VITE_PLAY_STORE_URL ?? '',
+  instagramUrl: 'https://www.instagram.com/Lixzon9/',
+  instagramHandle: 'Lixzon9',
+  discordHandle: 'Lixzon8',
 } as const;
+
+/** Optional HTTPS endpoint. It must accept privacy-minimized diagnostic summaries. */
+export const DIAGNOSTICS_REPORT_ENDPOINT = import.meta.env.VITE_DIAGNOSTICS_REPORT_ENDPOINT?.trim() ?? '';
 
 export const MAX_PLAYLIST_ITEMS = 10;
 

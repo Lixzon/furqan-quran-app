@@ -58,7 +58,7 @@ import {
 import { normalizeHex } from '../lib/customTheme';
 import { db } from '../db/database';
 import { useStorageStats } from '../services/useDownloads';
-import { ACCENTS, APP_NAME, APP_TAGLINE, DOWNLOAD_QUALITY_OPTIONS, RECITERS } from '../lib/constants';
+import { ACCENTS, APP_ATTRIBUTION, APP_NAME, APP_TAGLINE, DOWNLOAD_QUALITY_OPTIONS, RECITERS } from '../lib/constants';
 import { formatBytes } from '../lib/utils';
 import { PageHeader } from '../components/ui/common';
 import { Icon, type IconName } from '../components/ui/Icon';
@@ -1015,6 +1015,40 @@ export default function SettingsPage() {
         </button>
       </Card>
 
+      {/* ---- LIXZON ecosystem ---- */}
+      <Section title="LIXZON ecosystem" icon="info" />
+      <Card>
+        <button
+          type="button"
+          onClick={() => navigate('/mishkah')}
+          className="flex w-full items-center gap-3 rounded-xl px-1 py-2 text-left pressable"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/12 text-accent">
+            <Icon name="book" size={18} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-ink">Mishkah Assistant</span>
+            <span className="block text-xs text-mut">Offline fasting and prayer-time guidance</span>
+          </span>
+          <Icon name="chevronRight" size={18} className="text-mut" />
+        </button>
+        <div className="my-1 border-t border-line" />
+        <button
+          type="button"
+          onClick={() => navigate('/diagnostics')}
+          className="flex w-full items-center gap-3 rounded-xl px-1 py-2 text-left pressable"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/12 text-accent">
+            <Icon name="info" size={18} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-ink">Diagnostics & Friday report</span>
+            <span className="block text-xs text-mut">Private health summary stored on this device</span>
+          </span>
+          <Icon name="chevronRight" size={18} className="text-mut" />
+        </button>
+      </Card>
+
       {/* ---- About ---- */}
       <Section title={`About ${APP_NAME}`} icon="info" />
       <Card>
@@ -1053,7 +1087,7 @@ export default function SettingsPage() {
           <p className="mt-3 text-center text-[11px] text-mut">
             {APP_NAME} v1.0.0 · الفرقان · made for reading & reflection
           </p>
-          <p className="mt-1 text-center text-[10px] tracking-[0.22em] text-mut/70">BY LIXZON</p>
+          <p className="mt-1 text-center text-[10px] tracking-[0.18em] text-mut/70">{APP_ATTRIBUTION}</p>
         </div>
       </Card>
 

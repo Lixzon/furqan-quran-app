@@ -6,7 +6,7 @@ import { setDefaultReciter } from '../store/slices/settingsSlice';
 import { setPlaylistReciter } from '../store/slices/playlistSlice';
 import { push } from '../store/slices/toastSlice';
 import { useQuran } from '../data/QuranProvider';
-import { RECITERS } from '../lib/constants';
+import { APP_ATTRIBUTION, RECITERS } from '../lib/constants';
 import { formatTime, surahNumberToArabic } from '../lib/utils';
 import { downloadSurahAudio } from '../services/audioStore';
 import { useIsDownloaded, useStorageStats } from '../services/useDownloads';
@@ -353,7 +353,7 @@ export default function NowPlayingPage() {
           ? `${storage.count} offline audio file${storage.count === 1 ? '' : 's'} · ${formatBytes(storage.bytes)} used`
           : 'No offline downloads yet — download surahs to listen without internet.'}
       </div>
-      <div className="mt-2 text-center text-[10px] tracking-[0.22em] text-mut/70">BY LIXZON</div>
+      <div className="mt-2 text-center text-[10px] tracking-[0.18em] text-mut/70">{APP_ATTRIBUTION}</div>
 
       {/* queue modal */}
       <Modal open={queueOpen} onClose={() => setQueueOpen(false)} title={`Queue · ${p.queueName ?? 'Surah'}`}>

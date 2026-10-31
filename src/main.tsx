@@ -5,8 +5,11 @@ import { BrowserRouter } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 import { store } from './store';
 import { player } from './audio/controller';
+import { startDiagnosticCapture } from './services/diagnostics';
 import App from './App';
 import './index.css';
+
+startDiagnosticCapture();
 
 // Register the service worker (auto-updating). No-op during `vite dev`.
 try {

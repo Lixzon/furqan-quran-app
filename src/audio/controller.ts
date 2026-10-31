@@ -8,6 +8,7 @@ import { isAudioDownloaded, getDownloadedAudioUrl, getRangedAudioUrl } from '../
 import { getSurah, getSurahMetaList } from '../lib/dataClient';
 import { buildAyahFractions, buildExpandedQueue, clampIndex, shuffleIndices } from '../lib/queue';
 import type { Playlist, SurahMeta } from '../types';
+import { recordDiagnostic } from '../services/diagnostics';
 
 const PLAYER_PREFS = 'furqan:player';
 
@@ -39,6 +40,7 @@ class PlayerController {
   private loadToken = 0;
   private playbackIntentToken = 0;
   private fallbackToken = 0;
+  private audioErrorToken = -1;
   private realTiming: Array<{ start: number; end: number }> | null = null;
   private timelineTimer: number | null = null;
   /** Milliseconds added to the audio clock before resolving the ayah index.
@@ -138,7 +140,13 @@ class PlayerController {
 
     const timing = await getSurahTimingData(reciter, surah);
     if (loadToken !== this.loadToken) return;
-    this.realTiming = timing?.timestamps ?? null;
+    this.realTiming = timing?.timestamps.length === ayahCount ? timing.timestamps : null;
+    if (timing && !this.realTiming) {
+      console.warn(
+        `[player] ignoring incomplete ayah timings for surah ${surah}: ` +
+          `expected ${ayahCount}, received ${timing.timestamps.length}`,
+      );
+    }
 
     const downloaded = await isAudioDownloaded(reciter, surah);
     if (loadToken !== this.loadToken) return;
@@ -457,6 +465,15 @@ class PlayerController {
     if (s.surah === null) {
       this.patch({ buffering: false });
       return;
+    }
+    if (this.audioErrorToken !== this.loadToken) {
+      this.audioErrorToken = this.loadToken;
+      const code = this.el?.error?.code ?? 0;
+      recordDiagnostic(
+        'audio-stream',
+        `Audio playback failed (media error ${code}; downloaded ${s.usingDownload})`,
+        new Error('Audio playback failed').stack ?? '',
+      );
     }
     if (!s.usingDownload && this.fallbackToken !== this.loadToken) {
       const token = this.loadToken;

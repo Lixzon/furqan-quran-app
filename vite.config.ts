@@ -4,10 +4,10 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const manifest = {
-  name: 'Furqan Quran',
-  short_name: 'Furqan Quran',
+  name: 'Furqan',
+  short_name: 'Furqan',
   description:
-    'Read, listen and learn the Qur’an — all 114 surahs with translation, transliteration and recitation, plus playlists, sayings, reminders and progress tracking.',
+    'The Seeker who carries the Light of Guidance across horizons.',
   theme_color: '#0d9488',
   background_color: '#f3f7f5',
   display: 'standalone',

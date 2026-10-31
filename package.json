@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Furqan Quran — read, listen and learn the Qur'an: reader, custom multi-surah playlists, audio player, sayings & quotes, progress tracking.",
+  "description": "Furqan — The Seeker who carries the Light of Guidance across horizons.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

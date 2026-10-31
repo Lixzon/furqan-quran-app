@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { APP_NAME } from '../../lib/constants';
 import { useAppSelector } from '../../store';
-import { useLocation } from 'react-router-dom';
 import { useVoiceSearch } from '../search/VoiceSearchModal';
 import { QuranSearchModal } from '../search/QuranSearchModal';
 import { MihrabLogo } from '../ui/MihrabLogo';
@@ -12,6 +12,7 @@ import { Icon } from '../ui/Icon';
 export function TopBar() {
   const readingMode = useAppSelector((s) => s.settings.readingMode);
   const location = useLocation();
+  const navigate = useNavigate();
   const voiceSearch = useVoiceSearch();
   const [searchOpen, setSearchOpen] = useState(false);
   const isReadHome = location.pathname === '/';
@@ -25,6 +26,8 @@ export function TopBar() {
             <>
               <div className="flex shrink-0 items-center gap-2">
                 <StreakHub />
+              </div>
+              <div className="ml-auto flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
                   onClick={voiceSearch.open}
@@ -39,16 +42,26 @@ export function TopBar() {
                 >
                   <Icon name="mic" size={18} />
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(true)}
+                  aria-label="Search Quran chapters"
+                  title="Search Quran chapters in Arabic or English"
+                  className="pressable inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface2 text-muted transition hover:text-ink"
+                >
+                  <Icon name="search" size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/mishkah')}
+                  aria-label="Open Islamic AI assistant"
+                  title="Ask an Islamic question"
+                  className="pressable inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 text-xs font-semibold text-accent transition hover:bg-accent/15"
+                >
+                  <Icon name="sparkle" size={16} />
+                  <span>AI</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setSearchOpen(true)}
-                aria-label="Search Quran chapters"
-                title="Search Quran chapters in Arabic or English"
-                className="pressable ml-auto inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface2 text-muted transition hover:text-ink"
-              >
-                <Icon name="search" size={18} />
-              </button>
             </>
           ) : (
             <div className="flex min-w-0 items-center gap-2">

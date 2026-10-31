@@ -6,6 +6,7 @@ import { useQuran } from '../../data/QuranProvider';
 import { player } from '../../audio/controller';
 import { rangeDeepLink } from '../../lib/deepLink';
 import { copyText } from '../../lib/share';
+import { APP_ATTRIBUTION } from '../../lib/constants';
 
 /**
  * Fast surah / from-ayah / to-ayah picker for the memorisation loop.
@@ -146,7 +147,7 @@ export function VerseRangeSheet({ open, onClose }: { open: boolean; onClose: () 
         )}
 
         {note && <p className="text-center text-[11px] text-accent">{note}</p>}
-        <p className="text-center text-[10px] tracking-[0.18em] text-mut">BY LIXZON</p>
+        <p className="text-center text-[10px] tracking-[0.18em] text-mut">{APP_ATTRIBUTION}</p>
       </div>
     </Modal>
   );

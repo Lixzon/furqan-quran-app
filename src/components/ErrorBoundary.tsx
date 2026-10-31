@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { recordDiagnostic } from '../services/diagnostics';
 
 export class ErrorBoundary extends Component<{
   children: ReactNode;
@@ -12,6 +13,7 @@ export class ErrorBoundary extends Component<{
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    recordDiagnostic('react-crash', 'React error boundary captured an exception', `${error.stack ?? ''}\n${errorInfo.componentStack ?? ''}`);
     console.error('App error boundary caught an error:', error, errorInfo);
   }
 

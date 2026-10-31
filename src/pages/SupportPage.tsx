@@ -14,12 +14,17 @@ export default function SupportPage() {
   const [copied, setCopied] = useState(false);
 
   const copyAccount = async () => {
-    const ok = await copyText(SUPPORT.accountNumber);
+    const accountDetails = [
+      `Bank: ${SUPPORT.bankName}`,
+      `Account name: ${SUPPORT.accountName}`,
+      `Account number: ${SUPPORT.accountNumber}`,
+    ].join('\n');
+    const ok = await copyText(accountDetails);
     setCopied(ok);
     dispatch(
       ok
-        ? push('Account number copied. Jazakum Allahu khairan.', 'success')
-        : push('Could not copy the number. Long-press to select it.', 'error'),
+        ? push('Account details copied. Jazakum Allahu khairan.', 'success')
+        : push('Could not copy the details. Long-press to select them.', 'error'),
     );
     if (ok) window.setTimeout(() => setCopied(false), 2500);
   };
@@ -87,11 +92,30 @@ export default function SupportPage() {
           className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-onaccent pressable"
         >
           <Icon name={copied ? 'check' : 'clipboard'} size={16} />
-          {copied ? 'Account number copied' : 'Copy account number'}
+          {copied ? 'Account details copied' : 'Copy account details'}
         </button>
         <p className="mt-2 text-center text-[10px] leading-relaxed text-mut">
           Transfers go directly to the developer account — no processing fee is taken by the app.
         </p>
+      </section>
+
+      <section className="mt-4 rounded-2xl border border-line bg-surface p-4">
+        <h2 className="text-sm font-semibold text-ink">Official support contacts</h2>
+        <div className="mt-3 grid gap-2 text-sm">
+          <a
+            href={SUPPORT.instagramUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between rounded-xl bg-surface2 px-3 py-2.5 text-ink pressable"
+          >
+            <span className="text-mut">Instagram</span>
+            <span className="font-medium">@{SUPPORT.instagramHandle}</span>
+          </a>
+          <div className="flex items-center justify-between rounded-xl bg-surface2 px-3 py-2.5">
+            <span className="text-mut">Discord</span>
+            <span className="font-medium text-ink">@{SUPPORT.discordHandle}</span>
+          </div>
+        </div>
       </section>
 
       {/* global */}
@@ -107,8 +131,8 @@ export default function SupportPage() {
         </div>
 
         <p className="mt-3 text-xs leading-relaxed text-mut">
-          Cards are charged in USD and converted automatically by the payment provider. On Android,
-          Google Play in-app billing mirrors the same support tiers.
+          A configured card provider handles USD conversion. Google Play billing will be available
+          once the Android release has its billing products configured.
         </p>
 
         <div className="mt-3 grid gap-2">
@@ -124,8 +148,8 @@ export default function SupportPage() {
             </a>
           ) : (
             <div className="rounded-xl border border-dashed border-line bg-surface2 px-3 py-2.5 text-center text-[11px] leading-relaxed text-mut">
-              Card checkout opens with the Play Store release. Until then, the direct transfer
-              above reaches the same account.
+              Card checkout is not configured yet. Until it is, the direct transfer above reaches
+              the developer account.
             </div>
           )}
           {SUPPORT.playStoreUrl && (
@@ -153,7 +177,7 @@ export default function SupportPage() {
       </section>
 
       <p className="mt-6 text-center text-sm text-ink2">Jazakum Allahu khairan for carrying the light.</p>
-      <p className="mt-2 text-center text-[10px] tracking-[0.22em] text-mut">{APP_ATTRIBUTION.toUpperCase()}</p>
+      <p className="mt-2 text-center text-[10px] tracking-[0.18em] text-mut">{APP_ATTRIBUTION}</p>
     </div>
   );
 }

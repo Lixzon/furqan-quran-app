@@ -27,6 +27,8 @@ import DownloadsPage from './pages/DownloadsPage';
 import SettingsPage from './pages/SettingsPage';
 import ProfilePage from './pages/ProfilePage';
 import SupportPage from './pages/SupportPage';
+import DiagnosticsPage from './pages/DiagnosticsPage';
+import MishkahAssistantPage from './pages/MishkahAssistantPage';
 
 export default function App() {
   const { pathname } = useLocation();
@@ -59,6 +61,8 @@ export default function App() {
               <Route path="settings" element={<SettingsPage />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="support" element={<SupportPage />} />
+              <Route path="diagnostics" element={<DiagnosticsPage />} />
+              <Route path="mishkah" element={<MishkahAssistantPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
