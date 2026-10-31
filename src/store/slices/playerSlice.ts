@@ -7,6 +7,12 @@ export interface SleepTimerState {
   endsAt: number; // epoch ms
 }
 
+/** An inclusive, 0-based ayah window that the player loops for memorisation. */
+export interface VerseRange {
+  start: number;
+  end: number;
+}
+
 export interface PlayerState {
   isPlaying: boolean;
   /** currently loaded surah number */
@@ -29,6 +35,8 @@ export interface PlayerState {
   mode: 'order' | 'shuffle';
   repeat: PlayerRepeatMode; // 'off' = play once then stop, 'all' = loop whole queue
   loopSurah: boolean; // repeat current surah until user taps next
+  /** Active Hifz range; when set the playhead never leaves it. */
+  range: VerseRange | null;
   currentTime: number;
   duration: number;
   volume: number; // 0..1
@@ -55,6 +63,7 @@ const initialState: PlayerState = {
   mode: 'order',
   repeat: 'all',
   loopSurah: false,
+  range: null,
   currentTime: 0,
   duration: 0,
   volume: 1,

@@ -8,6 +8,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
+    "audit": "node scripts/audit.mjs",
+    "verify": "npm run typecheck && npm run audit",
     "verify:pwa": "node scripts/verify-pwa.mjs",
     "preview": "vite preview",
     "data:fetch": "node scripts/fetch-quran.mjs && node scripts/normalize-basmala.mjs",

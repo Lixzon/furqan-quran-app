@@ -1,5 +1,5 @@
 import { store } from '../store';
-import { patch, type PlayerState } from '../store/slices/playerSlice';
+import { patch, type PlayerState, type VerseRange } from '../store/slices/playerSlice';
 import { push } from '../store/slices/toastSlice';
 import { markListened, rememberListened } from '../store/slices/progressSlice';
 import { reciterById } from '../lib/constants';
@@ -354,6 +354,29 @@ class PlayerController {
     return Math.max(0, raw + this.syncOffsetMs / 1000);
   }
 
+  /**
+   * Keeps the playhead inside the active Hifz range. Time-based (rather than
+   * index-based) so the loop restarts on the boundary instead of up to one
+   * sampler tick into the following ayah. Returns true when it moved the
+   * playhead, so the caller can skip its normal position patch.
+   */
+  private applyRangeLoop(t: number, duration: number, s: PlayerState): boolean {
+    const range = s.range;
+    if (!range || s.ayahCount <= 0 || duration <= 0) return false;
+    const end = this.ayahEndTime(range.end, s.ayahCount, duration);
+    if (t < end - 0.05) return false;
+    const start = this.ayahStartTime(range.start, s.ayahCount, duration);
+    const el = this.ensureEl();
+    try {
+      el.currentTime = start;
+    } catch {
+      /* ignore seek errors */
+    }
+    this.indexFloor = range.start;
+    this.patch({ ayah: range.start, currentTime: start });
+    return true;
+  }
+
   private startTimelineSampler(): void {
     if (this.timelineTimer !== null) return;
     this.timelineTimer = window.setInterval(() => this.onTime(), TIMELINE_SAMPLE_MS);
@@ -371,6 +394,7 @@ class PlayerController {
     if (s.surah === null) return;
     const t = Number.isFinite(el.currentTime) ? el.currentTime : 0;
     const d = Number.isFinite(el.duration) ? el.duration : 0;
+    if (this.applyRangeLoop(t, d, s)) return;
     let idx = this.computeAyahIndex(this.timelineTime(t), d, s.ayahCount);
 
     // After a deliberate seek the offset would briefly name the previous ayah;
@@ -465,6 +489,20 @@ class PlayerController {
 
   private onEnded(): void {
     const s = this.getState();
+    if (s.range && s.surah !== null) {
+      const el = this.ensureEl();
+      const d = Number.isFinite(el.duration) ? el.duration : 0;
+      const target = d > 0 ? this.ayahStartTime(s.range.start, s.ayahCount, d) : 0;
+      try {
+        el.currentTime = target;
+      } catch {
+        /* ignore seek errors */
+      }
+      this.indexFloor = s.range.start;
+      this.patch({ ayah: s.range.start, currentTime: target });
+      void this.playElement();
+      return;
+    }
     if (this.stopAfterAyahIndex !== null) {
       const target = this.stopAfterAyahIndex;
       const onAyahEnded = this.singleAyahEnded;
@@ -505,7 +543,7 @@ class PlayerController {
     const s = this.getState();
     if (s.queue.length === 0) return;
     const target = clampIndex(index, s.order.length);
-    this.patch({ pos: target, ayah: null });
+    this.patch({ pos: target, ayah: null, range: null });
     void this.loadCurrent(true);
   }
 
@@ -528,6 +566,7 @@ class PlayerController {
       mode: 'order',
       reciter: playlist.reciter || s.reciter,
       loopSurah: false,
+      range: null,
       isPlaying: false,
     });
     void this.loadCurrent(true).then(() => {
@@ -544,6 +583,7 @@ class PlayerController {
     onAyahEnded?: () => void;
     stopAfterSurah?: boolean;
     recommended?: boolean;
+    range?: VerseRange | null;
   } = {}): void {
     const s = this.getState();
     const reciter = opts.reciter ?? s.reciter;
@@ -557,6 +597,7 @@ class PlayerController {
       pos: 0,
       mode: 'order',
       repeat: 'off',
+      range: opts.range ?? null,
       reciter,
       loopSurah: false,
       stopAfterSurah: opts.stopAfterSurah ?? false,
@@ -566,6 +607,39 @@ class PlayerController {
     void this.surahMeta(surah).then((m) => {
       this.updateMediaSession(m.englishName, reciterLabel(reciter));
     });
+  }
+
+  /**
+   * Continuous Hifz loop over an inclusive ayah range (0-based indices).
+   * Resolves the surah length first so out-of-range requests are clamped
+   * instead of producing an unbounded loop.
+   */
+  async playRange(surah: number, start: number, end: number, opts: { reciter?: string } = {}): Promise<void> {
+    const meta = await this.surahMeta(surah);
+    const count = Math.max(1, meta.numberOfAyahs || 0);
+    const from = clampIndex(start, count);
+    const to = clampIndex(end, count);
+    const range = { start: Math.min(from, to), end: Math.max(from, to) };
+    this.playSingleSurah(surah, {
+      reciter: opts.reciter,
+      startAyahIndex: range.start,
+      range,
+    });
+  }
+
+  /** Restrict the loaded surah to a range without changing what is playing. */
+  setVerseRange(start: number, end: number): void {
+    const s = this.getState();
+    if (s.surah === null || s.ayahCount <= 0) return;
+    const from = clampIndex(start, s.ayahCount);
+    const to = clampIndex(end, s.ayahCount);
+    const range = { start: Math.min(from, to), end: Math.max(from, to) };
+    this.patch({ range, repeat: 'off', loopSurah: false });
+    this.seekToAyah(range.start);
+  }
+
+  clearVerseRange(): void {
+    this.patch({ range: null });
   }
 
   /**
@@ -626,9 +700,20 @@ class PlayerController {
     if (s.surah === null) return;
     const intentToken = ++this.playbackIntentToken;
     const el = this.ensureEl();
+    const d = Number.isFinite(el.duration) ? el.duration : 0;
     // Restart if we reached the very end while paused.
-    if (Number.isFinite(el.duration) && el.duration > 0 && el.currentTime >= el.duration - 0.4) {
+    if (d > 0 && el.currentTime >= d - 0.4) {
       el.currentTime = 0;
+    }
+    // Re-entering after the range moved on: resume at its first ayah.
+    if (s.range && d > 0 && s.ayahCount > 0) {
+      const start = this.ayahStartTime(s.range.start, s.ayahCount, d);
+      const end = this.ayahEndTime(s.range.end, s.ayahCount, d);
+      if (el.currentTime < start - 0.05 || el.currentTime >= end - 0.05) {
+        el.currentTime = start;
+        this.indexFloor = s.range.start;
+        this.patch({ ayah: s.range.start, currentTime: start });
+      }
     }
     await this.playElement(intentToken);
   }
@@ -659,7 +744,7 @@ class PlayerController {
       this.jumpTo(0);
       return;
     }
-    this.patch({ pos: np, ayah: null });
+    this.patch({ pos: np, ayah: null, range: null });
     void this.loadCurrent(true);
   }
 
@@ -672,7 +757,7 @@ class PlayerController {
       return;
     }
     const np = s.pos > 0 ? s.pos - 1 : s.order.length - 1;
-    this.patch({ pos: np, ayah: null });
+    this.patch({ pos: np, ayah: null, range: null });
     void this.loadCurrent(true);
   }
 
@@ -707,6 +792,7 @@ class PlayerController {
       error: null,
       sleepTimer: null,
       stopAfterSurah: false,
+      range: null,
     });
   }
 
@@ -715,7 +801,11 @@ class PlayerController {
     const s = this.getState();
     if (!s.surah) return;
     const d = Number.isFinite(el.duration) ? el.duration : 0;
-    const clamped = Math.max(0, Math.min(time, d > 0 ? d : time));
+    const range = s.range;
+    const min = range && d > 0 ? this.ayahStartTime(range.start, s.ayahCount, d) : 0;
+    const max = range && d > 0 ? this.ayahEndTime(range.end, s.ayahCount, d) - 0.05 : d > 0 ? d : time;
+    const bounded = Math.max(min, Math.min(time, max > min ? max : min));
+    const clamped = Math.max(0, bounded);
     try {
       el.currentTime = clamped;
     } catch {
@@ -732,6 +822,10 @@ class PlayerController {
     if (!s.surah) return;
     const count = s.ayahCount || 1;
     const clamped = clampIndex(index, count);
+    if (s.range && (clamped < s.range.start || clamped > s.range.end)) {
+      // The reader picked a verse outside the loop window; release the lock.
+      this.patch({ range: null });
+    }
     const el = this.ensureEl();
     const d = Number.isFinite(el.duration) ? el.duration : 0;
     const target = d > 0 ? this.ayahStartTime(clamped, count, d) : 0;
@@ -750,7 +844,7 @@ class PlayerController {
   goToQueueIndex(index: number): void {
     const s = this.getState();
     if (index < 0 || index >= s.order.length) return;
-    this.patch({ pos: index, ayah: null });
+    this.patch({ pos: index, ayah: null, range: null });
     void this.loadCurrent(true);
   }
 

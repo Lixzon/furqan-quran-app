@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Modal } from './ui/Modal';
-import { Icon } from './ui/Icon';
+import { Icon, type IconName } from './ui/Icon';
 import { player } from '../audio/controller';
+import { ShareCardModal } from './share/ShareCardModal';
 import type { AyahBookmark } from '../store/slices/bookmarksSlice';
 import type { QuranVerseInsight } from '../data/quranInsightsData';
 import { wordGloss } from '../data/quranWordGlosses';
@@ -40,6 +41,7 @@ export function VerseActionModal({
   wordByWordEnabled?: boolean;
 }) {
   const [repeatCount, setRepeatCount] = useState(3);
+  const [shareOpen, setShareOpen] = useState(false);
   const playArabic = (withTranslation: boolean, repeats = 1) => {
     let played = 0;
     const playNext = () => {
@@ -82,6 +84,7 @@ export function VerseActionModal({
   });
 
   return (
+    <>
     <Modal
       open={open}
       onClose={onClose}
@@ -106,6 +109,15 @@ export function VerseActionModal({
             pressed={isBookmarked}
             onClick={() => onToggleBookmark(bookmark)}
           />
+          <ActionButton
+            icon="repeatOne"
+            label="Loop this ayah"
+            onClick={() => {
+              void player.playRange(surahNumber, ayahNumber - 1, ayahNumber - 1, { reciter });
+              onClose();
+            }}
+          />
+          <ActionButton icon="share" label="Share card" onClick={() => setShareOpen(true)} />
         </div>
 
         {hifzEnabled && (
@@ -137,6 +149,18 @@ export function VerseActionModal({
         )}
       </div>
     </Modal>
+    <ShareCardModal
+      open={shareOpen}
+      onClose={() => setShareOpen(false)}
+      content={{
+        surahName,
+        surahNumber,
+        ayahFrom: ayahNumber,
+        arabic,
+        translation,
+      }}
+    />
+    </>
   );
 }
 
@@ -150,7 +174,7 @@ function ActionButton({
   onClick,
   pressed = false,
 }: {
-  icon: 'play' | 'forward' | 'pin' | 'check';
+  icon: IconName;
   label: string;
   onClick: () => void;
   pressed?: boolean;

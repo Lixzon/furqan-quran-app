@@ -3,6 +3,21 @@ import type { AccentId, DownloadQuality, Reciter, ScriptStyle } from '../types';
 export const APP_NAME = 'Furqan Quran';
 export const APP_NAME_AR = 'الفرقان';
 export const APP_TAGLINE = 'Read, Listen & Learn';
+export const APP_DEVELOPER = 'LIXZON';
+/** Quiet attribution shown on splash, settings, player and generated cards. */
+export const APP_ATTRIBUTION = 'by LIXZON';
+
+/* ---------------- support ---------------- */
+
+export const SUPPORT = {
+  bankName: 'Kuda Business Bank',
+  accountName: 'LIXZON (Ojulari Aliy Ayodeji)',
+  accountNumber: '0687041418',
+  currency: 'NGN',
+  /** Global card checkout is enabled when this URL is configured at build time. */
+  checkoutUrl: import.meta.env.VITE_SUPPORT_CHECKOUT_URL ?? '',
+  playStoreUrl: import.meta.env.VITE_PLAY_STORE_URL ?? '',
+} as const;
 
 export const MAX_PLAYLIST_ITEMS = 10;
 

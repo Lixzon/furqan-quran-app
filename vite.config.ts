@@ -20,9 +20,16 @@ const manifest = {
   dir: 'ltr',
   prefer_related_applications: false,
   categories: ['books', 'education', 'music'],
+  protocol_handlers: [
+    {
+      protocol: 'web+furkan',
+      url: '/?deep=%s',
+    },
+  ],
   shortcuts: [
     { name: 'Last read', short_name: 'Continue', url: '/progress' },
     { name: 'Saved ayahs', short_name: 'Saved', url: '/bookmarks' },
+    { name: 'Support Furqan', short_name: 'Support', url: '/support' },
   ],
   icons: [
     { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

@@ -20,6 +20,8 @@ import { Icon } from '../components/ui/Icon';
 import { EmptyState } from '../components/ui/common';
 import { RECITERS, MAX_PLAYLIST_ITEMS } from '../lib/constants';
 import { surahNumberToArabic } from '../lib/utils';
+import { copyText } from '../lib/share';
+import { playlistDeepLink } from '../lib/deepLink';
 import type { PlaylistItem } from '../types';
 
 interface PickerState {
@@ -107,6 +109,24 @@ export default function PlaylistDetailPage() {
     dispatch(moveItem({ playlistId: playlist.id, from, to }));
   };
 
+  const sharePlaylist = async () => {
+    const link = playlistDeepLink(playlist.id);
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({
+          title: `${playlist.name} · Furqan`,
+          text: `Listen to “${playlist.name}” on Furqan`,
+          url: link,
+        });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+      }
+    }
+    const copied = await copyText(`${playlist.name} · ${link}`);
+    dispatch(copied ? push('Playlist link copied.', 'success') : push('Could not copy the link.', 'error'));
+  };
+
   return (
     <div className="page-enter">
       {/* header */}
@@ -130,17 +150,28 @@ export default function PlaylistDetailPage() {
               {playlist.items.reduce((s, it) => s + it.repeat, 0)} total plays per pass
             </div>
           </div>
-          <button
-            type="button"
-            aria-label="Rename playlist"
-            onClick={() => {
-              setRenameVal(playlist.name);
-              setRenameOpen(true);
-            }}
-            className="pressable rounded-full p-2 text-mut hover:bg-surface2 hover:text-ink"
-          >
-            <Icon name="edit" size={18} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              aria-label="Share playlist"
+              title="Share playlist"
+              onClick={() => void sharePlaylist()}
+              className="pressable rounded-full p-2 text-mut hover:bg-surface2 hover:text-ink"
+            >
+              <Icon name="share" size={18} />
+            </button>
+            <button
+              type="button"
+              aria-label="Rename playlist"
+              onClick={() => {
+                setRenameVal(playlist.name);
+                setRenameOpen(true);
+              }}
+              className="pressable rounded-full p-2 text-mut hover:bg-surface2 hover:text-ink"
+            >
+              <Icon name="edit" size={18} />
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">

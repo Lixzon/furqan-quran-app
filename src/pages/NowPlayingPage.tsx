@@ -16,6 +16,7 @@ import { Slider, IconButton } from '../components/ui/controls';
 import { Modal } from '../components/ui/Modal';
 import { EmptyState } from '../components/ui/common';
 import { SurahArtwork } from '../components/ui/SurahArtwork';
+import { VerseRangeSheet } from '../components/player/VerseRangeSheet';
 
 const SLEEP_OPTIONS = [10, 20, 30, 45, 60];
 
@@ -26,6 +27,7 @@ export default function NowPlayingPage() {
   const navigate = useNavigate();
 
   const [queueOpen, setQueueOpen] = useState(false);
+  const [rangeOpen, setRangeOpen] = useState(false);
   const [dlProgress, setDlProgress] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
   const [previousArtwork, setPreviousArtwork] = useState<number | null>(null);
@@ -270,6 +272,40 @@ export default function NowPlayingPage() {
         </button>
       </div>
 
+      {/* hifz range loop */}
+      <div className="mt-4 rounded-2xl bg-surface p-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-ink">
+          <Icon name="repeatOne" size={16} className="text-accent" />
+          Hifz range loop
+          {p.range && (
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-accent/12 px-2.5 py-0.5 text-[11px] font-semibold text-accent">
+              {p.range.start === p.range.end
+                ? `Ayah ${p.range.start + 1}`
+                : `Ayat ${p.range.start + 1}–${p.range.end + 1}`}
+            </span>
+          )}
+        </div>
+        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setRangeOpen(true)}
+            className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-onaccent pressable"
+          >
+            {p.range ? 'Change range' : 'Choose range'}
+          </button>
+          {p.range && (
+            <button
+              type="button"
+              onClick={() => player.clearVerseRange()}
+              className="rounded-full bg-surface2 px-3 py-1.5 text-xs font-medium text-mut hover:text-ink"
+            >
+              Stop looping
+            </button>
+          )}
+          <span className="text-[11px] text-mut">Repeats endlessly until you stop.</span>
+        </div>
+      </div>
+
       {/* sleep timer */}
       <SleepTimerBlock
         sleepTimer={p.sleepTimer}
@@ -317,6 +353,7 @@ export default function NowPlayingPage() {
           ? `${storage.count} offline audio file${storage.count === 1 ? '' : 's'} · ${formatBytes(storage.bytes)} used`
           : 'No offline downloads yet — download surahs to listen without internet.'}
       </div>
+      <div className="mt-2 text-center text-[10px] tracking-[0.22em] text-mut/70">BY LIXZON</div>
 
       {/* queue modal */}
       <Modal open={queueOpen} onClose={() => setQueueOpen(false)} title={`Queue · ${p.queueName ?? 'Surah'}`}>
@@ -357,6 +394,7 @@ export default function NowPlayingPage() {
           })}
         </div>
       </Modal>
+      <VerseRangeSheet open={rangeOpen} onClose={() => setRangeOpen(false)} />
     </div>
   );
 }

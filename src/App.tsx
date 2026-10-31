@@ -12,6 +12,8 @@ import { todayKey } from './lib/progression';
 import { ProgressionHost } from './components/layout/ProgressionHost';
 import { VoiceSearchProvider } from './components/search/VoiceSearchModal';
 import { VoiceMatchDrawer, VoiceMatchBackPill } from './components/VoiceMatchDrawer';
+import { DeepLinkHost } from './components/DeepLinkHost';
+import { IdleTipHost } from './components/IdleTipHost';
 
 import BrowsePage from './pages/BrowsePage';
 import LibraryPage from './pages/LibraryPage';
@@ -24,6 +26,7 @@ import ProgressPage from './pages/ProgressPage';
 import DownloadsPage from './pages/DownloadsPage';
 import SettingsPage from './pages/SettingsPage';
 import ProfilePage from './pages/ProfilePage';
+import SupportPage from './pages/SupportPage';
 
 export default function App() {
   const { pathname } = useLocation();
@@ -55,14 +58,17 @@ export default function App() {
               <Route path="downloads" element={<DownloadsPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="profile" element={<ProfilePage />} />
+              <Route path="support" element={<SupportPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
           <ToastHost />
+          <DeepLinkHost />
           <ReminderHost />
           <ProgressionHost />
           <VoiceMatchDrawer />
           <VoiceMatchBackPill />
+          <IdleTipHost />
         </VoiceSearchProvider>
       </QuranProvider>
     </ErrorBoundary>

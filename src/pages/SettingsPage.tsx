@@ -996,6 +996,25 @@ export default function SettingsPage() {
         </button>
       </Card>
 
+      {/* ---- Support ---- */}
+      <Section title="Support Furqan & LIXZON" icon="heart" />
+      <Card>
+        <button
+          type="button"
+          onClick={() => navigate('/support')}
+          className="flex w-full items-center gap-3 rounded-xl px-1 py-1 text-left pressable"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/12 text-accent">
+            <Icon name="heart" size={18} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-ink">Support Furqan & LIXZON</span>
+            <span className="block text-xs text-mut">Direct transfer · card checkout · Play billing</span>
+          </span>
+          <Icon name="chevronRight" size={18} className="text-mut" />
+        </button>
+      </Card>
+
       {/* ---- About ---- */}
       <Section title={`About ${APP_NAME}`} icon="info" />
       <Card>
@@ -1034,6 +1053,7 @@ export default function SettingsPage() {
           <p className="mt-3 text-center text-[11px] text-mut">
             {APP_NAME} v1.0.0 · الفرقان · made for reading & reflection
           </p>
+          <p className="mt-1 text-center text-[10px] tracking-[0.22em] text-mut/70">BY LIXZON</p>
         </div>
       </Card>
 
