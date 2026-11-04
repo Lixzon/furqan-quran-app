@@ -7,6 +7,7 @@ import { QuranSearchModal } from '../search/QuranSearchModal';
 import { MihrabLogo } from '../ui/MihrabLogo';
 import { StreakHub } from '../ui/StreakHub';
 import { Icon } from '../ui/Icon';
+import { clearSessionFlag } from '../../lib/sessionFlags';
 
 /** Keep the streak and Quran search controls exclusive to the Read home screen. */
 export function TopBar() {
@@ -44,7 +45,10 @@ export function TopBar() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSearchOpen(true)}
+                  onClick={() => {
+                    clearSessionFlag('quran_search_dismissed_session');
+                    setSearchOpen(true);
+                  }}
                   aria-label="Search Quran chapters"
                   title="Search Quran chapters in Arabic or English"
                   className="pressable inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface2 text-muted transition hover:text-ink"

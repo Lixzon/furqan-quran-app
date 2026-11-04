@@ -7,7 +7,9 @@ import { player } from '../../audio/controller';
 import { rangeDeepLink } from '../../lib/deepLink';
 import { copyText } from '../../lib/share';
 import { APP_ATTRIBUTION } from '../../lib/constants';
+import { isSessionFlagSet, setSessionFlag } from '../../lib/sessionFlags';
 
+const HIFZ_PROMPT_FLAG = 'hifz_prompt_dismissed_session';
 /**
  * Fast surah / from-ayah / to-ayah picker for the memorisation loop.
  * Kept state-local so opening it never touches global state until the reader
@@ -27,6 +29,11 @@ export function VerseRangeSheet({ open, onClose }: { open: boolean; onClose: () 
   );
   const [note, setNote] = useState<string | null>(null);
   const wasOpen = useRef(false);
+  const dismiss = () => {
+    setSessionFlag(HIFZ_PROMPT_FLAG);
+    onClose();
+  };
+  const visible = open && !isSessionFlagSet(HIFZ_PROMPT_FLAG);
 
   useEffect(() => {
     if (!open) {
@@ -65,7 +72,7 @@ export function VerseRangeSheet({ open, onClose }: { open: boolean; onClose: () 
 
   const start = () => {
     void player.playRange(surah, from - 1, to - 1, { reciter: playerState.reciter });
-    onClose();
+    dismiss();
   };
 
   const copyLink = async () => {
@@ -74,7 +81,7 @@ export function VerseRangeSheet({ open, onClose }: { open: boolean; onClose: () 
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Hifz range loop" size="md" variant="frosted">
+    <Modal open={visible} onClose={dismiss} title="Hifz range loop" size="md" variant="frosted">
       <div className="space-y-4">
         <p className="text-xs leading-relaxed text-mut">
           Pick a surah and the first and last ayah. Furqan repeats only that window,
@@ -138,7 +145,7 @@ export function VerseRangeSheet({ open, onClose }: { open: boolean; onClose: () 
             type="button"
             onClick={() => {
               player.clearVerseRange();
-              onClose();
+              dismiss();
             }}
             className="w-full rounded-full px-4 py-2 text-xs font-medium text-danger hover:bg-danger/10"
           >

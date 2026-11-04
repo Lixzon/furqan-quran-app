@@ -12,16 +12,20 @@ import { toggleAyahBookmark } from '../store/slices/bookmarksSlice';
 import type { AyahBookmark } from '../store/slices/bookmarksSlice';
 import {
   setArabicFontSize,
+  setDefaultReciterId,
+  setLineSpacing,
   setReadingMode,
   setShowArabic,
   setShowTransliteration,
   setShowTranslation,
   setShowVerseNumbers,
+  setTranslationFontSize,
 } from '../store/slices/settingsSlice';
 import { setAccentColor, setThemeMode } from '../store/slices/settingsSlice';
-import { ACCENTS, scriptClassName } from '../lib/constants';
+import { ACCENTS, RECITERS, scriptClassName } from '../lib/constants';
 import { isThemeSelectable } from '../lib/unlocks';
-import { clamp } from '../lib/utils';
+import { clamp, formatTime } from '../lib/utils';
+import { isSessionFlagSet, setSessionFlag } from '../lib/sessionFlags';
 import { Icon } from '../components/ui/Icon';
 import { Slider, Toggle } from '../components/ui/controls';
 import { Modal } from '../components/ui/Modal';
@@ -38,6 +42,7 @@ import {
 import { activityDayKey } from '../lib/progression';
 import { ErrorBlock, SkeletonRows } from '../components/ui/common';
 import type { AyahData, SettingsState, SurahFull, ThemeMode } from '../types';
+import type { PlayerState } from '../store/slices/playerSlice';
 
 export default function SurahReader() {
   const { number } = useParams();
@@ -63,14 +68,22 @@ export default function SurahReader() {
   const [activeAyah, setActiveAyah] = useState(0);
   const [focusedAyahIndex, setFocusedAyahIndex] = useState<number | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [playbackSettingsOpen, setPlaybackSettingsOpen] = useState(false);
+  const [mediaHudVisible, setMediaHudVisible] = useState(true);
+  const [readerElapsedSeconds, setReaderElapsedSeconds] = useState(0);
   const [viewMode, setViewMode] = useState<'list' | 'book'>('list');
   const [bookPage, setBookPage] = useState(0);
   const [sessionFinished, setSessionFinished] = useState(false);
   const [ambientPromptMounted, setAmbientPromptMounted] = useState(false);
-  const [ambientPromptDismissed, setAmbientPromptDismissed] = useState(false);
+  const [ambientPromptDismissed, setAmbientPromptDismissed] = useState(
+    () => isSessionFlagSet('reader_ambient_prompt_dismissed_session'),
+  );
   const [ambientActive, setAmbientActive] = useState(false);
   const [ambientTrack, setAmbientTrack] = useState<AmbientSoundTrack | null>(null);
   const ambientHandleRef = useRef<AmbientSoundHandle | null>(null);
+  const mediaHudTimerRef = useRef<number | null>(null);
+  const readerElapsedMsRef = useRef(0);
+  const sessionFinishedRef = useRef(sessionFinished);
 
   const stopAmbient = useCallback(() => {
     ambientHandleRef.current?.stop();
@@ -86,12 +99,10 @@ export default function SurahReader() {
         stopAmbient();
         setAmbientActive(false);
         setAmbientTrack(null);
-        setAmbientPromptDismissed(false);
         dispatch(push(`Could not continue the nature sounds: ${error.message}`, 'error'));
       },
     );
     if (!handle) {
-      setAmbientPromptDismissed(false);
       dispatch(push('Ambient audio is not available in this browser.', 'error'));
       return;
     }
@@ -104,10 +115,50 @@ export default function SurahReader() {
     player.pause();
     setSessionFinished(false);
     setAmbientPromptMounted(false);
-    setAmbientPromptDismissed(false);
     setAmbientActive(false);
     setAmbientTrack(null);
+    setReaderElapsedSeconds(0);
+    setMediaHudVisible(true);
   }, [surahNumber, stopAmbient]);
+
+  useEffect(() => {
+    sessionFinishedRef.current = sessionFinished;
+  }, [sessionFinished]);
+
+  useEffect(() => {
+    let lastTick = Date.now();
+    readerElapsedMsRef.current = 0;
+    setReaderElapsedSeconds(0);
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      if (document.visibilityState === 'visible' && !sessionFinishedRef.current) {
+        readerElapsedMsRef.current += Math.min(2000, Math.max(0, now - lastTick));
+        setReaderElapsedSeconds(Math.floor(readerElapsedMsRef.current / 1000));
+      }
+      lastTick = now;
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [surahNumber]);
+
+  const revealMediaHud = useCallback(() => {
+    setMediaHudVisible(true);
+    if (mediaHudTimerRef.current !== null) window.clearTimeout(mediaHudTimerRef.current);
+    if (playerState.isPlaying) {
+      mediaHudTimerRef.current = window.setTimeout(() => setMediaHudVisible(false), 2800);
+    }
+  }, [playerState.isPlaying]);
+
+  useEffect(() => {
+    if (mediaHudTimerRef.current !== null) window.clearTimeout(mediaHudTimerRef.current);
+    if (!playerState.isPlaying) {
+      setMediaHudVisible(true);
+      return;
+    }
+    mediaHudTimerRef.current = window.setTimeout(() => setMediaHudVisible(false), 2800);
+    return () => {
+      if (mediaHudTimerRef.current !== null) window.clearTimeout(mediaHudTimerRef.current);
+    };
+  }, [playerState.isPlaying]);
 
   useEffect(() => {
     if (surah) setAmbientPromptMounted(true);
@@ -339,7 +390,6 @@ export default function SurahReader() {
     stopAmbient();
     setAmbientActive(false);
     setAmbientTrack(null);
-    setAmbientPromptDismissed(false);
   }, [playerState.isPlaying, stopAmbient]);
 
   useEffect(() => {
@@ -351,6 +401,7 @@ export default function SurahReader() {
     setAmbientActive(false);
     setAmbientTrack(null);
     setAmbientPromptDismissed(true);
+    setSessionFlag('reader_ambient_prompt_dismissed_session');
   }, [stopAmbient]);
 
   // Follow the sounding ayah while audio plays on this surah.
@@ -380,8 +431,7 @@ export default function SurahReader() {
 
   const handleSelect = (index: number) => {
     setActiveAyah(index);
-    // If audio is already playing on this surah, jump playback to this ayah.
-    if (isActiveSession && playerState.isPlaying) {
+    if (isActiveSession) {
       player.seekToAyah(index);
     }
   };
@@ -405,12 +455,7 @@ export default function SurahReader() {
 
   const dismissAmbientPrompt = () => {
     setAmbientPromptDismissed(true);
-  };
-
-  const handleQuickVisibility = () => {
-    const showLines = !(settings.showTranslation || settings.showTransliteration);
-    dispatch(setShowTranslation(showLines));
-    dispatch(setShowTransliteration(showLines));
+    setSessionFlag('reader_ambient_prompt_dismissed_session');
   };
 
   const changeViewMode = (mode: 'list' | 'book') => {
@@ -436,10 +481,8 @@ export default function SurahReader() {
     return (
       <div className="page-enter">
         <ReaderBar
-          backLabel="Qur’an"
-          onBack={() => navigate('/')}
-          center={<div className="h-5 w-32 rounded bg-surface2" />}
-          actions={<div className="h-5 w-24 rounded bg-surface2" />}
+          onBack={() => navigate('/library')}
+          timer={formatTime(readerElapsedSeconds)}
           onOptions={() => setOptionsOpen(true)}
         />
         <div className="mt-4">
@@ -465,52 +508,17 @@ export default function SurahReader() {
   const showBasmala = surah.number !== 1 && surah.number !== 9;
 
   return (
-    <div className="page-enter">
+    <div
+      className="page-enter reader-viewport"
+      onPointerDown={revealMediaHud}
+      onPointerMove={revealMediaHud}
+      onTouchStart={revealMediaHud}
+    >
       {/* sticky toolbar */}
       <ReaderBar
-        backLabel="Qur’an"
-        onBack={() => navigate('/')}
-        center={
-          <label className="flex min-w-0 max-w-full items-center justify-center gap-1 text-sm font-semibold text-ink">
-            <select
-              value={surah.number}
-              onChange={(event) => navigate(`/surah/${event.target.value}`)}
-              aria-label="Choose surah"
-              className="max-w-[10rem] truncate appearance-none bg-transparent text-center text-sm font-semibold text-ink focus:outline-none"
-              style={{ textOverflow: 'ellipsis' }}
-            >
-              {(surahs ?? [surah]).map((item) => (
-                <option key={item.number} value={item.number}>
-                  {item.number}. {item.englishName}
-                </option>
-              ))}
-            </select>
-            <Icon name="chevronDown" size={15} className="shrink-0 text-mut" />
-          </label>
-        }
+        onBack={() => navigate('/library')}
+        timer={formatTime(readerElapsedSeconds)}
         onOptions={() => setOptionsOpen(true)}
-        actions={
-          <div className="flex items-center justify-center gap-1">
-            <button
-              type="button"
-              aria-label="Toggle translation and transliteration"
-              title="Show or hide translation lines"
-              onClick={handleQuickVisibility}
-              className={`pressable flex h-10 w-10 items-center justify-center rounded-full p-2 transition-colors ${settings.showTranslation || settings.showTransliteration ? 'bg-accent/15 text-accent' : 'text-mut hover:bg-surface2'}`}
-            >
-              <Icon name={settings.showTranslation || settings.showTransliteration ? 'eye' : 'eyeOff'} size={20} />
-            </button>
-            <button
-              type="button"
-              onClick={() => changeViewMode(viewMode === 'list' ? 'book' : 'list')}
-              aria-label={`Switch to ${viewMode === 'list' ? 'book' : 'list'} view`}
-              title={`${viewMode === 'list' ? 'Book' : 'List'} view`}
-              className={`pressable flex h-10 w-10 items-center justify-center rounded-full p-2 transition-colors ${viewMode === 'list' ? 'text-mut hover:bg-surface2' : 'bg-accent/15 text-accent'}`}
-            >
-              <Icon name={viewMode === 'list' ? 'list' : 'book'} size={20} />
-            </button>
-          </div>
-        }
       />
 
       {ambientPromptMounted && (
@@ -698,19 +706,30 @@ export default function SurahReader() {
         />
       )}
 
-      <ReaderBottomBar
-        viewMode={viewMode}
-        onViewModeChange={changeViewMode}
-        hasActiveSession={playerState.surah !== null}
-        readingMode={settings.readingMode}
+      <ReaderMediaHud
+        visible={mediaHudVisible || !playerState.isPlaying}
+        isPlaying={isActiveSession && playerState.isPlaying}
+        onPlaybackSettings={() => setPlaybackSettingsOpen(true)}
+        onBeginning={() => handleSelect(0)}
+        onPrevious={() => handleSelect(Math.max(
+          0,
+          (playerState.surah === surah.number ? playerState.ayah ?? activeAyah : activeAyah) - 1,
+        ))}
         onPlay={handlePlay}
-        repeat={readerRepeat}
-        shuffle={playerState.mode === 'shuffle'}
-        onRepeat={() => {
-          const next = readerRepeat === 'off' ? 'one' : readerRepeat === 'one' ? 'all' : 'off';
-          player.setRepeat(next);
+        onNext={() => handleSelect(Math.min(
+          surah.ayahs.length - 1,
+          (playerState.surah === surah.number ? playerState.ayah ?? activeAyah : activeAyah) + 1,
+        ))}
+        onEndOrNext={() => {
+          const currentIndex = playerState.surah === surah.number
+            ? playerState.ayah ?? activeAyah
+            : activeAyah;
+          if (currentIndex < surah.ayahs.length - 1) {
+            handleSelect(surah.ayahs.length - 1);
+          } else if (surah.number < 114) {
+            navigate(`/surah/${surah.number + 1}?ayah=1`);
+          }
         }}
-        onShuffle={() => player.setMode(playerState.mode === 'shuffle' ? 'order' : 'shuffle')}
       />
 
       {/* reader options modal */}
@@ -719,6 +738,23 @@ export default function SurahReader() {
         onClose={() => setOptionsOpen(false)}
         settings={settings}
         dispatch={dispatch}
+        viewMode={viewMode}
+        onViewModeChange={changeViewMode}
+      />
+      <ReaderPlaybackSettings
+        open={playbackSettingsOpen}
+        onClose={() => setPlaybackSettingsOpen(false)}
+        settings={settings}
+        playerState={playerState}
+        onReciterChange={(reciter) => {
+          dispatch(setDefaultReciterId(reciter));
+          player.setReciter(reciter);
+        }}
+        onRepeat={() => {
+          const next = readerRepeat === 'off' ? 'one' : readerRepeat === 'one' ? 'all' : 'off';
+          player.setRepeat(next);
+        }}
+        onShuffle={() => player.setMode(playerState.mode === 'shuffle' ? 'order' : 'shuffle')}
       />
       {focusedAyahIndex !== null && surah.ayahs[focusedAyahIndex] && (() => {
         const ayah = surah.ayahs[focusedAyahIndex];
@@ -753,6 +789,7 @@ export default function SurahReader() {
       })()}
       <SessionEndModal
         active={!!surah && !sessionFinished}
+        readerMode
         todayMinutes={dailyReadMinutes[activityDayKey(new Date(), dailyActivity)] ?? 0}
         goalMinutes={settings.dailyReadingGoalMinutes}
         onMinute={() => dispatch(addReadMinute({ at: Date.now(), goalMinutes: settings.dailyReadingGoalMinutes }))}
@@ -1068,101 +1105,164 @@ function BookView({
 
 /* ============================ sticky bar ============================ */
 function ReaderBar({
-  backLabel,
   onBack,
-  center,
-  actions,
+  timer,
   onOptions,
 }: {
-  backLabel: string;
   onBack: () => void;
-  center?: ReactNode;
-  actions?: ReactNode;
+  timer: string;
   onOptions: () => void;
 }) {
   return (
-    <div className="safe-t sticky top-0 z-30 -mx-4 flex items-center gap-2 border-b border-line bg-canvas/85 px-4 py-2 backdrop-blur">
+    <div className="safe-t reader-toolbar sticky top-0 z-30 -mx-4 flex items-center gap-2 border-b border-line bg-canvas/85 px-3 py-2 backdrop-blur sm:px-4">
       <button
         type="button"
         onClick={onBack}
-        className="pressable inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-sm font-medium text-mut hover:bg-surface2 hover:text-ink"
+        aria-label="Back to library"
+        title="Back to library"
+        className="pressable inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-2xl font-medium text-mut hover:bg-surface2 hover:text-ink"
       >
-        <Icon name="back" size={18} />
-        {backLabel}
+        ←
       </button>
-      <div className="min-w-0 flex-1 text-center">
-        {center ?? <div className="h-5 w-full" />}
+      <div className="inline-flex items-center gap-1.5 rounded-full bg-surface2/70 px-3 py-1.5 text-xs font-medium tabular-nums text-ink2" aria-label={`Reading session ${timer}`}>
+        <Icon name="clock" size={14} />
+        <span>{timer}</span>
       </div>
-      {actions}
+      <div className="flex-1" />
       <button
         type="button"
         aria-label="Reading settings"
         onClick={onOptions}
         className="pressable flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-2 text-mut transition-colors hover:bg-surface2 hover:text-ink"
       >
-        <Icon name="settings" size={20} />
+        <span aria-hidden="true" className="text-2xl leading-none">⋮</span>
       </button>
     </div>
   );
 }
 
-function ReaderBottomBar({
-  viewMode,
-  onViewModeChange,
-  hasActiveSession,
-  readingMode,
+function ReaderMediaHud({
+  visible,
+  isPlaying,
+  onPlaybackSettings,
+  onBeginning,
+  onPrevious,
   onPlay,
-  repeat,
-  shuffle,
+  onNext,
+  onEndOrNext,
+}: {
+  visible: boolean;
+  isPlaying: boolean;
+  onPlaybackSettings: () => void;
+  onBeginning: () => void;
+  onPrevious: () => void;
+  onPlay: () => void;
+  onNext: () => void;
+  onEndOrNext: () => void;
+}) {
+  return (
+    <div className={`reader-hud-position ${visible ? 'reader-hud-visible' : 'reader-hud-hidden'}`}>
+      <div className="reader-hud-grid mx-auto grid w-full max-w-xl grid-cols-6 items-center gap-1 rounded-full border border-line/70 bg-surface/90 px-2 py-2 shadow-card backdrop-blur-xl sm:gap-2 sm:px-3">
+        <HudButton label="Playback settings" onClick={onPlaybackSettings}>
+          <Icon name="settings" size={19} />
+        </HudButton>
+        <HudButton label="Jump to first ayah" onClick={onBeginning}>
+          <span className="text-sm font-bold" aria-hidden="true">|◀</span>
+        </HudButton>
+        <HudButton label="Previous ayah" onClick={onPrevious}>
+          <Icon name="prev" size={20} />
+        </HudButton>
+        <button
+          type="button"
+          onClick={onPlay}
+          aria-label={isPlaying ? 'Pause recitation' : 'Play recitation'}
+          className="pressable mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent text-onaccent shadow-card transition-transform hover:scale-105 sm:h-14 sm:w-14"
+        >
+          <Icon name={isPlaying ? 'pause' : 'play'} size={23} />
+        </button>
+        <HudButton label="Next ayah" onClick={onNext}>
+          <Icon name="next" size={20} />
+        </HudButton>
+        <HudButton label="Jump to chapter end or next chapter" onClick={onEndOrNext}>
+          <span className="text-sm font-bold" aria-hidden="true">▶|</span>
+        </HudButton>
+      </div>
+    </div>
+  );
+}
+
+function HudButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="pressable mx-auto flex h-10 w-10 items-center justify-center rounded-full text-mut transition-colors hover:bg-surface2 hover:text-ink sm:h-11 sm:w-11"
+    >
+      {children}
+    </button>
+  );
+}
+
+function ReaderPlaybackSettings({
+  open,
+  onClose,
+  settings,
+  playerState,
+  onReciterChange,
   onRepeat,
   onShuffle,
 }: {
-  viewMode: 'list' | 'book';
-  onViewModeChange: (mode: 'list' | 'book') => void;
-  hasActiveSession: boolean;
-  readingMode: boolean;
-  onPlay: () => void;
-  repeat: 'off' | 'one' | 'all';
-  shuffle: boolean;
+  open: boolean;
+  onClose: () => void;
+  settings: SettingsState;
+  playerState: PlayerState;
+  onReciterChange: (reciter: string) => void;
   onRepeat: () => void;
   onShuffle: () => void;
 }) {
   return (
-    <div className={`reader-pill-position pointer-events-none ${readingMode ? 'reader-pill-position-reading' : ''}`}>
-      <div className="pointer-events-auto mx-auto flex w-fit max-w-full items-center gap-2 rounded-full border border-line/60 bg-surface/85 px-2 py-2 shadow-card backdrop-blur-xl">
-        <div className="flex rounded-full bg-surface2 p-1">
-          {(['list', 'book'] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => onViewModeChange(mode)}
-              aria-pressed={viewMode === mode}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold capitalize ${viewMode === mode ? 'bg-accent/15 text-accent' : 'text-mut'}`}
-            >
-              <Icon name={mode} size={15} /> {mode}
-            </button>
+    <Modal open={open} onClose={onClose} title="Playback settings" size="md" variant="frosted">
+      <label className="block">
+        <span className="mb-1.5 block text-xs font-medium text-mut">Reciter</span>
+        <select
+          value={playerState.reciter || settings.defaultReciter}
+          onChange={(event) => onReciterChange(event.target.value)}
+          className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          {RECITERS.map((reciter) => (
+            <option key={reciter.id} value={reciter.id}>{reciter.label}</option>
           ))}
-        </div>
-        <span aria-hidden="true" className="h-6 w-px bg-line" />
-        <button type="button" onClick={onShuffle} aria-label={shuffle ? 'Turn shuffle off' : 'Turn shuffle on'} title={shuffle ? 'Shuffle on' : 'Shuffle off'} aria-pressed={shuffle} className={`pressable rounded-full p-2 ${shuffle ? 'bg-accent/15 text-accent' : 'text-mut hover:bg-surface2'}`}>
-          <Icon name="shuffle" size={18} />
+        </select>
+      </label>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <span className="text-sm font-medium text-ink">Playback speed</span>
+        <button
+          type="button"
+          onClick={() => player.cyclePlaybackRate()}
+          className="rounded-full bg-surface2 px-4 py-2 text-sm font-semibold tabular-nums text-ink"
+        >
+          {playerState.playbackRate}×
         </button>
-        <button type="button" onClick={onRepeat} aria-label={`Repeat ${repeat}`} title={`Repeat ${repeat}`} aria-pressed={repeat !== 'off'} className={`pressable rounded-full p-2 ${repeat !== 'off' ? 'bg-accent/15 text-accent' : 'text-mut hover:bg-surface2'}`}>
-          <Icon name={repeat === 'one' ? 'repeatOne' : 'repeat'} size={18} />
-        </button>
-        {!hasActiveSession && (
-          <button
-            type="button"
-            onClick={onPlay}
-            aria-label="Play from active ayah"
-            title="Play"
-            className="pressable flex h-10 w-10 items-center justify-center rounded-full bg-accent text-onaccent shadow-card"
-          >
-            <Icon name="play" size={19} />
-          </button>
-        )}
       </div>
-    </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button type="button" onClick={onRepeat} className="rounded-xl bg-surface2 px-3 py-2.5 text-sm font-medium text-ink">
+          Repeat: {playerState.repeat}
+        </button>
+        <button type="button" onClick={onShuffle} className="rounded-xl bg-surface2 px-3 py-2.5 text-sm font-medium text-ink">
+          Shuffle: {playerState.mode === 'shuffle' ? 'On' : 'Off'}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -1198,11 +1298,15 @@ function ReaderOptions({
   onClose,
   settings,
   dispatch,
+  viewMode,
+  onViewModeChange,
 }: {
   open: boolean;
   onClose: () => void;
   settings: SettingsState;
   dispatch: ReturnType<typeof useAppDispatch>;
+  viewMode: 'list' | 'book';
+  onViewModeChange: (mode: 'list' | 'book') => void;
 }) {
   const theme = useAppSelector((state) => state.theme);
   const streak = useAppSelector((state) => state.progress.progression.currentStreak);
@@ -1279,6 +1383,31 @@ function ReaderOptions({
       </div>
       <div className="overflow-hidden rounded-xl bg-surface2 px-3 py-2 text-center text-ink" dir="rtl">
         <span className="ar-uthmani" style={{ fontSize: settings.arabicFontSize, lineHeight: settings.lineSpacing }}>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</span>
+      </div>
+
+      <SectionLabel>Translation font size · {settings.translationFontSize}px</SectionLabel>
+      <div className="py-2">
+        <Slider min={12} max={30} step={1} value={settings.translationFontSize} onChange={(value) => dispatch(setTranslationFontSize(value))} ariaLabel="Translation font size" />
+      </div>
+
+      <SectionLabel>Line spacing · {settings.lineSpacing.toFixed(1)}</SectionLabel>
+      <div className="py-2">
+        <Slider min={1.2} max={2.6} step={0.1} value={settings.lineSpacing} onChange={(value) => dispatch(setLineSpacing(value))} ariaLabel="Reading line spacing" />
+      </div>
+
+      <SectionLabel>Reading layout</SectionLabel>
+      <div className="grid grid-cols-2 gap-2 py-2">
+        {(['list', 'book'] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            aria-pressed={viewMode === mode}
+            onClick={() => onViewModeChange(mode)}
+            className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium capitalize ${viewMode === mode ? 'bg-accent/15 text-accent' : 'bg-surface2 text-ink'}`}
+          >
+            <Icon name={mode} size={16} /> {mode}
+          </button>
+        ))}
       </div>
 
       <SectionLabel>Show lines</SectionLabel>

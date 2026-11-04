@@ -14,12 +14,14 @@ function readSnoozeUntil(): number {
 
 export function SessionEndModal({
   active,
+  readerMode = false,
   todayMinutes,
   goalMinutes,
   onMinute,
   onFinish,
 }: {
   active: boolean;
+  readerMode?: boolean;
   todayMinutes: number;
   goalMinutes: number;
   onMinute: () => void;
@@ -92,7 +94,7 @@ export function SessionEndModal({
   return (
     <>
       {active && snoozeUntil <= Date.now() && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-1 rounded-full border border-white/10 bg-black/60 p-1.5 text-white shadow-xl backdrop-blur-md">
+        <div className={`fixed z-50 flex items-center gap-1 rounded-full border border-white/10 bg-black/60 p-1.5 text-white shadow-xl backdrop-blur-md ${readerMode ? 'reader-session-reminder' : 'bottom-6 right-6'}`}>
           <button
             type="button"
             onClick={finish}
@@ -101,7 +103,7 @@ export function SessionEndModal({
           >
             <Icon name="sparkle" size={14} />
             Finish Session
-            <span className="tabular-nums text-white/75">{minutes}:{String(seconds).padStart(2, '0')}</span>
+            {!readerMode && <span className="tabular-nums text-white/75">{minutes}:{String(seconds).padStart(2, '0')}</span>}
           </button>
           <button
             type="button"

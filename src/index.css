@@ -439,6 +439,41 @@ button {
 .safe-t {
   padding-top: env(safe-area-inset-top, 0px);
 }
+.reader-app-shell,
+.reader-viewport {
+  width: 100%;
+  min-width: 0;
+  min-height: 100dvh;
+}
+.reader-toolbar {
+  margin-left: -1rem;
+  margin-right: -1rem;
+}
+.reader-hud-position {
+  position: fixed;
+  z-index: 45;
+  right: max(8px, env(safe-area-inset-right, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  left: max(8px, env(safe-area-inset-left, 0px));
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+.reader-hud-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.reader-hud-hidden {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+.reader-session-reminder {
+  right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+}
+.reader-viewport {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+}
 .mini-player-default {
   bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 8px);
 }
@@ -450,16 +485,6 @@ button {
 }
 .mini-player-reader-reading {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 12px + var(--q-reader-bar-h, 0px));
-}
-.reader-pill-position {
-  position: fixed;
-  z-index: 30;
-  right: 12px;
-  bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 8px);
-  left: 12px;
-}
-.reader-pill-position-reading {
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
 }
 .layout-bottom-default {
   padding-bottom: 14rem;
@@ -482,12 +507,6 @@ button {
   }
   .mini-player-reader-reading {
     bottom: calc(12px + var(--q-reader-bar-h, 0px));
-  }
-  .reader-pill-position,
-  .reader-pill-position-reading {
-    right: 12px;
-    bottom: 12px;
-    left: calc(240px + 12px);
   }
   .layout-bottom-default {
     padding-bottom: 11rem;

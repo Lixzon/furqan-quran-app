@@ -6,6 +6,9 @@ import { surahNumberToArabic } from '../../lib/utils';
 import { EmptyState } from '../ui/common';
 import { Icon } from '../ui/Icon';
 import { Modal } from '../ui/Modal';
+import { isSessionFlagSet, setSessionFlag } from '../../lib/sessionFlags';
+
+const SEARCH_PROMPT_FLAG = 'quran_search_dismissed_session';
 
 function normaliseQuery(value: string): string {
   return value
@@ -60,6 +63,11 @@ export function QuranSearchModal({ open, onClose }: { open: boolean; onClose: ()
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const normalized = normaliseQuery(query);
+  const dismiss = () => {
+    setSessionFlag(SEARCH_PROMPT_FLAG);
+    onClose();
+  };
+  const visible = open && !isSessionFlagSet(SEARCH_PROMPT_FLAG);
 
   useEffect(() => {
     if (open) setQuery('');
@@ -79,7 +87,7 @@ export function QuranSearchModal({ open, onClose }: { open: boolean; onClose: ()
   }, [normalized, results.length, surahs]);
 
   const openSurah = (surah: SurahMeta) => {
-    onClose();
+    dismiss();
     navigate(`/surah/${surah.number}`);
   };
 
@@ -105,7 +113,7 @@ export function QuranSearchModal({ open, onClose }: { open: boolean; onClose: ()
   );
 
   return (
-    <Modal open={open} onClose={onClose} title="Search the Qur’an" size="lg">
+    <Modal open={visible} onClose={dismiss} title="Search the Qur’an" size="lg">
       <label className="relative block">
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-mut">
           <Icon name="search" size={18} />

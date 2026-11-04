@@ -17,6 +17,7 @@ import { Modal } from '../components/ui/Modal';
 import { EmptyState } from '../components/ui/common';
 import { SurahArtwork } from '../components/ui/SurahArtwork';
 import { VerseRangeSheet } from '../components/player/VerseRangeSheet';
+import { clearSessionFlag } from '../lib/sessionFlags';
 
 const SLEEP_OPTIONS = [10, 20, 30, 45, 60];
 
@@ -288,7 +289,10 @@ export default function NowPlayingPage() {
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setRangeOpen(true)}
+            onClick={() => {
+              clearSessionFlag('hifz_prompt_dismissed_session');
+              setRangeOpen(true);
+            }}
             className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-onaccent pressable"
           >
             {p.range ? 'Change range' : 'Choose range'}
