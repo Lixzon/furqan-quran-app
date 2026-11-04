@@ -11,7 +11,7 @@ import { islamicQuoteOfTheDay } from './data/quotes';
 import { todayKey } from './lib/progression';
 import { ProgressionHost } from './components/layout/ProgressionHost';
 import { VoiceSearchProvider } from './components/search/VoiceSearchModal';
-import { VoiceMatchDrawer, VoiceMatchBackPill } from './components/VoiceMatchDrawer';
+import { VoiceMatchDrawer } from './components/VoiceMatchDrawer';
 import { DeepLinkHost } from './components/DeepLinkHost';
 import { IdleTipHost } from './components/IdleTipHost';
 
@@ -71,7 +71,6 @@ export default function App() {
           <ReminderHost />
           <ProgressionHost />
           <VoiceMatchDrawer />
-          <VoiceMatchBackPill />
           <IdleTipHost />
         </VoiceSearchProvider>
       </QuranProvider>

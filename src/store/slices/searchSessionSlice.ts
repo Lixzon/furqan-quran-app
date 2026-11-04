@@ -32,9 +32,6 @@ const searchSessionSlice = createSlice({
     setActiveVoiceMatchIndex(state, action: PayloadAction<number>) {
       state.activeIndex = action.payload;
     },
-    openVoiceMatchDrawer(state) {
-      state.isOpen = true;
-    },
     closeVoiceMatchDrawer(state) {
       state.isOpen = false;
     },
@@ -50,7 +47,6 @@ const searchSessionSlice = createSlice({
 export const {
   setVoiceMatchSession,
   setActiveVoiceMatchIndex,
-  openVoiceMatchDrawer,
   closeVoiceMatchDrawer,
   clearVoiceMatchSession,
 } = searchSessionSlice.actions;

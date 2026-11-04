@@ -19,8 +19,8 @@ export function AppLayout() {
 
   return (
     <div className={`min-h-dvh bg-canvas text-ink ${isReaderRoute ? 'reader-app-shell' : ''}`}>
-      {!readingMode && !isReaderRoute && <Sidebar />}
-      <div className={readingMode || isReaderRoute ? '' : 'md:pl-60'}>
+      {!readingMode && <Sidebar />}
+      <div className={readingMode ? '' : 'md:pl-60'}>
         {!isReaderRoute && <TopBar />}
         <main
           className={isReaderRoute

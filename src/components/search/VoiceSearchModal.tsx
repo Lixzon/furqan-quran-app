@@ -150,7 +150,6 @@ function VoiceSearchModal({
         }
         if (matches.length === 1) {
           const match = matches[0];
-          dispatch(setVoiceMatchSession({ matches, activeIndex: 0, isOpen: false, lastQuery: query }));
           setSearching(false);
           cancelSpeech();
           onClose();
@@ -196,7 +195,6 @@ function VoiceSearchModal({
   };
 
   const selectHit = (hit: VoiceMatchResult) => {
-    dispatch(setVoiceMatchSession({ matches: [hit], activeIndex: 0, isOpen: false, lastQuery: transcript.trim() }));
     close();
     navigate(`/surah/${hit.surahNumber}?ayah=${hit.ayahNumber}`);
   };
@@ -409,16 +407,10 @@ function ResultRow({
       title={`${hit.englishName} surah ${hit.surahNumber}:${hit.ayahNumber}`}
       className="pressable block w-full rounded-2xl border border-line bg-surface p-3 text-left hover:border-accent/40"
     >
-      <div className="flex items-center gap-2 text-[11px] font-semibold">
-        <span className="shrink-0 rounded-full bg-accent/12 px-2 py-0.5 tabular-nums text-accent">
-          {hit.surahNumber}:{hit.ayahNumber}
-        </span>
-        <span className="min-w-0 truncate text-ink">{hit.englishName}</span>
-        <span className="min-w-0 truncate text-mut" style={{ direction: 'rtl' }}>
-          {hit.surahName}
-        </span>
-        <span className="ml-auto shrink-0 text-mut">Ayah {hit.ayahNumber}</span>
+      <div className="text-xs font-semibold text-accent">
+        Surah {hit.surahNumber} · {hit.englishName} · Ayah {hit.ayahNumber}
       </div>
+      <div dir="rtl" className="mt-1 text-sm text-mut">{hit.surahName}</div>
       <div dir="rtl" className={`${arClass} mt-2 text-[21px] leading-loose text-ink`}>
         {hit.matchedSnippet || hit.arabicText}
       </div>

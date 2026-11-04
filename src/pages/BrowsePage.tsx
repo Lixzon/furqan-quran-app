@@ -25,6 +25,13 @@ export default function BrowsePage() {
   const defaultReciter = useAppSelector((s) => s.settings.defaultReciter);
   const [tab, setTab] = useState<Tab>('surah');
   const [query, setQuery] = useState('');
+  const [readNudgeDismissedDate, setReadNudgeDismissedDate] = useState(() => {
+    try {
+      return localStorage.getItem('furqan:read-nudge-dismissed');
+    } catch {
+      return null;
+    }
+  });
 
   // Which surahs are already stored for the reader's default reciter.
   const downloaded = useDownloadedSet(defaultReciter);
@@ -49,6 +56,7 @@ export default function BrowsePage() {
 
   const today = todayKey();
   const hasCheckedIn = !!progress.dailyActivity[today];
+  const showReadNudge = !hasCheckedIn && readNudgeDismissedDate !== today;
   const checkInSurah = progress.lastPosition?.surah ?? 1;
   const currentRecommendations = recommendationsForNow(new Date());
   const banner = useMemo(() => {
@@ -219,14 +227,28 @@ export default function BrowsePage() {
         </button>
       </div>
 
-      {!hasCheckedIn && (
+      {showReadNudge && (
         <div className="mb-4 flex items-center gap-3 rounded-2xl border border-accent/25 bg-accent/8 p-3">
           <Icon name="book" size={20} className="shrink-0 text-accent" />
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-ink">Have you read your Qur’an today?</div>
             <div className="text-xs text-mut">A few ayahs is a good place to begin.</div>
           </div>
-          <button type="button" onClick={() => navigate(`/surah/${checkInSurah}`)} className="shrink-0 rounded-full bg-accent px-3 py-2 text-xs font-semibold text-onaccent pressable">Start</button>
+          <button
+            type="button"
+            onClick={() => {
+              setReadNudgeDismissedDate(today);
+              try {
+                localStorage.setItem('furqan:read-nudge-dismissed', today);
+              } catch {
+                // Keep the reminder dismissed for this mounted page if storage is unavailable.
+              }
+              navigate(`/surah/${checkInSurah}`);
+            }}
+            className="shrink-0 rounded-full bg-accent px-3 py-2 text-xs font-semibold text-onaccent pressable"
+          >
+            Start
+          </button>
         </div>
       )}
 

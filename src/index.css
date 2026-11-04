@@ -474,6 +474,38 @@ button {
 .reader-viewport {
   padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
 }
+@media (max-width: 767px) {
+  .reader-hud-position {
+    right: max(8px, env(safe-area-inset-right, 0px));
+    left: max(8px, env(safe-area-inset-left, 0px));
+    width: auto;
+  }
+  .reader-hud-grid {
+    gap: 0;
+    padding: 4px;
+  }
+  .reader-hud-play-button {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  .reader-hud-secondary {
+    width: 2rem;
+    height: 2rem;
+  }
+}
+@media (max-width: 359px) {
+  .reader-hud-grid {
+    padding: 2px;
+  }
+  .reader-hud-play-button {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  .reader-hud-secondary {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+}
 .mini-player-default {
   bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 8px);
 }

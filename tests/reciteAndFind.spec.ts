@@ -39,25 +39,40 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('Recite & Find locates the target ayah in a match drawer', async ({ page }) => {
+test('Recite & Find shows surah details in each match and opens the selected ayah', async ({ page }) => {
   await page.goto('http://localhost:5173/');
 
-  await page.getByRole('button', { name: /recite|find/i }).click();
+  await page.getByRole('button', { name: /search by reciting a verse/i }).click();
   await page.getByLabel('Recognised Arabic text').fill('Allahu la ilaha illa Huwa');
   await page.getByText(/closest matches|No matching/i).waitFor({ timeout: 3000 }).catch(() => undefined);
 
   await expect(page.getByText(/Matches found|possible matches/i)).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText(/Surah \d+ · .+ · Ayah \d+/).first()).toBeVisible();
   await page.getByRole('button', { name: /al-imran|surah/i }).first().click();
   await expect(page).toHaveURL(/\/surah\/\d+\?ayah=/);
+  await expect(page.getByRole('button', { name: /Back to Matches/i })).toHaveCount(0);
 });
 
-test('English speech recognition resolves to a match and back-to-matches pill is available', async ({ page }) => {
+test('English recitation search does not reopen the match drawer after selecting a result', async ({ page }) => {
   await page.goto('http://localhost:5173/');
 
-  await page.getByRole('button', { name: /recite|find/i }).click();
+  await page.getByRole('button', { name: /search by reciting a verse/i }).click();
   await page.getByRole('button', { name: /english/i }).click();
   await page.getByLabel('Recognised Arabic text').fill('Indeed with hardship comes ease');
 
   await expect(page.getByText(/matches found|possible matches/i)).toBeVisible({ timeout: 5000 });
-  await expect(page.getByRole('button', { name: /Back to Matches/i })).toBeVisible({ timeout: 5000 }).catch(() => undefined);
+  await page.getByRole('button', { name: /surah.*:\d+/i }).first().click();
+  await expect(page).toHaveURL(/\/surah\/\d+\?ayah=/);
+  await expect(page.getByRole('button', { name: /Back to Matches/i })).toHaveCount(0);
+});
+
+test('daily reading prompt stays dismissed after starting a surah', async ({ page }) => {
+  await page.goto('http://localhost:5173/');
+
+  await page.getByText('Have you read your Qur’an today?').waitFor();
+  await page.getByRole('button', { name: 'Start' }).click();
+  await expect(page).toHaveURL(/\/surah\/\d+/);
+  await page.goBack();
+
+  await expect(page.getByText('Have you read your Qur’an today?')).toHaveCount(0);
 });

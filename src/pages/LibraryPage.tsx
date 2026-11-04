@@ -6,19 +6,22 @@ import { Icon } from '../components/ui/Icon';
 import FavoritesPage from './FavoritesPage';
 import PlaylistsPage from './PlaylistsPage';
 import DownloadsPage from './DownloadsPage';
+import MemorizedAyahsPage from './MemorizedAyahsPage';
 
-type LibrarySection = 'favorites' | 'playlists' | 'downloads';
+type LibrarySection = 'favorites' | 'playlists' | 'downloads' | 'memorized';
 
-const SECTIONS: Array<{ id: LibrarySection; label: string; icon: 'heart' | 'list' | 'download' }> = [
+const SECTIONS: Array<{ id: LibrarySection; label: string; icon: 'heart' | 'list' | 'download' | 'book' }> = [
   { id: 'favorites', label: 'Favorites', icon: 'heart' },
   { id: 'playlists', label: 'Playlists', icon: 'list' },
   { id: 'downloads', label: 'Downloads', icon: 'download' },
+  { id: 'memorized', label: 'Memorized', icon: 'book' },
 ];
 
 export default function LibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const likes = useAppSelector((state) => state.likes);
   const bookmarks = useAppSelector((state) => state.bookmarks.items.length);
+  const memorizedCount = useAppSelector((state) => state.memorized.items.filter((item) => item.memorized).length);
   const sectionParam = searchParams.get('section');
   const section: LibrarySection = SECTIONS.some((item) => item.id === sectionParam)
     ? (sectionParam as LibrarySection)
@@ -38,14 +41,16 @@ export default function LibraryPage() {
 
   return (
     <div className="page-enter">
-      <PageHeader title="Library" subtitle="Your favorites, playlists and offline recitations." />
+      <PageHeader title="Library" subtitle="Your favorites, memorized ayahs, playlists and offline recitations." />
 
-      <div className="mb-4 grid grid-cols-3 gap-1 rounded-2xl border border-line bg-surface p-1" role="tablist" aria-label="Library sections">
+      <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl border border-line bg-surface p-1 sm:grid-cols-4" role="tablist" aria-label="Library sections">
         {SECTIONS.map((item) => {
           const active = section === item.id;
           const label = item.id === 'favorites' && favoriteCount > 0
             ? `${item.label} · ${favoriteCount}`
-            : item.label;
+            : item.id === 'memorized' && memorizedCount > 0
+              ? `${item.label} · ${memorizedCount}`
+              : item.label;
           return (
             <button
               key={item.id}
@@ -66,6 +71,7 @@ export default function LibraryPage() {
         {section === 'favorites' && <FavoritesPage embedded />}
         {section === 'playlists' && <PlaylistsPage />}
         {section === 'downloads' && <DownloadsPage />}
+        {section === 'memorized' && <MemorizedAyahsPage />}
       </div>
     </div>
   );

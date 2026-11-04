@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLayoutEffect } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useAppDispatch, useAppSelector } from '../store';
 import { player } from '../audio/controller';
@@ -10,6 +10,7 @@ import { addReadMinute, rememberRead } from '../store/slices/progressSlice';
 import { push } from '../store/slices/toastSlice';
 import { toggleAyahBookmark } from '../store/slices/bookmarksSlice';
 import type { AyahBookmark } from '../store/slices/bookmarksSlice';
+import { toggleMemorizedAyah } from '../store/slices/memorizedSlice';
 import {
   setArabicFontSize,
   setDefaultReciterId,
@@ -47,14 +48,17 @@ import type { PlayerState } from '../store/slices/playerSlice';
 export default function SurahReader() {
   const { number } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAppDispatch();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const surahNumber = Number(number);
 
   const settings = useAppSelector((s) => s.settings);
   const playerState = useAppSelector((s) => s.player);
   const bookmarkItems = useAppSelector((s) => s.bookmarks.items);
   const bookmarkIds = useMemo(() => new Set(bookmarkItems.map((item) => item.id)), [bookmarkItems]);
+  const memorizedItems = useAppSelector((s) => s.memorized.items);
+  const memorizedById = useMemo(() => new Map(memorizedItems.map((item) => [item.id, item])), [memorizedItems]);
   const lastRead = useAppSelector((s) => s.progress.lastRead[surahNumber]);
   const dailyActivity = useAppSelector((s) => s.progress.dailyActivity);
   const dailyReadMinutes = useAppSelector((s) => s.progress.progression.dailyReadMinutes);
@@ -189,6 +193,10 @@ export default function SurahReader() {
   }, [surah?.number, settings.scriptType]);
 
   const validSurahNumber = Number.isInteger(surahNumber) && surahNumber >= 1 && surahNumber <= 114;
+  const handleBack = useCallback(() => {
+    if (location.key !== 'default') navigate(-1);
+    else navigate('/library');
+  }, [location.key, navigate]);
 
   const refs = useRef(new Map<number, HTMLDivElement>());
   const listRef = useRef<HTMLDivElement>(null);
@@ -220,6 +228,16 @@ export default function SurahReader() {
   }, [surah?.number, settings.showArabic, settings.showTranslation, settings.showTransliteration, viewMode]);
 
   useEffect(() => {
+    refs.current.forEach((element, index) => {
+      if (!element.isConnected) refs.current.delete(index);
+    });
+    for (const element of listRef.current?.querySelectorAll<HTMLDivElement>('.ayah-row[data-index]') ?? []) {
+      const index = Number(element.dataset.index);
+      if (!Number.isInteger(index)) continue;
+      refs.current.set(index, element);
+      rowVirtualizer.measureElement(element);
+    }
+
     const pending = pendingAyahScroll.current;
     if (!pending) return;
     const element = refs.current.get(pending.index);
@@ -453,6 +471,42 @@ export default function SurahReader() {
     }
   };
 
+  const handlePreviousChapter = () => {
+    if (surahNumber <= 1) return;
+    const previous = surahs?.find((item) => item.number === surahNumber - 1);
+    navigate(`/surah/${surahNumber - 1}?ayah=${previous?.numberOfAyahs ?? 1}`);
+  };
+
+  const handleNextChapter = () => {
+    if (surahNumber < 114) navigate(`/surah/${surahNumber + 1}?ayah=1`);
+  };
+
+  const currentAyahIndex = playerState.surah === surahNumber
+    ? playerState.ayah ?? activeAyah
+    : activeAyah;
+
+  const handleBeginningOrPreviousChapter = () => {
+    if (currentAyahIndex === 0) handlePreviousChapter();
+    else handleSelect(0);
+  };
+
+  const handleEndOrNextChapter = () => {
+    if (currentAyahIndex >= (surah?.ayahs.length ?? 1) - 1) handleNextChapter();
+    else if (surah) handleSelect(surah.ayahs.length - 1);
+  };
+
+  const jumpToAyah = (ayahNumber: number) => {
+    if (!surah || !Number.isInteger(ayahNumber) || ayahNumber < 1 || ayahNumber > surah.ayahs.length) return;
+    const index = ayahNumber - 1;
+    handleSelect(index);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('ayah', String(ayahNumber));
+    setSearchParams(nextParams, { replace: true });
+    if (viewMode === 'book') updateBookPage(pageForAyah(index));
+    else requestAnimationFrame(() => scrollToAyah(index, true));
+    setPlaybackSettingsOpen(false);
+  };
+
   const dismissAmbientPrompt = () => {
     setAmbientPromptDismissed(true);
     setSessionFlag('reader_ambient_prompt_dismissed_session');
@@ -481,7 +535,7 @@ export default function SurahReader() {
     return (
       <div className="page-enter">
         <ReaderBar
-          onBack={() => navigate('/library')}
+          onBack={handleBack}
           timer={formatTime(readerElapsedSeconds)}
           onOptions={() => setOptionsOpen(true)}
         />
@@ -495,6 +549,11 @@ export default function SurahReader() {
   if (error || !surah) {
     return (
       <div className="page-enter">
+        <ReaderBar
+          onBack={handleBack}
+          timer={formatTime(readerElapsedSeconds)}
+          onOptions={() => setOptionsOpen(true)}
+        />
         <ErrorBlock
           message={`Couldn’t load this surah: ${error ?? 'unknown error'}`}
           onRetry={() => setAttempt((a) => a + 1)}
@@ -516,7 +575,7 @@ export default function SurahReader() {
     >
       {/* sticky toolbar */}
       <ReaderBar
-        onBack={() => navigate('/library')}
+        onBack={handleBack}
         timer={formatTime(readerElapsedSeconds)}
         onOptions={() => setOptionsOpen(true)}
       />
@@ -670,11 +729,6 @@ export default function SurahReader() {
                 sounding={isActiveSession && playerState.isPlaying && playerState.ayah === i}
                 selected={activeAyah === i}
                 onOpenFocus={() => setFocusedAyahIndex(i)}
-                registerRef={(el) => {
-                  if (el) refs.current.set(i, el);
-                  else refs.current.delete(i);
-                  rowVirtualizer.measureElement(el);
-                }}
                 onSelect={() => handleSelect(i)}
               />
             );
@@ -710,26 +764,11 @@ export default function SurahReader() {
         visible={mediaHudVisible || !playerState.isPlaying}
         isPlaying={isActiveSession && playerState.isPlaying}
         onPlaybackSettings={() => setPlaybackSettingsOpen(true)}
-        onBeginning={() => handleSelect(0)}
-        onPrevious={() => handleSelect(Math.max(
-          0,
-          (playerState.surah === surah.number ? playerState.ayah ?? activeAyah : activeAyah) - 1,
-        ))}
+        onBeginningOrPreviousChapter={handleBeginningOrPreviousChapter}
+        onPrevious={() => handleSelect(Math.max(0, currentAyahIndex - 1))}
         onPlay={handlePlay}
-        onNext={() => handleSelect(Math.min(
-          surah.ayahs.length - 1,
-          (playerState.surah === surah.number ? playerState.ayah ?? activeAyah : activeAyah) + 1,
-        ))}
-        onEndOrNext={() => {
-          const currentIndex = playerState.surah === surah.number
-            ? playerState.ayah ?? activeAyah
-            : activeAyah;
-          if (currentIndex < surah.ayahs.length - 1) {
-            handleSelect(surah.ayahs.length - 1);
-          } else if (surah.number < 114) {
-            navigate(`/surah/${surah.number + 1}?ayah=1`);
-          }
-        }}
+        onNext={() => handleSelect(Math.min(surah.ayahs.length - 1, currentAyahIndex + 1))}
+        onEndOrNextChapter={handleEndOrNextChapter}
       />
 
       {/* reader options modal */}
@@ -754,7 +793,9 @@ export default function SurahReader() {
           const next = readerRepeat === 'off' ? 'one' : readerRepeat === 'one' ? 'all' : 'off';
           player.setRepeat(next);
         }}
-        onShuffle={() => player.setMode(playerState.mode === 'shuffle' ? 'order' : 'shuffle')}
+        currentAyah={currentAyahIndex + 1}
+        ayahCount={surah.ayahs.length}
+        onJumpToAyah={jumpToAyah}
       />
       {focusedAyahIndex !== null && surah.ayahs[focusedAyahIndex] && (() => {
         const ayah = surah.ayahs[focusedAyahIndex];
@@ -780,6 +821,8 @@ export default function SurahReader() {
             reciter={settings.defaultReciter}
             bookmark={bookmark}
             isBookmarked={bookmarkIds.has(bookmark.id)}
+            isMemorized={memorizedById.get(bookmark.id)?.memorized ?? false}
+            repetitions={memorizedById.get(bookmark.id)?.repetitions ?? 0}
             onToggleBookmark={(item) => dispatch(toggleAyahBookmark(item))}
             insight={insightForAyah(surah.number, ayah.i)}
             hifzEnabled={settings.hifzRepetitionEnabled}
@@ -817,7 +860,6 @@ function AyahBlock({
   lineSpacing,
   sounding,
   selected,
-  registerRef,
   onSelect,
   onOpenFocus,
   virtualIndex,
@@ -839,13 +881,14 @@ function AyahBlock({
   lineSpacing: number;
   sounding: boolean;
   selected: boolean;
-  registerRef: (el: HTMLDivElement | null) => void;
   onSelect: () => void;
   onOpenFocus: () => void;
   virtualIndex?: number;
   style?: React.CSSProperties;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const dispatch = useAppDispatch();
+  const memorized = useAppSelector((state) => state.memorized.items.find((item) => item.id === bookmark.id));
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const displayedArabic = arabicText ?? ayah.ar;
@@ -882,7 +925,6 @@ function AyahBlock({
 
   return (
     <div
-      ref={registerRef}
       data-index={virtualIndex}
       onClick={() => {
         onSelect();
@@ -939,6 +981,19 @@ function AyahBlock({
               }}
             >
               <Icon name="pin" size={16} /> {isBookmarked ? 'Remove bookmark' : 'Bookmark ayah'}
+            </button>
+            <button
+              type="button"
+              aria-pressed={memorized?.memorized ?? false}
+              className="flex min-h-12 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-surface2"
+              onClick={(event) => {
+                event.stopPropagation();
+                dispatch(toggleMemorizedAyah(bookmark));
+                closeMenu();
+              }}
+            >
+              <Icon name={memorized?.memorized ? 'check' : 'book'} size={16} />
+              {memorized?.memorized ? 'Memorized' : 'Mark as memorized'}
             </button>
             <button
               type="button"
@@ -1074,7 +1129,6 @@ function BookView({
                 lineSpacing={lineSpacing}
                 sounding={isActiveSession && isPlaying && activeAyah === index}
                 selected={activeAyah === index}
-                registerRef={() => undefined}
                 onSelect={() => onSelect(index)}
                 onOpenFocus={() => onOpenFocus(index)}
               />
@@ -1118,25 +1172,27 @@ function ReaderBar({
       <button
         type="button"
         onClick={onBack}
-        aria-label="Back to library"
-        title="Back to library"
+        aria-label="Go back"
+        title="Go back"
         className="pressable inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-2xl font-medium text-mut hover:bg-surface2 hover:text-ink"
       >
         ←
       </button>
-      <div className="inline-flex items-center gap-1.5 rounded-full bg-surface2/70 px-3 py-1.5 text-xs font-medium tabular-nums text-ink2" aria-label={`Reading session ${timer}`}>
-        <Icon name="clock" size={14} />
-        <span>{timer}</span>
-      </div>
       <div className="flex-1" />
-      <button
-        type="button"
-        aria-label="Reading settings"
-        onClick={onOptions}
-        className="pressable flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-2 text-mut transition-colors hover:bg-surface2 hover:text-ink"
-      >
-        <span aria-hidden="true" className="text-2xl leading-none">⋮</span>
-      </button>
+      <div className="flex shrink-0 flex-col items-center">
+        <button
+          type="button"
+          aria-label="Reading settings"
+          onClick={onOptions}
+          className="pressable flex h-10 w-10 items-center justify-center rounded-full p-2 text-mut transition-colors hover:bg-surface2 hover:text-ink"
+        >
+          <span aria-hidden="true" className="text-2xl leading-none">⋮</span>
+        </button>
+        <div className="inline-flex items-center gap-1 text-[11px] font-medium tabular-nums text-mut" aria-label={`Reading session ${timer}`}>
+          <Icon name="clock" size={12} />
+          <span>{timer}</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1145,46 +1201,46 @@ function ReaderMediaHud({
   visible,
   isPlaying,
   onPlaybackSettings,
-  onBeginning,
+  onBeginningOrPreviousChapter,
   onPrevious,
   onPlay,
   onNext,
-  onEndOrNext,
+  onEndOrNextChapter,
 }: {
   visible: boolean;
   isPlaying: boolean;
   onPlaybackSettings: () => void;
-  onBeginning: () => void;
+  onBeginningOrPreviousChapter: () => void;
   onPrevious: () => void;
   onPlay: () => void;
   onNext: () => void;
-  onEndOrNext: () => void;
+  onEndOrNextChapter: () => void;
 }) {
   return (
     <div className={`reader-hud-position ${visible ? 'reader-hud-visible' : 'reader-hud-hidden'}`}>
       <div className="reader-hud-grid mx-auto grid w-full max-w-xl grid-cols-6 items-center gap-1 rounded-full border border-line/70 bg-surface/90 px-2 py-2 shadow-card backdrop-blur-xl sm:gap-2 sm:px-3">
-        <HudButton label="Playback settings" onClick={onPlaybackSettings}>
-          <Icon name="settings" size={19} />
-        </HudButton>
-        <HudButton label="Jump to first ayah" onClick={onBeginning}>
-          <span className="text-sm font-bold" aria-hidden="true">|◀</span>
+        <HudButton label="Go to beginning or previous chapter" onClick={onBeginningOrPreviousChapter}>
+          <span className="text-xs font-bold" aria-hidden="true">|‹</span>
         </HudButton>
         <HudButton label="Previous ayah" onClick={onPrevious}>
-          <Icon name="prev" size={20} />
+          <Icon name="chevronRight" size={19} className="rotate-180" />
         </HudButton>
         <button
           type="button"
           onClick={onPlay}
           aria-label={isPlaying ? 'Pause recitation' : 'Play recitation'}
-          className="pressable mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent text-onaccent shadow-card transition-transform hover:scale-105 sm:h-14 sm:w-14"
+          className="reader-hud-play-button pressable mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent text-onaccent shadow-card transition-transform hover:scale-105 sm:h-14 sm:w-14"
         >
           <Icon name={isPlaying ? 'pause' : 'play'} size={23} />
         </button>
         <HudButton label="Next ayah" onClick={onNext}>
-          <Icon name="next" size={20} />
+          <Icon name="chevronRight" size={19} />
         </HudButton>
-        <HudButton label="Jump to chapter end or next chapter" onClick={onEndOrNext}>
-          <span className="text-sm font-bold" aria-hidden="true">▶|</span>
+        <HudButton label="Go to end or next chapter" onClick={onEndOrNextChapter}>
+          <span className="text-xs font-bold" aria-hidden="true">›|</span>
+        </HudButton>
+        <HudButton label="Playback settings" onClick={onPlaybackSettings}>
+          <Icon name="moreVertical" size={19} />
         </HudButton>
       </div>
     </div>
@@ -1206,7 +1262,7 @@ function HudButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="pressable mx-auto flex h-10 w-10 items-center justify-center rounded-full text-mut transition-colors hover:bg-surface2 hover:text-ink sm:h-11 sm:w-11"
+      className="reader-hud-secondary pressable mx-auto flex h-10 w-10 items-center justify-center rounded-full text-mut transition-colors hover:bg-surface2 hover:text-ink sm:h-11 sm:w-11"
     >
       {children}
     </button>
@@ -1220,7 +1276,9 @@ function ReaderPlaybackSettings({
   playerState,
   onReciterChange,
   onRepeat,
-  onShuffle,
+  currentAyah,
+  ayahCount,
+  onJumpToAyah,
 }: {
   open: boolean;
   onClose: () => void;
@@ -1228,8 +1286,20 @@ function ReaderPlaybackSettings({
   playerState: PlayerState;
   onReciterChange: (reciter: string) => void;
   onRepeat: () => void;
-  onShuffle: () => void;
+  currentAyah: number;
+  ayahCount: number;
+  onJumpToAyah: (ayah: number) => void;
 }) {
+  const [ayahInput, setAyahInput] = useState(String(currentAyah));
+  useEffect(() => {
+    if (open) setAyahInput(String(currentAyah));
+  }, [open, currentAyah]);
+
+  const goToAyah = () => {
+    const ayah = Number(ayahInput);
+    if (Number.isInteger(ayah) && ayah >= 1 && ayah <= ayahCount) onJumpToAyah(ayah);
+  };
+
   return (
     <Modal open={open} onClose={onClose} title="Playback settings" size="md" variant="frosted">
       <label className="block">
@@ -1258,10 +1328,36 @@ function ReaderPlaybackSettings({
         <button type="button" onClick={onRepeat} className="rounded-xl bg-surface2 px-3 py-2.5 text-sm font-medium text-ink">
           Repeat: {playerState.repeat}
         </button>
-        <button type="button" onClick={onShuffle} className="rounded-xl bg-surface2 px-3 py-2.5 text-sm font-medium text-ink">
-          Shuffle: {playerState.mode === 'shuffle' ? 'On' : 'Off'}
+        <button type="button" onClick={() => player.setLoopSurah(!playerState.loopSurah)} className="rounded-xl bg-surface2 px-3 py-2.5 text-sm font-medium text-ink">
+          Repeat chapter: {playerState.loopSurah ? 'On' : 'Off'}
         </button>
       </div>
+      <form
+        className="mt-4 border-t border-line pt-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          goToAyah();
+        }}
+      >
+        <label htmlFor="reader-ayah-jump" className="mb-1.5 block text-xs font-medium text-mut">
+          Go to ayah (1–{ayahCount})
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="reader-ayah-jump"
+            type="number"
+            min={1}
+            max={ayahCount}
+            step={1}
+            value={ayahInput}
+            onChange={(event) => setAyahInput(event.target.value)}
+            className="min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 py-2.5 text-sm tabular-nums text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          />
+          <button type="submit" className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-onaccent">
+            Go
+          </button>
+        </div>
+      </form>
     </Modal>
   );
 }

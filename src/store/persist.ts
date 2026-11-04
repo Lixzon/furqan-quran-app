@@ -49,4 +49,5 @@ export const KEYS = {
   favorites: 'favorites',
   likes: 'likes',
   bookmarks: 'bookmarks',
+  memorized: 'memorized',
 } as const;

@@ -4,6 +4,8 @@ import type { LikesState } from '../store/slices/likesSlice';
 import { migrateLegacyFavoriteIds, restoreLikes } from '../store/slices/likesSlice';
 import type { BookmarksState } from '../store/slices/bookmarksSlice';
 import { restoreBookmarks } from '../store/slices/bookmarksSlice';
+import type { MemorizedState } from '../store/slices/memorizedSlice';
+import { restoreMemorized } from '../store/slices/memorizedSlice';
 import { restoreProgress } from '../store/slices/progressSlice';
 import { restoreSettings } from '../store/slices/settingsSlice';
 import { restoreTheme } from '../store/slices/themeSlice';
@@ -26,6 +28,7 @@ export interface FurqanBackup {
     playlists: PlaylistState;
     likes: LikesState;
     bookmarks: BookmarksState;
+    memorized: MemorizedState;
   };
 }
 
@@ -132,12 +135,22 @@ function isBookmarks(value: unknown): value is BookmarksState {
     typeof item.note === 'string' && isFiniteNumber(item.createdAt));
 }
 
+function isMemorized(value: unknown): value is MemorizedState {
+  return isRecord(value) && Array.isArray(value.items) && value.items.every((item) =>
+    isRecord(item) && typeof item.id === 'string' && Number.isInteger(item.surah) &&
+    Number(item.surah) >= 1 && Number(item.surah) <= 114 && Number.isInteger(item.ayah) &&
+    Number(item.ayah) >= 1 && typeof item.surahName === 'string' &&
+    typeof item.arabic === 'string' && typeof item.translation === 'string' &&
+    Number.isInteger(item.repetitions) && Number(item.repetitions) >= 0 &&
+    typeof item.memorized === 'boolean' && isFiniteNumber(item.updatedAt));
+}
+
 export function createBackupJson(): string {
-  const { theme, settings, progress, playlists, likes, bookmarks } = store.getState();
+  const { theme, settings, progress, playlists, likes, bookmarks, memorized } = store.getState();
   const backup: FurqanBackup = {
     version: 1,
     exportedAt: new Date().toISOString(),
-    data: { theme, settings, progress, playlists, likes, bookmarks },
+    data: { theme, settings, progress, playlists, likes, bookmarks, memorized },
   };
   return JSON.stringify(backup, null, 2);
 }
@@ -153,7 +166,8 @@ export function parseBackupJson(text: string): FurqanBackup {
       !Number.isFinite(Date.parse(value.exportedAt)) || !isRecord(value.data) ||
       !isTheme(value.data.theme) || !isSettings(value.data.settings) ||
       !isProgress(value.data.progress) || !isPlaylists(value.data.playlists) ||
-      !isBookmarks(value.data.bookmarks)) {
+      !isBookmarks(value.data.bookmarks) ||
+      (value.data.memorized !== undefined && !isMemorized(value.data.memorized))) {
     throw new Error('This file is not a valid Furqan backup.');
   }
 
@@ -163,24 +177,29 @@ export function parseBackupJson(text: string): FurqanBackup {
   }
 
   const backup = value as unknown as FurqanBackup;
-  if (isLikes(value.data.likes)) return backup;
+  const normalizedBackup: FurqanBackup = {
+    ...backup,
+    data: { ...backup.data, memorized: isMemorized(value.data.memorized) ? value.data.memorized : { items: [] } },
+  };
+  if (isLikes(value.data.likes)) return normalizedBackup;
 
   // An export from before the Favourites hub: carry its hearts over.
   const migrated = migrateLegacyFavoriteIds(legacy?.items ?? []);
   return {
-    ...backup,
-    data: { ...backup.data, likes: { surahs: [], ayahs: [], duas: migrated.duas, quotes: migrated.quotes } },
+    ...normalizedBackup,
+    data: { ...normalizedBackup.data, likes: { surahs: [], ayahs: [], duas: migrated.duas, quotes: migrated.quotes } },
   };
 }
 
 export function restoreBackup(backup: FurqanBackup): void {
-  const { theme, settings, progress, playlists, likes, bookmarks } = backup.data;
+  const { theme, settings, progress, playlists, likes, bookmarks, memorized } = backup.data;
   store.dispatch(restoreTheme(theme));
   store.dispatch(restoreSettings(settings));
   store.dispatch(restoreProgress(progress));
   store.dispatch(restorePlaylists(playlists));
   store.dispatch(restoreLikes(likes));
   store.dispatch(restoreBookmarks(bookmarks));
+  store.dispatch(restoreMemorized(memorized));
 
   saveState(KEYS.theme, theme);
   saveState(KEYS.settings, settings);
@@ -188,4 +207,5 @@ export function restoreBackup(backup: FurqanBackup): void {
   saveState(KEYS.playlists, playlists);
   saveState(KEYS.likes, likes);
   saveState(KEYS.bookmarks, bookmarks);
+  saveState(KEYS.memorized, memorized);
 }

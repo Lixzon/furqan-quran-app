@@ -6,8 +6,7 @@ import type { VoiceMatchResult } from '../lib/recitationSearch';
 import { useAppDispatch, useAppSelector } from '../store';
 import {
   closeVoiceMatchDrawer,
-  openVoiceMatchDrawer,
-  setActiveVoiceMatchIndex,
+  clearVoiceMatchSession,
 } from '../store/slices/searchSessionSlice';
 
 export function VoiceMatchDrawer() {
@@ -17,11 +16,10 @@ export function VoiceMatchDrawer() {
 
   const handleSelect = useCallback(
     (match: VoiceMatchResult) => {
-      dispatch(setActiveVoiceMatchIndex(matches.findIndex((item) => item.surahNumber === match.surahNumber && item.ayahNumber === match.ayahNumber)));
+      dispatch(clearVoiceMatchSession());
       navigate(`/surah/${match.surahNumber}?ayah=${match.ayahNumber}&voice=1`);
-      dispatch(closeVoiceMatchDrawer());
     },
-    [dispatch, matches, navigate],
+    [dispatch, navigate],
   );
 
   useEffect(() => {
@@ -55,12 +53,11 @@ export function VoiceMatchDrawer() {
               index === activeIndex ? 'border-accent/50 bg-accent/8' : 'border-line bg-surface2/70 hover:border-accent/35'
             }`}
           >
-            <div className="flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-mut">
-              <span>{match.englishName}</span>
-              <span>{match.surahNumber}:{match.ayahNumber}</span>
+            <div className="text-xs font-semibold text-accent">
+              Surah {match.surahNumber} · {match.englishName} · Ayah {match.ayahNumber}
             </div>
-            <div className="mt-2 text-base font-medium text-ink">{match.surahName}</div>
-            <div dir="rtl" className="mt-2 text-xl leading-loose text-ink">
+            <div dir="rtl" className="mt-2 text-sm text-mut">{match.surahName}</div>
+            <div dir="rtl" className="mt-1 text-xl leading-loose text-ink">
               {match.matchedSnippet || match.arabicText}
             </div>
             <p className="mt-2 text-xs leading-relaxed text-mut">{match.englishText}</p>
@@ -68,25 +65,5 @@ export function VoiceMatchDrawer() {
         ))}
       </div>
     </Modal>
-  );
-}
-
-export function VoiceMatchBackPill() {
-  const dispatch = useAppDispatch();
-  const { matches, isOpen } = useAppSelector((state) => state.searchSession);
-
-  if (isOpen || matches.length === 0) return null;
-
-  return (
-    <button
-      type="button"
-      onClick={() => dispatch(openVoiceMatchDrawer())}
-      className="voice-match-back-pill fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-full border border-accent/40 bg-surface/85 px-4 py-2 text-sm font-semibold text-ink shadow-card backdrop-blur-md"
-    >
-      <span className="inline-flex items-center gap-2">
-        <Icon name="back" size={15} />
-        Back to Matches
-      </span>
-    </button>
   );
 }

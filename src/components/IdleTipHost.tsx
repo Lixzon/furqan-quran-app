@@ -9,7 +9,7 @@ const DISMISS_KEY = 'furqan:idle-tip-dismissed';
 /**
  * A single, quiet feature tip that appears only when nothing is happening:
  * no recitation playing and no touch, key or scroll activity for 45 seconds.
- * Dismissing it silences tips for the rest of the app session.
+ * Dismissing it silences the tip across app sessions.
  */
 export function IdleTipHost() {
   const isPlaying = useAppSelector((s) => s.player.isPlaying);
@@ -20,14 +20,14 @@ export function IdleTipHost() {
 
   useEffect(() => {
     try {
-      dismissedRef.current = sessionStorage.getItem(DISMISS_KEY) === '1';
+      dismissedRef.current = localStorage.getItem(DISMISS_KEY) === '1';
     } catch {
-      /* private mode: keep the tip available */
+      /* private mode: keep the tip available until this app session ends */
     }
   }, []);
 
   useEffect(() => {
-    if (isPlaying || dismissedRef.current || pathname === '/player' || pathname === '/support') {
+    if (isPlaying || dismissedRef.current || pathname === '/player' || pathname === '/support' || pathname.startsWith('/surah/')) {
       setVisible(false);
       return;
     }
@@ -52,7 +52,7 @@ export function IdleTipHost() {
     dismissedRef.current = true;
     setVisible(false);
     try {
-      sessionStorage.setItem(DISMISS_KEY, '1');
+      localStorage.setItem(DISMISS_KEY, '1');
     } catch {
       /* ignore storage failures */
     }

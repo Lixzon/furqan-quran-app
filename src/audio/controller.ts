@@ -55,6 +55,7 @@ class PlayerController {
   private indexFloor: number | null = null;
   private stopAfterAyahIndex: number | null = null;
   private singleAyahEnded: (() => void) | null = null;
+  private rangeAyahRepeated: (() => void) | null = null;
 
   /* ------------------------------------------------ element --------- */
   private ensureEl(): HTMLAudioElement {
@@ -507,6 +508,7 @@ class PlayerController {
   private onEnded(): void {
     const s = this.getState();
     if (s.range && s.surah !== null) {
+      this.rangeAyahRepeated?.();
       const el = this.ensureEl();
       const d = Number.isFinite(el.duration) ? el.duration : 0;
       const target = d > 0 ? this.ayahStartTime(s.range.start, s.ayahCount, d) : 0;
@@ -602,6 +604,7 @@ class PlayerController {
     recommended?: boolean;
     range?: VerseRange | null;
   } = {}): void {
+    this.rangeAyahRepeated = null;
     const s = this.getState();
     const reciter = opts.reciter ?? s.reciter;
     this.stopAfterAyahIndex = opts.stopAfterAyahIndex ?? null;
@@ -631,7 +634,12 @@ class PlayerController {
    * Resolves the surah length first so out-of-range requests are clamped
    * instead of producing an unbounded loop.
    */
-  async playRange(surah: number, start: number, end: number, opts: { reciter?: string } = {}): Promise<void> {
+  async playRange(
+    surah: number,
+    start: number,
+    end: number,
+    opts: { reciter?: string; onAyahRepeated?: () => void } = {},
+  ): Promise<void> {
     const meta = await this.surahMeta(surah);
     const count = Math.max(1, meta.numberOfAyahs || 0);
     const from = clampIndex(start, count);
@@ -642,6 +650,7 @@ class PlayerController {
       startAyahIndex: range.start,
       range,
     });
+    this.rangeAyahRepeated = opts.onAyahRepeated ?? null;
   }
 
   /** Restrict the loaded surah to a range without changing what is playing. */
