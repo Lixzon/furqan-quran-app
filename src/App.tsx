@@ -1,5 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense } from 'react';
+import { registerSW } from 'virtual:pwa-register';
 import { useAppSelector } from './store';
 import { QuranProvider } from './data/QuranProvider';
 import { ThemeManager } from './components/layout/ThemeManager';
@@ -15,23 +17,26 @@ import { VoiceMatchDrawer } from './components/VoiceMatchDrawer';
 import { DeepLinkHost } from './components/DeepLinkHost';
 import { IdleTipHost } from './components/IdleTipHost';
 
-import BrowsePage from './pages/BrowsePage';
-import LibraryPage from './pages/LibraryPage';
-import SurahReader from './pages/SurahReader';
-import PlaylistsPage from './pages/PlaylistsPage';
-import PlaylistDetailPage from './pages/PlaylistDetailPage';
-import NowPlayingPage from './pages/NowPlayingPage';
-import GuidancePage from './pages/GuidancePage';
-import ProgressPage from './pages/ProgressPage';
-import DownloadsPage from './pages/DownloadsPage';
-import SettingsPage from './pages/SettingsPage';
-import ProfilePage from './pages/ProfilePage';
-import SupportPage from './pages/SupportPage';
-import DiagnosticsPage from './pages/DiagnosticsPage';
-import MishkahAssistantPage from './pages/MishkahAssistantPage';
+const BrowsePage = lazy(() => import('./pages/BrowsePage'));
+const LibraryPage = lazy(() => import('./pages/LibraryPage'));
+const SurahReader = lazy(() => import('./pages/SurahReader'));
+const PlaylistsPage = lazy(() => import('./pages/PlaylistsPage'));
+const PlaylistDetailPage = lazy(() => import('./pages/PlaylistDetailPage'));
+const NowPlayingPage = lazy(() => import('./pages/NowPlayingPage'));
+const GuidancePage = lazy(() => import('./pages/GuidancePage'));
+const ProgressPage = lazy(() => import('./pages/ProgressPage'));
+const DownloadsPage = lazy(() => import('./pages/DownloadsPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const SupportPage = lazy(() => import('./pages/SupportPage'));
+const DiagnosticsPage = lazy(() => import('./pages/DiagnosticsPage'));
+const MishkahAssistantPage = lazy(() => import('./pages/MishkahAssistantPage'));
 
 export default function App() {
   const { pathname } = useLocation();
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [offlineReady, setOfflineReady] = useState(false);
+  const updateSWRef = useRef<((reloadPage?: boolean) => Promise<void>) | null>(null);
 
   useEffect(() => {
     document.title = pathname.startsWith('/surah/')
@@ -39,33 +44,73 @@ export default function App() {
       : `${APP_NAME} — ${APP_TAGLINE}`;
   }, [pathname]);
 
+  useEffect(() => {
+    const updateSW = registerSW({
+      immediate: true,
+      onNeedRefresh: () => setUpdateAvailable(true),
+      onOfflineReady: () => setOfflineReady(true),
+    });
+    updateSWRef.current = updateSW;
+  }, []);
+
+  const applyUpdate = () => {
+    setUpdateAvailable(false);
+    void updateSWRef.current?.(true);
+  };
+
   return (
     <ErrorBoundary>
       <QuranProvider>
         <VoiceSearchProvider>
           <ThemeManager />
-          <Routes>
-            <Route element={<AppLayout />}>
-              <Route index element={<BrowsePage />} />
-              <Route path="library" element={<LibraryPage />} />
-              <Route path="surah/:number" element={<SurahReader />} />
-              <Route path="playlists" element={<PlaylistsPage />} />
-              <Route path="playlist/:id" element={<PlaylistDetailPage />} />
-              <Route path="player" element={<NowPlayingPage />} />
-              <Route path="guidance" element={<GuidancePage />} />
-              <Route path="quotes" element={<Navigate to="/guidance?tab=sayings" replace />} />
-              <Route path="favorites" element={<LegacyFavoritesRedirect />} />
-              <Route path="bookmarks" element={<Navigate to="/library?tab=ayah&section=favorites" replace />} />
-              <Route path="progress" element={<ProgressPage />} />
-              <Route path="downloads" element={<DownloadsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="profile" element={<ProfilePage />} />
-              <Route path="support" element={<SupportPage />} />
-              <Route path="diagnostics" element={<DiagnosticsPage />} />
-              <Route path="mishkah" element={<MishkahAssistantPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
+          {offlineReady && (
+            <div className="fixed inset-x-0 top-0 z-50 flex justify-center px-3 pt-3">
+              <div className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink shadow-lg shadow-black/10">
+                Furqan is ready to work offline.
+              </div>
+            </div>
+          )}
+          {updateAvailable && (
+            <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-3">
+              <div className="flex max-w-md flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3 shadow-lg shadow-black/10">
+                <div className="text-sm text-ink">
+                  <span className="font-semibold">Update ready.</span> A new Furqan version is available.
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                  <button type="button" onClick={applyUpdate} className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-onaccent pressable">
+                    Update now
+                  </button>
+                  <button type="button" onClick={() => setUpdateAvailable(false)} className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink pressable">
+                    Later
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          <Suspense fallback={<div className="p-6 text-center text-sm text-muted" role="status" aria-live="polite">Loading Furqan…</div>}>
+            <Routes>
+              <Route element={<AppLayout />}>
+                <Route index element={<BrowsePage />} />
+                <Route path="library" element={<LibraryPage />} />
+                <Route path="surah/:number" element={<SurahReader />} />
+                <Route path="playlists" element={<PlaylistsPage />} />
+                <Route path="playlist/:id" element={<PlaylistDetailPage />} />
+                <Route path="player" element={<NowPlayingPage />} />
+                <Route path="guidance" element={<GuidancePage />} />
+                <Route path="quotes" element={<Navigate to="/guidance?tab=sayings" replace />} />
+                <Route path="favorites" element={<LegacyFavoritesRedirect />} />
+                <Route path="bookmarks" element={<Navigate to="/library?tab=ayah&section=favorites" replace />} />
+                <Route path="progress" element={<ProgressPage />} />
+                <Route path="downloads" element={<DownloadsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="profile" element={<ProfilePage />} />
+                <Route path="support" element={<SupportPage />} />
+                <Route path="diagnostics" element={<DiagnosticsPage />} />
+                <Route path="mishkah" element={<MishkahAssistantPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
+            </Routes>
+          </Suspense>
           <ToastHost />
           <DeepLinkHost />
           <ReminderHost />

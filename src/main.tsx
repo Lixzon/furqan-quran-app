@@ -2,7 +2,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
-import { registerSW } from 'virtual:pwa-register';
 import { store } from './store';
 import { player } from './audio/controller';
 import { startDiagnosticCapture } from './services/diagnostics';
@@ -10,13 +9,6 @@ import App from './App';
 import './index.css';
 
 startDiagnosticCapture();
-
-// Register the service worker (auto-updating). No-op during `vite dev`.
-try {
-  registerSW({ immediate: true });
-} catch {
-  /* SW not available in dev – ignore */
-}
 
 if (navigator.storage?.persist) {
   navigator.storage.persist().catch(() => {});

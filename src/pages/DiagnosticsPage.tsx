@@ -13,6 +13,7 @@ import {
   type DiagnosticEvent,
   type UserHealthCheckResult,
 } from '../services/diagnostics';
+import { isHeavyScanDue, runHeavyScan, runLightScan, type AuditReport } from '../services/auditEngine';
 
 function formatTime(timestamp: number): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(timestamp);
@@ -20,7 +21,9 @@ function formatTime(timestamp: number): string {
 
 export default function DiagnosticsPage() {
   const [checking, setChecking] = useState(false);
+  const [auditChecking, setAuditChecking] = useState(false);
   const [result, setResult] = useState<UserHealthCheckResult | null>(null);
+  const [auditReport, setAuditReport] = useState<AuditReport | null>(null);
   const [events, setEvents] = useState<DiagnosticEvent[]>(() => readDiagnosticEvents());
   const [digests, setDigests] = useState<DiagnosticDigest[]>(() => readDiagnosticDigests());
   const [devMessage, setDevMessage] = useState('');
@@ -73,6 +76,20 @@ export default function DiagnosticsPage() {
     refreshDeveloperData();
   };
 
+  const runAuditScan = async (scan: 'light' | 'heavy') => {
+    setAuditChecking(true);
+    try {
+      const report = scan === 'heavy' ? await runHeavyScan('manual') : await runLightScan('manual');
+      setAuditReport(report);
+      setDevMessage(scan === 'heavy' ? 'Heavy audit completed.' : 'Light audit completed.');
+    } catch (error) {
+      recordDiagnostic('unhandled-error', 'App audit scan failed', error instanceof Error ? error.stack ?? '' : '');
+      setDevMessage('The audit scan could not complete in this environment.');
+    } finally {
+      setAuditChecking(false);
+    }
+  };
+
   return (
     <div className="page-enter">
       <PageHeader
@@ -117,6 +134,12 @@ export default function DiagnosticsPage() {
             <button type="button" onClick={() => void copyVerifyCommand()} className="rounded-full border border-line px-3 py-2 text-xs font-medium text-ink pressable">
               Copy npm run verify
             </button>
+            <button type="button" onClick={() => void runAuditScan('light')} disabled={auditChecking} className="rounded-full border border-line px-3 py-2 text-xs font-medium text-ink pressable disabled:opacity-50">
+              {auditChecking ? 'Running light audit…' : 'Run light audit'}
+            </button>
+            <button type="button" onClick={() => void runAuditScan('heavy')} disabled={auditChecking || !developerMode || !isHeavyScanDue()} className="rounded-full border border-line px-3 py-2 text-xs font-medium text-ink pressable disabled:opacity-50">
+              {auditChecking ? 'Running heavy audit…' : 'Run heavy audit'}
+            </button>
             <button type="button" onClick={() => void createAndSendDigest()} className="rounded-full border border-line px-3 py-2 text-xs font-medium text-ink pressable">
               Create and send weekly digest
             </button>
@@ -125,6 +148,32 @@ export default function DiagnosticsPage() {
             </button>
           </div>
           {devMessage && <p role="status" className="mt-2 text-xs text-mut">{devMessage}</p>}
+
+          {auditReport && (
+            <div className="mt-4 rounded-xl bg-surface2 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-xs font-semibold text-ink">{auditReport.scan.toUpperCase()} audit · {auditReport.trigger}</h3>
+                <span className="text-[10px] uppercase tracking-wide text-mut">{auditReport.durationMs} ms</span>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-mut sm:grid-cols-4">
+                <span>Passed: {auditReport.summary.passed}</span>
+                <span>Failed: {auditReport.summary.failed}</span>
+                <span>Warnings: {auditReport.summary.warnings}</span>
+                <span>Not applicable: {auditReport.summary.notApplicable}</span>
+              </div>
+              <div className="mt-3 space-y-2">
+                {auditReport.checks.map((check) => (
+                  <div key={check.id} className="rounded-lg border border-line bg-surface px-2 py-2 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-ink">{check.id}</span>
+                      <span className="rounded-full bg-surface2 px-2 py-0.5 text-[10px] uppercase tracking-wide text-mut">{check.status}</span>
+                    </div>
+                    <p className="mt-1 text-mut">{check.message}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {latestDigest && (
             <div className="mt-4 rounded-xl bg-surface2 p-3">
