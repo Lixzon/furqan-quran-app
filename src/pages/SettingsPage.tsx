@@ -1018,6 +1018,22 @@ export default function SettingsPage() {
       {/* ---- LIXZON ecosystem ---- */}
       <Section title="LIXZON ecosystem" icon="info" />
       <Card>
+        <a
+          href="https://lixzon.github.io/Mishkah/"
+          target="_blank"
+          rel="noreferrer"
+          className="flex w-full items-center gap-3 rounded-xl px-1 py-2 text-left pressable"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/12 text-accent">
+            <Icon name="sun" size={18} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-ink">Explore Mishkah</span>
+            <span className="block text-xs text-mut">Prayer times, fasting and daily worship</span>
+          </span>
+          <Icon name="chevronRight" size={18} className="text-mut" />
+        </a>
+        <div className="my-1 border-t border-line" />
         <button
           type="button"
           onClick={() => navigate('/mishkah')}
