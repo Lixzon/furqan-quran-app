@@ -58,12 +58,12 @@ export function TopBar() {
                 <button
                   type="button"
                   onClick={() => navigate('/mishkah')}
-                  aria-label="Open Islamic AI assistant"
-                  title="Ask an Islamic question"
+                  aria-label="Ask Rafiq AI about the Qur’an and Islamic guidance"
+                  title="Ask Rafiq AI"
                   className="pressable inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 text-xs font-semibold text-accent transition hover:bg-accent/15"
                 >
                   <Icon name="sparkle" size={16} />
-                  <span>AI</span>
+                  <span>Rafiq AI</span>
                 </button>
               </div>
             </>

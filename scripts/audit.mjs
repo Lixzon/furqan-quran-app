@@ -217,13 +217,13 @@ check(
   'assistant supports the six selected Islamic schools',
 );
 check(
-  assistantHeader.includes('aria-label="Open Islamic AI assistant"') &&
+  assistantHeader.includes('aria-label="Ask Rafiq AI about the Qur’an and Islamic guidance"') &&
     assistantHeader.includes("navigate('/mishkah')"),
   'home header exposes the Islamic AI assistant next to search',
 );
 check(
   assistantPage.includes('id="mishkah-school"') &&
-    assistantPage.includes('title="Islamic guidance"') &&
+    assistantPage.includes('title="Rafiq AI"') &&
     assistantPage.includes('Research on Google') &&
     assistantPage.includes('Continue with Gemini'),
   'assistant offers the reviewed wording, school selection and external research actions',

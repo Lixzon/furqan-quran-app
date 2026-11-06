@@ -168,7 +168,7 @@ export default function MishkahAssistantPage() {
           id="mishkah-question"
           value={question}
           onChange={(event) => setQuestion(event.target.value.slice(0, 1500))}
-          placeholder="Ask an Islamic question…"
+          placeholder="Ask Rafiq AI about the Qur’an or worship…"
           rows={2}
           maxLength={1500}
           disabled={busy}
@@ -193,8 +193,8 @@ export default function MishkahAssistantPage() {
   return (
     <div className="page-enter">
       <PageHeader
-        title="Islamic guidance"
-        subtitle="Ask about the Qur’an, worship, and Islamic practice."
+        title="Rafiq AI"
+        subtitle="Qur’an, worship, and Islamic guidance in Furqan."
       />
 
       <p className="mb-3 text-xs leading-relaxed text-mut">
@@ -277,7 +277,7 @@ export default function MishkahAssistantPage() {
               <div className="text-[11px] font-semibold uppercase tracking-wide text-mut">
                 {message.role === 'user'
                   ? `You${schoolName(message.schoolId) ? ` · ${schoolName(message.schoolId)}` : ''}`
-                  : message.answer?.mode === 'online' ? 'AI-assisted answer' : 'Offline guide'}
+                  : message.answer?.mode === 'online' ? 'Rafiq AI · Online-assisted' : 'Rafiq AI · Offline'}
               </div>
               <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-ink">{message.text}</p>
               {message.note && <p className="mt-2 text-xs text-mut">{message.note}</p>}

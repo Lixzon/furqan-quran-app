@@ -1043,8 +1043,8 @@ export default function SettingsPage() {
             <Icon name="book" size={18} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-ink">Mishkah Assistant</span>
-            <span className="block text-xs text-mut">Offline fasting and prayer-time guidance</span>
+            <span className="block text-sm font-semibold text-ink">Rafiq AI · Mishkah guidance</span>
+            <span className="block text-xs text-mut">Prayer, fasting and daily worship guidance</span>
           </span>
           <Icon name="chevronRight" size={18} className="text-mut" />
         </button>
