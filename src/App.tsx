@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { lazy, Suspense } from 'react';
 import { registerSW } from 'virtual:pwa-register';
@@ -34,7 +34,8 @@ const DiagnosticsPage = lazy(() => import('./pages/DiagnosticsPage'));
 const MishkahAssistantPage = lazy(() => import('./pages/MishkahAssistantPage'));
 
 export default function App() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const navigate = useNavigate();
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [offlineReady, setOfflineReady] = useState(false);
   const updateSWRef = useRef<((reloadPage?: boolean) => Promise<void>) | null>(null);
@@ -44,6 +45,12 @@ export default function App() {
       ? `Reading · ${APP_NAME}`
       : `${APP_NAME} — ${APP_TAGLINE}`;
   }, [pathname]);
+
+  useEffect(() => {
+    if (new URLSearchParams(search).get('sync') === '1' && pathname !== '/settings') {
+      navigate('/settings?sync=1', { replace: true });
+    }
+  }, [navigate, pathname, search]);
 
   useEffect(() => {
     const updateSW = registerSW({

@@ -200,6 +200,11 @@ export default function MishkahAssistantPage() {
       <p className="mb-3 text-xs leading-relaxed text-mut">
         Furqan’s offline guide gives general information—not personal fatwas.
       </p>
+      <p className="mb-4 rounded-xl border border-line bg-surface2 px-3 py-2 text-xs leading-relaxed text-mut" role="status">
+        {onlineConfigured
+          ? 'Offline answers are always available. Enable online answers in Answer preferences when you want current, source-checked information.'
+          : 'Offline answers are available. Online answers are not configured for this build; set VITE_MISHKAH_AI_ENDPOINT to enable them.'}
+      </p>
 
       <details className="mb-4 rounded-2xl border border-line bg-surface px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium text-ink">

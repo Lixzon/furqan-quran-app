@@ -33,12 +33,12 @@ export function getSupabaseClient(): SupabaseClient | null {
   return client;
 }
 
-export async function startGoogleCloudSignIn(): Promise<void> {
+export async function startGoogleCloudSignIn(redirectTo?: string): Promise<void> {
   const supabase = getSupabaseClient();
   if (!supabase) throw new Error('Supabase sync is not configured for this build.');
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: `${window.location.origin}${window.location.pathname}` },
+    options: { redirectTo: redirectTo ?? `${window.location.origin}${window.location.pathname}` },
   });
   if (error) throw new Error(`Google sign-in failed: ${error.message}`);
 }
