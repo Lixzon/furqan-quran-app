@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { KEYS, loadState } from '../persist';
 
-export const MEMORIZATION_REPETITION_GOAL = 50;
+export const MEMORIZATION_PLAY_THRESHOLD = 100;
 
 export interface MemorizedAyah {
   id: string;
@@ -11,6 +11,7 @@ export interface MemorizedAyah {
   arabic: string;
   translation: string;
   repetitions: number;
+  playCount: number;
   memorized: boolean;
   updatedAt: number;
 }
@@ -39,6 +40,7 @@ const memorizedSlice = createSlice({
       state.items.unshift({
         ...action.payload,
         repetitions: 0,
+        playCount: 0,
         memorized: true,
         updatedAt: Date.now(),
       });
@@ -47,7 +49,7 @@ const memorizedSlice = createSlice({
       const existing = state.items.find((item) => item.id === action.payload.id);
       if (existing) {
         existing.repetitions += 1;
-        if (existing.repetitions >= MEMORIZATION_REPETITION_GOAL) existing.memorized = true;
+        existing.playCount ??= 0;
         existing.updatedAt = Date.now();
         return;
       }
@@ -55,15 +57,64 @@ const memorizedSlice = createSlice({
       state.items.unshift({
         ...action.payload,
         repetitions: 1,
+        playCount: 0,
         memorized: false,
         updatedAt: Date.now(),
       });
     },
+    recordAyahPlay(state, action: PayloadAction<MemorizedAyahInfo>) {
+      const existing = state.items.find((item) => item.id === action.payload.id);
+      if (existing) {
+        existing.playCount = (existing.playCount ?? 0) + 1;
+        if (existing.playCount > MEMORIZATION_PLAY_THRESHOLD) existing.memorized = true;
+        existing.updatedAt = Date.now();
+        return;
+      }
+
+      state.items.unshift({
+        ...action.payload,
+        repetitions: 0,
+        playCount: 1,
+        memorized: false,
+        updatedAt: Date.now(),
+      });
+    },
+    mergeCloudMemorized(state, action: PayloadAction<MemorizedAyah>) {
+      const remote = action.payload;
+      const existing = state.items.find((item) => item.id === remote.id);
+      if (!existing) {
+        state.items.unshift({ ...remote });
+        return;
+      }
+      const isRemoteNewer = remote.updatedAt > existing.updatedAt;
+      if (isRemoteNewer) {
+        existing.surahName = remote.surahName;
+        existing.arabic = remote.arabic;
+        existing.translation = remote.translation;
+        existing.repetitions = remote.repetitions;
+        existing.memorized = remote.memorized;
+      }
+      existing.playCount = Math.max(existing.playCount ?? 0, remote.playCount ?? 0);
+      existing.updatedAt = Math.max(existing.updatedAt, remote.updatedAt);
+      if (existing.playCount > MEMORIZATION_PLAY_THRESHOLD) existing.memorized = true;
+    },
     restoreMemorized(_state, action: PayloadAction<MemorizedState>) {
-      return action.payload;
+      return {
+        items: action.payload.items.map((item) => ({
+          ...item,
+          repetitions: Number.isFinite(item.repetitions) ? item.repetitions : 0,
+          playCount: Number.isFinite(item.playCount) ? item.playCount : 0,
+        })),
+      };
     },
   },
 });
 
-export const { toggleMemorizedAyah, recordMemorizationRepetition, restoreMemorized } = memorizedSlice.actions;
+export const {
+  toggleMemorizedAyah,
+  recordMemorizationRepetition,
+  recordAyahPlay,
+  mergeCloudMemorized,
+  restoreMemorized,
+} = memorizedSlice.actions;
 export default memorizedSlice.reducer;

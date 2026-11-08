@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:web": "npm run build",
     "typecheck": "tsc --noEmit",
     "audit": "node scripts/audit.mjs",
     "verify": "npm run typecheck && npm run audit",
@@ -21,6 +22,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.3.0",
+    "@supabase/supabase-js": "^2.119.0",
     "@tanstack/react-virtual": "^3.14.13",
     "dexie": "^4.0.8",
     "dexie-react-hooks": "^1.1.7",

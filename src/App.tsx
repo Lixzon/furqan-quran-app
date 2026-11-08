@@ -16,6 +16,7 @@ import { VoiceSearchProvider } from './components/search/VoiceSearchModal';
 import { VoiceMatchDrawer } from './components/VoiceMatchDrawer';
 import { DeepLinkHost } from './components/DeepLinkHost';
 import { IdleTipHost } from './components/IdleTipHost';
+import { CloudSyncProvider } from './components/CloudSync';
 
 const BrowsePage = lazy(() => import('./pages/BrowsePage'));
 const LibraryPage = lazy(() => import('./pages/LibraryPage'));
@@ -63,6 +64,7 @@ export default function App() {
       <QuranProvider>
         <VoiceSearchProvider>
           <ThemeManager />
+          <CloudSyncProvider />
           {offlineReady && (
             <div className="fixed inset-x-0 top-0 z-50 flex justify-center px-3 pt-3">
               <div className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink shadow-lg shadow-black/10">

@@ -69,6 +69,7 @@ import { PROFILE_AVATARS, ProfileAvatar } from '../components/ui/ProfileAvatar';
 import { createBackupJson, parseBackupJson, restoreBackup, type FurqanBackup } from '../lib/backup';
 import { totalLikedItems } from '../store/slices/likesSlice';
 import type { ThemeMode } from '../types';
+import { CloudSyncPanel } from '../components/CloudSync';
 
 /* beforeinstallprompt is a Chromium-only event */
 interface BeforeInstallPromptEvent extends Event {
@@ -210,6 +211,8 @@ export default function SettingsPage() {
           </button>
         </div>
       </Card>
+      <Section title="Cloud sync" icon="cloud" />
+      <CloudSyncPanel />
       <Modal open={avatarPickerOpen} onClose={() => setAvatarPickerOpen(false)} title="Choose your avatar" size="md">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {PROFILE_AVATARS.map(({ id, label }) => (

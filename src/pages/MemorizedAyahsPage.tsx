@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store';
-import { toggleMemorizedAyah } from '../store/slices/memorizedSlice';
+import { MEMORIZATION_PLAY_THRESHOLD, toggleMemorizedAyah } from '../store/slices/memorizedSlice';
 import { EmptyState } from '../components/ui/common';
 import { Icon } from '../components/ui/Icon';
 
@@ -44,7 +44,7 @@ export default function MemorizedAyahsPage() {
         <EmptyState
           icon="book"
           title={query ? 'No memorized ayahs match' : 'No memorized ayahs yet'}
-          message={query ? 'Try another search.' : 'Open an ayah and choose “Mark as memorized”. Complete 50 focused repetitions to mark one automatically.'}
+          message={query ? 'Try another search.' : `Open an ayah and choose “Mark as memorized”, or complete more than ${MEMORIZATION_PLAY_THRESHOLD} audio plays for automatic tracking.`}
         />
       ) : (
         memorizedItems.map((item) => (
@@ -61,7 +61,32 @@ export default function MemorizedAyahsPage() {
               <span className="mt-1 block text-sm leading-relaxed text-ink2">{item.translation}</span>
             </button>
             <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-2">
-              <span className="text-[11px] tabular-nums text-mut">{item.repetitions} focused repetitions</span>
+              <div className="flex items-center gap-2">
+                <svg
+                  aria-label={`${item.playCount ?? 0} of ${MEMORIZATION_PLAY_THRESHOLD + 1} plays toward automatic memorization`}
+                  className="h-8 w-8 -rotate-90 text-accent"
+                  role="img"
+                  viewBox="0 0 72 72"
+                >
+                  <circle cx="36" cy="36" r="33" fill="none" stroke="currentColor" strokeOpacity="0.14" strokeWidth="3" pathLength="100" />
+                  <circle
+                    className="progress-ring"
+                    cx="36"
+                    cy="36"
+                    r="33"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    pathLength="100"
+                    strokeDasharray="100"
+                    strokeDashoffset={100 - Math.min(100, ((item.playCount ?? 0) / (MEMORIZATION_PLAY_THRESHOLD + 1)) * 100)}
+                  />
+                </svg>
+                <span className="text-[11px] tabular-nums text-mut">
+                  {item.playCount ?? 0}/{MEMORIZATION_PLAY_THRESHOLD + 1} audio plays
+                </span>
+              </div>
               <button
                 type="button"
                 aria-pressed="true"

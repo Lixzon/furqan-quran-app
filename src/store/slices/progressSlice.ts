@@ -84,6 +84,29 @@ const progressSlice = createSlice({
         ),
       };
     },
+    mergeCloudStreak(
+      state,
+      action: PayloadAction<{ currentStreak: number; highestStreak: number; lastActiveDate: string | null }>,
+    ) {
+      const remote = action.payload;
+      if (!Number.isInteger(remote.currentStreak) || remote.currentStreak < 0) return;
+      if (!Number.isInteger(remote.highestStreak) || remote.highestStreak < 0) return;
+      const local = state.progression;
+      if (
+        remote.lastActiveDate &&
+        (!local.lastActiveDate || remote.lastActiveDate > local.lastActiveDate)
+      ) {
+        local.currentStreak = remote.currentStreak;
+        local.lastActiveDate = remote.lastActiveDate;
+      } else if (remote.lastActiveDate === local.lastActiveDate) {
+        local.currentStreak = Math.max(local.currentStreak, remote.currentStreak);
+      }
+      local.highestStreak = Math.max(
+        local.highestStreak,
+        remote.highestStreak,
+        local.currentStreak,
+      );
+    },
     /** remember where the user left off in a surah (ayah = numberInSurah) */
     rememberRead(state, action: PayloadAction<{ surah: number; ayah: number; name?: string }>) {
       const { surah, ayah, name = `Surah ${surah}` } = action.payload;
@@ -222,6 +245,7 @@ const progressSlice = createSlice({
 
 export const {
   restoreProgress,
+  mergeCloudStreak,
   rememberRead,
   rememberListened,
   markListened,

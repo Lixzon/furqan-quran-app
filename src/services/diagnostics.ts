@@ -10,6 +10,7 @@ export type DiagnosticKind =
   | 'unhandled-error'
   | 'unhandled-rejection'
   | 'audio-stream'
+  | 'memorization-tracking'
   | 'assistant-service'
   | 'performance';
 
@@ -47,6 +48,7 @@ const kinds: DiagnosticKind[] = [
   'unhandled-error',
   'unhandled-rejection',
   'audio-stream',
+  'memorization-tracking',
   'assistant-service',
   'performance',
 ];

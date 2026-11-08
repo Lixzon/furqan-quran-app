@@ -2,6 +2,7 @@ import { store } from '../store';
 import { patch, type PlayerState, type VerseRange } from '../store/slices/playerSlice';
 import { push } from '../store/slices/toastSlice';
 import { markListened, rememberListened } from '../store/slices/progressSlice';
+import { recordAyahPlay } from '../store/slices/memorizedSlice';
 import { reciterById } from '../lib/constants';
 import { getSurahTimingData, resolveAudioSourceUrl, type TimingSegment } from '../lib/audioTiming';
 import { isAudioDownloaded, getDownloadedAudioUrl, getRangedAudioUrl } from '../services/audioStore';
@@ -119,6 +120,30 @@ class PlayerController {
   /* ------------------------------------------- helpers --------------- */
   private patch(p: Partial<PlayerState>): void {
     store.dispatch(patch(p));
+  }
+
+  private recordCompletedAyah(surah: number, ayahIndex: number): void {
+    void getSurah(surah)
+      .then((data) => {
+        const verse = data.ayahs[ayahIndex];
+        if (!verse) return;
+        store.dispatch(recordAyahPlay({
+          id: `${surah}:${verse.i}`,
+          surah,
+          ayah: verse.i,
+          surahName: data.englishName,
+          arabic: verse.ar,
+          translation: verse.tr,
+        }));
+      })
+      .catch((error: unknown) => {
+        const details = error instanceof Error ? error : new Error('Verse text could not be loaded.');
+        recordDiagnostic(
+          'memorization-tracking',
+          `Could not record completed audio for ${surah}:${ayahIndex + 1}`,
+          details.stack ?? '',
+        );
+      });
   }
 
   private getState() {
@@ -374,6 +399,9 @@ class PlayerController {
     if (!range || s.ayahCount <= 0 || duration <= 0) return false;
     const end = this.ayahEndTime(range.end, s.ayahCount, duration);
     if (t < end - 0.05) return false;
+    if (s.surah !== null && s.ayah === range.end) {
+      this.recordCompletedAyah(s.surah, range.end);
+    }
     const start = this.ayahStartTime(range.start, s.ayahCount, duration);
     const el = this.ensureEl();
     try {
@@ -404,6 +432,7 @@ class PlayerController {
     const t = Number.isFinite(el.currentTime) ? el.currentTime : 0;
     const d = Number.isFinite(el.duration) ? el.duration : 0;
     if (this.applyRangeLoop(t, d, s)) return;
+    const wasSeeking = this.indexFloor !== null;
     let idx = this.computeAyahIndex(this.timelineTime(t), d, s.ayahCount);
 
     // After a deliberate seek the offset would briefly name the previous ayah;
@@ -428,6 +457,7 @@ class PlayerController {
       }
       this.patch({ ayah: target, currentTime: stopAt, isPlaying: false, buffering: false });
       this.stopTimelineSampler();
+      this.recordCompletedAyah(s.surah, target);
       onEnded?.();
       return;
     }
@@ -438,6 +468,9 @@ class PlayerController {
     if (s.isPlaying !== !el.paused) toPatch.isPlaying = !el.paused;
     if (Object.keys(toPatch).length > 0) this.patch(toPatch);
     if (idx !== s.ayah) {
+      if (!wasSeeking && s.isPlaying && s.ayah !== null && idx === s.ayah + 1) {
+        this.recordCompletedAyah(s.surah, s.ayah);
+      }
       const surahName = this.metaCache.get(s.surah)?.englishName ?? `Surah ${s.surah}`;
       this.updateMediaSession(`${surahName} ${s.surah}:${idx + 1}`, reciterLabel(s.reciter));
       store.dispatch(
@@ -508,6 +541,7 @@ class PlayerController {
   private onEnded(): void {
     const s = this.getState();
     if (s.range && s.surah !== null) {
+      if (s.ayah !== null) this.recordCompletedAyah(s.surah, s.ayah);
       this.rangeAyahRepeated?.();
       const el = this.ensureEl();
       const d = Number.isFinite(el.duration) ? el.duration : 0;
@@ -528,9 +562,11 @@ class PlayerController {
       this.stopAfterAyahIndex = null;
       this.singleAyahEnded = null;
       this.patch({ isPlaying: false, buffering: false, ayah: target });
+      if (s.surah !== null) this.recordCompletedAyah(s.surah, target);
       onAyahEnded?.();
       return;
     }
+    if (s.surah !== null && s.ayah !== null) this.recordCompletedAyah(s.surah, s.ayah);
     if (s.surah !== null) store.dispatch(markListened(s.surah));
 
     if (s.stopAfterSurah) {
