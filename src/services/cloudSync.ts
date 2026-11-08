@@ -33,12 +33,12 @@ export function getSupabaseClient(): SupabaseClient | null {
   return client;
 }
 
-export async function startGoogleCloudSignIn(redirectTo?: string): Promise<void> {
+export async function startGoogleCloudSignIn(): Promise<void> {
   const supabase = getSupabaseClient();
   if (!supabase) throw new Error('Supabase sync is not configured for this build.');
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: redirectTo ?? `${window.location.origin}${window.location.pathname}` },
+    options: { redirectTo: `${window.location.origin}${window.location.pathname}` },
   });
   if (error) throw new Error(`Google sign-in failed: ${error.message}`);
 }
@@ -67,7 +67,7 @@ export async function readSharedRecords(): Promise<SharedSyncRecord[]> {
     .from('lixzon_sync_records')
     .select('record_key,payload,updated_at')
     .eq('user_id', user.id);
-  if (error) throw new Error(`Could not load shared progress: ${error.message}`);
+  if (error) throw new Error(`Could not load cloud progress: ${error.message}`);
   return (data ?? []) as SharedSyncRecord[];
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store';
 import { push } from '../store/slices/toastSlice';
 import { setCustomAccent } from '../store/slices/themeSlice';
@@ -70,7 +70,6 @@ import { createBackupJson, parseBackupJson, restoreBackup, type FurqanBackup } f
 import { totalLikedItems } from '../store/slices/likesSlice';
 import type { ThemeMode } from '../types';
 import { CloudSyncPanel } from '../components/CloudSync';
-import { isSupabaseSyncConfigured, readCloudUser, startGoogleCloudSignIn } from '../services/cloudSync';
 
 /* beforeinstallprompt is a Chromium-only event */
 interface BeforeInstallPromptEvent extends Event {
@@ -81,7 +80,6 @@ interface BeforeInstallPromptEvent extends Event {
 export default function SettingsPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const location = useLocation();
   const theme = useAppSelector((s) => s.theme);
   const settings = useAppSelector((s) => s.settings);
   const progress = useAppSelector((s) => s.progress);
@@ -100,9 +98,6 @@ export default function SettingsPage() {
   );
   const [pendingBackup, setPendingBackup] = useState<FurqanBackup | null>(null);
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
-  const [siblingSyncOpen, setSiblingSyncOpen] = useState(false);
-  const [siblingSyncBusy, setSiblingSyncBusy] = useState(false);
-
   const mishkahUrl = (import.meta.env.VITE_MISHKAH_URL?.trim() || 'https://lixzon.github.io/Mishkah').replace(/\/+$/, '');
 
   const streak = progress.progression.currentStreak;
@@ -185,52 +180,8 @@ export default function SettingsPage() {
     };
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('sync') === '1') setSiblingSyncOpen(true);
-    if (params.get('syncWith') !== 'mishkah') return;
-
-    let active = true;
-    void readCloudUser().then((user) => {
-      if (!active) return;
-      if (!user) {
-        dispatch(push('Google sign-in did not finish. You can try syncing again.', 'error'));
-        return;
-      }
-      window.location.replace(`${mishkahUrl}/?sync=1`);
-    }).catch((error: unknown) => {
-      if (active) dispatch(push(error instanceof Error ? error.message : 'Could not verify the shared account.', 'error'));
-    });
-    return () => {
-      active = false;
-    };
-  }, [dispatch, location.search, mishkahUrl]);
-
   const openMishkah = () => {
-    setSiblingSyncOpen(false);
     window.location.assign(`${mishkahUrl}/`);
-  };
-
-  const syncAndOpenMishkah = async () => {
-    if (!isSupabaseSyncConfigured()) {
-      dispatch(push('Shared sync needs the same Supabase project configured in Furqan and Mishkah.', 'error'));
-      return;
-    }
-
-    setSiblingSyncBusy(true);
-    try {
-      const user = await readCloudUser();
-      if (!user) {
-        const returnUrl = `${window.location.origin}${window.location.pathname}?syncWith=mishkah`;
-        await startGoogleCloudSignIn(returnUrl);
-        return;
-      }
-      window.location.assign(`${mishkahUrl}/?sync=1`);
-    } catch (error) {
-      dispatch(push(error instanceof Error ? error.message : 'Could not start shared sync.', 'error'));
-    } finally {
-      setSiblingSyncBusy(false);
-    }
   };
 
   return (
@@ -1077,7 +1028,7 @@ export default function SettingsPage() {
       <Card>
         <button
           type="button"
-          onClick={() => setSiblingSyncOpen(true)}
+          onClick={openMishkah}
           className="flex w-full items-center gap-3 rounded-xl px-1 py-2 text-left pressable"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/12 text-accent">
@@ -1085,7 +1036,7 @@ export default function SettingsPage() {
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold text-ink">Open Mishkah</span>
-            <span className="block text-xs text-mut">Prayer, fasting, daily worship, and shared progress</span>
+            <span className="block text-xs text-mut">Prayer, fasting, and daily worship</span>
           </span>
           <Icon name="chevronRight" size={18} className="text-mut" />
         </button>
@@ -1162,41 +1113,6 @@ export default function SettingsPage() {
           <p className="mt-1 text-center text-[10px] tracking-[0.18em] text-mut/70">{APP_ATTRIBUTION}</p>
         </div>
       </Card>
-
-      <Modal open={siblingSyncOpen} onClose={() => setSiblingSyncOpen(false)} title="Connect Furqan and Mishkah">
-        <p className="text-sm leading-relaxed text-mut">
-          Do you want to sync both apps? Sign in with the same Google account in each app. Your reading progress stays on this device while offline and syncs when a connection is available.
-        </p>
-        {!isSupabaseSyncConfigured() && (
-          <p className="mt-3 rounded-xl bg-surface2 p-3 text-xs leading-relaxed text-mut">
-            Shared sync is not configured in this build. Both apps must use the same Supabase project with Google sign-in enabled.
-          </p>
-        )}
-        <div className="mt-4 flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => setSiblingSyncOpen(false)}
-            className="rounded-full px-4 py-2 text-sm font-medium text-mut hover:bg-surface2"
-          >
-            Not now
-          </button>
-          <button
-            type="button"
-            onClick={openMishkah}
-            className="rounded-full border border-line px-4 py-2 text-sm font-medium text-ink hover:bg-surface2"
-          >
-            Open without syncing
-          </button>
-          <button
-            type="button"
-            disabled={siblingSyncBusy || !isSupabaseSyncConfigured()}
-            onClick={() => void syncAndOpenMishkah()}
-            className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-onaccent disabled:opacity-50"
-          >
-            {siblingSyncBusy ? 'Connecting…' : 'Yes, sync both apps'}
-          </button>
-        </div>
-      </Modal>
 
       {/* confirm clear audio */}
       <Modal open={confirmClearAudio} onClose={() => setConfirmClearAudio(false)} title="Clear downloaded audio?">

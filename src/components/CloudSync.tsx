@@ -293,7 +293,7 @@ export function CloudSyncPanel() {
     <section className="rounded-2xl border border-line bg-surface p-4">
       <div className="mb-1 text-sm font-semibold text-ink">LIXZON cloud sync</div>
       <p className="mb-3 text-xs leading-relaxed text-muted">
-        Keep Furqan memorization and streak progress in sync with Mishkah on your account.
+        Keep your Furqan memorization and streak progress in sync across your devices.
       </p>
       {!configured ? (
         <p className="text-xs text-muted">

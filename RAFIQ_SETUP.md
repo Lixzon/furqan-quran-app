@@ -28,11 +28,3 @@ limits the answer length and number of displayed sources.
 Both apps need to be rebuilt after changing their endpoint configuration.
 Without an endpoint, Rafiq remains offline-only and the interface should say
 that online answers are not configured rather than imply they are live.
-
-## Google sign-in and shared progress
-
-Web sign-in uses the Google provider configured in the shared Supabase project.
-Configure the project's OAuth redirect allow-list for both app origins. Native
-Mishkah builds additionally require the iOS and Android OAuth client IDs
-described in [`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md). Both apps must use the
-same Supabase project and the same Google account for progress to sync.
