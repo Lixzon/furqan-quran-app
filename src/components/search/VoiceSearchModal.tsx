@@ -129,6 +129,9 @@ function VoiceSearchModal({
 
   /* Match the recognised (or typed) text against the corpus. */
   useEffect(() => {
+    if (!open) return;
+
+    let active = true;
     const query = transcript.trim();
     if (!index || query.length < 2) {
       setResults([]);
@@ -142,6 +145,7 @@ function VoiceSearchModal({
       void (async () => {
         const language = lang === 'en-US' ? 'en-US' : 'ar-SA';
         const matches = await searchRecitationMatches(query, language, DEFAULT_SEARCH_LIMIT);
+        if (!active) return;
         setResults(matches);
         if (matches.length === 0) {
           dispatch(clearVoiceMatchSession());
@@ -157,12 +161,16 @@ function VoiceSearchModal({
           return;
         }
         onClose();
+        cancelSpeech();
         dispatch(setVoiceMatchSession({ matches, activeIndex: 0, isOpen: true, lastQuery: query }));
         setSearching(false);
       })();
     }, SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(timer);
-  }, [cancelSpeech, dispatch, index, lang, navigate, onClose, transcript]);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [cancelSpeech, dispatch, index, lang, navigate, onClose, open, transcript]);
 
   const close = useCallback(() => {
     dispatch(clearVoiceMatchSession());

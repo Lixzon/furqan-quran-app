@@ -1,19 +1,40 @@
-# Furqan account sync setup
+﻿# Furqan <-> Mishkah pairing sync
 
-Furqan uses Supabase for its own account-scoped cloud sync. Furqan no longer connects accounts with Mishkah or sends its progress to Mishkah. The schema is in [`supabase/migrations/20261108150000_lixzon_sync_records.sql`](./supabase/migrations/20261108150000_lixzon_sync_records.sql).
+Furqan and Mishkah share one private pairing instead of user accounts. There is no Google sign-in in either app.
+
+## What gets synced
+
+- `furqan.progression` - Furqan reading streak, published by Furqan.
+- `quran.daily-highlight:<date>` - the verse of the day both apps show.
+- `furqan.memorized:<surah>:<ayah>` - memorization state per ayah.
+- `mishkah.engagement` - Mishkah's engagement snapshot.
+
+Mishkah reads the streak and today's verse from these records, so both apps show the same numbers and the same ayah. Qur'an references inside Mishkah open the full surah in Furqan.
 
 ## Configure the project
 
-1. Create a Supabase project and apply the migration above with the Supabase CLI or SQL editor.
-2. In Authentication → Providers, enable Google. Configure the web OAuth client and the production and local redirect URLs used by Furqan.
-3. Use a Supabase **publishable** key (or legacy anon key) in Furqan. Never use a `service_role` key in a client app.
-4. Copy `.env.example` to `.env.local` in Furqan and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+1. Create one Supabase project for the LIXZON apps.
+2. Apply both migrations with the Supabase CLI or SQL editor:
+   - `supabase/migrations/20261108150000_lixzon_sync_records.sql`
+   - `supabase/migrations/20261109130000_lixzon_pair_sync.sql`
+3. Use the Supabase **publishable** key (or legacy anon key). Never ship a `service_role` key in a client app.
+4. Copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 
-The migration revokes anonymous access, enables row-level security, limits clients to their own records, validates record names and payload sizes, and adds the table to Realtime. Do not disable RLS. Furqan cloud sync remains unavailable until the external project, Google provider, redirect URLs, and environment values are configured.
+No Authentication provider needs to be enabled: pairing uses the code-hash functions in the second migration, and the pair tables have no client-facing row access.
 
-## Furqan records
+## Pair the apps
 
-- `furqan.progression`: Furqan reading streak and memorization summary.
-- `furqan.memorized:<surah>:<ayah>`: one user's ayah memorization state.
+1. Open Furqan -> Settings -> **Pair Mishkah** -> **Create pairing code**.
+2. Copy the 20-character code.
+3. Open Mishkah -> Profile or Settings -> **Pair with Furqan**, paste the code, and sync.
 
-Client data is user-owned progress, not a server-verified religious or activity record. Furqan retains local data when offline and queues updates until sync can succeed.
+Furqan refreshes the shared records when its progress changes and every 15 seconds while a code is saved. Mishkah refreshes Furqan's records on launch, when the app returns to the foreground, and every minute. **Sync now** pushes immediately.
+
+Treat the pairing code like a password: anyone with it can read and write that pairing's records. **Unpair** removes it from the local device only.
+
+## Security notes
+
+- Pairing codes are stored as SHA-256 hashes; the plain code never leaves the client except in the RPC call.
+- Record names and payload sizes are validated in the database, and only the fixed set of record keys above is accepted.
+- Sync functions run with `security definer` and are the only exposed surface; the tables are not readable or writable by client roles directly.
+- Data is user-owned progress, not a server-verified religious or activity record.

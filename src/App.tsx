@@ -15,7 +15,6 @@ import { ProgressionHost } from './components/layout/ProgressionHost';
 import { VoiceSearchProvider } from './components/search/VoiceSearchModal';
 import { VoiceMatchDrawer } from './components/VoiceMatchDrawer';
 import { DeepLinkHost } from './components/DeepLinkHost';
-import { IdleTipHost } from './components/IdleTipHost';
 import { CloudSyncProvider } from './components/CloudSync';
 
 const BrowsePage = lazy(() => import('./pages/BrowsePage'));
@@ -118,7 +117,6 @@ export default function App() {
           <ReminderHost />
           <ProgressionHost />
           <VoiceMatchDrawer />
-          <IdleTipHost />
         </VoiceSearchProvider>
       </QuranProvider>
     </ErrorBoundary>

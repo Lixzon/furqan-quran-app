@@ -27,6 +27,7 @@ export default function DiagnosticsPage() {
   const [events, setEvents] = useState<DiagnosticEvent[]>(() => readDiagnosticEvents());
   const [digests, setDigests] = useState<DiagnosticDigest[]>(() => readDiagnosticDigests());
   const [devMessage, setDevMessage] = useState('');
+  const [reportMessage, setReportMessage] = useState('');
   const latestDigest = digests[0];
   const developerMode = import.meta.env.DEV;
   const healthMessage = !result
@@ -61,8 +62,16 @@ export default function DiagnosticsPage() {
 
   const createAndSendDigest = async () => {
     const digest = createDiagnosticDigest();
-    await deliverDiagnosticDigest(digest);
+    const result = await deliverDiagnosticDigest(digest);
     refreshDeveloperData();
+    setDigests(readDiagnosticDigests());
+    setReportMessage(
+      result.reportSent
+        ? 'The weekly report was sent to the configured diagnostics service.'
+        : result.failureReason === 'not-configured'
+          ? 'The report is saved on this device. Remote delivery is not configured.'
+          : 'The report is saved on this device, but remote delivery failed.',
+    );
   };
 
   const copyVerifyCommand = async () => {
@@ -117,6 +126,41 @@ export default function DiagnosticsPage() {
         )}
       </section>
 
+      <section className="mt-4 rounded-2xl border border-line bg-surface p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-ink">Weekly system report</h2>
+            <p className="mt-1 text-xs leading-relaxed text-mut">
+              Reports are stored on this device and appear here. Furqan creates one on Fridays while the app is open. Remote delivery requires a configured diagnostics service.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void createAndSendDigest()}
+            className="rounded-full border border-line px-3 py-2 text-xs font-medium text-ink pressable"
+          >
+            Create report now
+          </button>
+        </div>
+        {reportMessage && <p role="status" className="mt-2 text-xs text-mut">{reportMessage}</p>}
+        {latestDigest ? (
+          <div className="mt-3 rounded-xl bg-surface2 p-3">
+            <h3 className="text-xs font-semibold text-ink">Latest report · week ending {latestDigest.weekEnding}</h3>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-mut sm:grid-cols-3">
+              <span>Total events: {latestDigest.totalEvents}</span>
+              {Object.entries(latestDigest.counts).map(([kind, count]) => (
+                <span key={kind}>{kind}: {count}</span>
+              ))}
+              <span>Long tasks: {latestDigest.performance.longTaskCount}</span>
+              <span>Maximum long task: {latestDigest.performance.maximumLongTaskMs} ms</span>
+              <span>Delivery: {latestDigest.deliveryStatus ?? 'local only'}</span>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-3 text-xs text-mut">No weekly report has been created on this device yet.</p>
+        )}
+      </section>
+
       {developerMode && (
         <section className="mt-4 rounded-2xl border border-line bg-surface p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -139,9 +183,6 @@ export default function DiagnosticsPage() {
             </button>
             <button type="button" onClick={() => void runAuditScan('heavy')} disabled={auditChecking || !developerMode || !isHeavyScanDue()} className="rounded-full border border-line px-3 py-2 text-xs font-medium text-ink pressable disabled:opacity-50">
               {auditChecking ? 'Running heavy audit…' : 'Run heavy audit'}
-            </button>
-            <button type="button" onClick={() => void createAndSendDigest()} className="rounded-full border border-line px-3 py-2 text-xs font-medium text-ink pressable">
-              Create and send weekly digest
             </button>
             <button type="button" onClick={clearDeveloperData} className="rounded-full border border-line px-3 py-2 text-xs font-medium text-danger pressable">
               Clear local diagnostics
@@ -171,20 +212,6 @@ export default function DiagnosticsPage() {
                     <p className="mt-1 text-mut">{check.message}</p>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {latestDigest && (
-            <div className="mt-4 rounded-xl bg-surface2 p-3">
-              <h3 className="text-xs font-semibold text-ink">Latest weekly digest · {latestDigest.weekEnding}</h3>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-mut sm:grid-cols-3">
-                {Object.entries(latestDigest.counts).map(([kind, count]) => (
-                  <span key={kind}>{kind}: {count}</span>
-                ))}
-                <span>Long tasks: {latestDigest.performance.longTaskCount}</span>
-                <span>Maximum long task: {latestDigest.performance.maximumLongTaskMs} ms</span>
-                <span>Delivery: {latestDigest.deliveryStatus ?? 'local only'}</span>
               </div>
             </div>
           )}

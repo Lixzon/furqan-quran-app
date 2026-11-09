@@ -1,4 +1,4 @@
-import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
+﻿import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 export interface SharedSyncRecord {
   record_key: string;
@@ -7,15 +7,52 @@ export interface SharedSyncRecord {
 }
 
 export const CLOUD_SYNC_REQUEST_EVENT = 'lixzon:cloud-sync:request';
+export const CLOUD_SYNC_PAIR_CHANGED_EVENT = 'lixzon:cloud-sync:pair-changed';
+const PAIR_CODE_STORAGE_KEY = 'lixzon.sync.pair-code.v1';
+const PAIR_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const PAIR_CODE_LENGTH = 20;
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.trim() ?? '';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? '';
 
 let client: SupabaseClient | null = null;
-let channel: RealtimeChannel | null = null;
+
 
 export function isSupabaseSyncConfigured(): boolean {
   return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+}
+
+export function getSavedPairCode(): string | null {
+  try {
+    return window.localStorage.getItem(PAIR_CODE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function savePairCode(code: string | null): void {
+  try {
+    if (code) window.localStorage.setItem(PAIR_CODE_STORAGE_KEY, code);
+    else window.localStorage.removeItem(PAIR_CODE_STORAGE_KEY);
+  } catch {
+    throw new Error('Could not save the pairing code in this browser.');
+  }
+}
+
+function newPairCode(): string {
+  if (!globalThis.crypto?.getRandomValues) {
+    throw new Error('Secure random generation is unavailable in this browser.');
+  }
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(PAIR_CODE_LENGTH));
+  return Array.from(bytes, (byte) => PAIR_CODE_ALPHABET[byte & 31]).join('');
+}
+
+function validatePairCode(value: string): string {
+  const code = value.trim().toUpperCase().replace(/[\s-]/g, '');
+  if (!new RegExp(`^[${PAIR_CODE_ALPHABET}]{${PAIR_CODE_LENGTH}}$`).test(code)) {
+    throw new Error('Enter the complete 20-character pairing code.');
+  }
+  return code;
 }
 
 export function getSupabaseClient(): SupabaseClient | null {
@@ -33,122 +70,58 @@ export function getSupabaseClient(): SupabaseClient | null {
   return client;
 }
 
-export async function startGoogleCloudSignIn(): Promise<void> {
+export async function createPairCode(): Promise<string> {
   const supabase = getSupabaseClient();
-  if (!supabase) throw new Error('Supabase sync is not configured for this build.');
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: `${window.location.origin}${window.location.pathname}` },
-  });
-  if (error) throw new Error(`Google sign-in failed: ${error.message}`);
+  if (!supabase) throw new Error('Pairing sync is not configured for this build.');
+  const code = newPairCode();
+  const { error } = await supabase.rpc('create_lixzon_sync_pair', { p_code: code });
+  if (error) throw new Error(`Could not create an app-pairing code: ${error.message}`);
+  savePairCode(code);
+  return code;
 }
 
-export async function stopCloudSignIn(): Promise<void> {
+export async function joinPairCode(value: string): Promise<string> {
   const supabase = getSupabaseClient();
-  if (!supabase) return;
-  const { error } = await supabase.auth.signOut();
-  if (error) throw new Error(`Supabase sign-out failed: ${error.message}`);
+  if (!supabase) throw new Error('Pairing sync is not configured for this build.');
+  const code = validatePairCode(value);
+  const { error } = await supabase.rpc('join_lixzon_sync_pair', { p_code: code });
+  if (error) throw new Error(`Could not join that app pairing: ${error.message}`);
+  savePairCode(code);
+  return code;
 }
 
-export async function readCloudUser() {
-  const supabase = getSupabaseClient();
-  if (!supabase) return null;
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw new Error(`Could not verify the signed-in account: ${error.message}`);
-  return data.session?.user ?? null;
+export function forgetPairCode(): void {
+  savePairCode(null);
 }
 
-export async function readSharedRecords(): Promise<SharedSyncRecord[]> {
+export async function readPairedRecords(code: string): Promise<SharedSyncRecord[]> {
   const supabase = getSupabaseClient();
-  if (!supabase) throw new Error('Supabase sync is not configured for this build.');
-  const user = await readCloudUser();
-  if (!user) throw new Error('Sign in before loading LIXZON progress.');
-  const { data, error } = await supabase
-    .from('lixzon_sync_records')
-    .select('record_key,payload,updated_at')
-    .eq('user_id', user.id);
-  if (error) throw new Error(`Could not load cloud progress: ${error.message}`);
-  return (data ?? []) as SharedSyncRecord[];
+  if (!supabase) throw new Error('Pairing sync is not configured for this build.');
+  const { data, error } = await supabase.rpc('read_lixzon_paired_records', { p_code: code });
+  if (error) throw new Error(`Could not load paired app data: ${error.message}`);
+  if (!Array.isArray(data)) throw new Error('The sync service returned invalid paired data.');
+  return data.filter((row): row is SharedSyncRecord =>
+    typeof row === 'object' &&
+    row !== null &&
+    typeof row.record_key === 'string' &&
+    typeof row.updated_at === 'string' &&
+    typeof row.payload === 'object' &&
+    row.payload !== null &&
+    !Array.isArray(row.payload),
+  );
 }
 
-export async function upsertSharedRecords(
+export async function upsertPairedRecords(
+  code: string,
   records: Array<{ record_key: string; payload: Record<string, unknown> }>,
 ): Promise<void> {
-  const supabase = getSupabaseClient();
-  if (!supabase) throw new Error('Supabase sync is not configured for this build.');
-  const user = await readCloudUser();
-  if (!user) throw new Error('Sign in before syncing LIXZON progress.');
   if (records.length === 0) return;
-  const { error } = await supabase.from('lixzon_sync_records').upsert(
-    records.map((record) => ({
-      user_id: user.id,
-      record_key: record.record_key,
-      payload: record.payload,
-      updated_at: new Date().toISOString(),
-    })),
-    { onConflict: 'user_id,record_key' },
-  );
-  if (error) throw new Error(`Could not sync progress: ${error.message}`);
-}
-
-export async function subscribeToSharedRecords(
-  onRecord: (record: SharedSyncRecord) => void,
-): Promise<() => Promise<void>> {
   const supabase = getSupabaseClient();
-  if (!supabase) throw new Error('Supabase sync is not configured for this build.');
-  const user = await readCloudUser();
-  if (!user) throw new Error('Sign in before subscribing to LIXZON progress.');
-  if (channel) {
-    await supabase.removeChannel(channel);
-    channel = null;
-  }
-  channel = supabase
-    .channel(`lixzon-sync:${user.id}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'lixzon_sync_records',
-        filter: `user_id=eq.${user.id}`,
-      },
-      (change) => {
-        const row = change.new as Partial<SharedSyncRecord>;
-        if (
-          typeof row.record_key === 'string' &&
-          typeof row.updated_at === 'string' &&
-          typeof row.payload === 'object' &&
-          row.payload !== null &&
-          !Array.isArray(row.payload)
-        ) {
-          onRecord({
-            record_key: row.record_key,
-            updated_at: row.updated_at,
-            payload: row.payload as Record<string, unknown>,
-          });
-        }
-      },
-    )
-    .subscribe((status, error) => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.error('LIXZON sync realtime subscription failed.', error);
-      }
-    });
-  const subscription = channel;
-  return async () => {
-    if (channel !== subscription) return;
-    await supabase.removeChannel(subscription);
-    channel = null;
-  };
-}
-
-export function subscribeToCloudAuth(
-  listener: (userId: string | null, email: string | null) => void,
-): () => void {
-  const supabase = getSupabaseClient();
-  if (!supabase) return () => undefined;
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-    listener(session?.user.id ?? null, session?.user.email ?? null);
+  if (!supabase) throw new Error('Pairing sync is not configured for this build.');
+  const { error } = await supabase.rpc('upsert_lixzon_paired_records', {
+    p_code: code,
+    p_records: records,
   });
-  return () => data.subscription.unsubscribe();
+  if (error) throw new Error(`Could not sync paired app data: ${error.message}`);
 }
+

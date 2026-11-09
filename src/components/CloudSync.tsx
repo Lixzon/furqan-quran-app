@@ -4,15 +4,15 @@ import { push } from '../store/slices/toastSlice';
 import { mergeCloudStreak } from '../store/slices/progressSlice';
 import { mergeCloudMemorized, type MemorizedAyah } from '../store/slices/memorizedSlice';
 import {
+  CLOUD_SYNC_PAIR_CHANGED_EVENT,
   CLOUD_SYNC_REQUEST_EVENT,
+  createPairCode,
+  forgetPairCode,
+  getSavedPairCode,
   isSupabaseSyncConfigured,
-  readCloudUser,
-  readSharedRecords,
-  startGoogleCloudSignIn,
-  stopCloudSignIn,
-  subscribeToCloudAuth,
-  subscribeToSharedRecords,
-  upsertSharedRecords,
+  joinPairCode,
+  readPairedRecords,
+  upsertPairedRecords,
   type SharedSyncRecord,
 } from '../services/cloudSync';
 
@@ -74,9 +74,8 @@ function CloudSyncCoordinator() {
   const dispatch = useAppDispatch();
   const progress = useAppSelector((state) => state.progress.progression);
   const memorizedItems = useAppSelector((state) => state.memorized.items);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [readyUserId, setReadyUserId] = useState<string | null>(null);
-  const authEventReceived = useRef(false);
+  const [pairCode, setPairCode] = useState<string | null>(null);
+  const [readyPairCode, setReadyPairCode] = useState<string | null>(null);
   const lastPushed = useRef(new Map<string, string>());
 
   const records = useMemo<CloudRecordInput[]>(() => {
@@ -155,80 +154,70 @@ function CloudSyncCoordinator() {
   }, [dispatch]);
 
   useEffect(() => {
-    if (!isSupabaseSyncConfigured()) return;
-    let active = true;
-    authEventReceived.current = false;
-    const unsubscribe = subscribeToCloudAuth((nextUserId) => {
-      if (active) {
-        authEventReceived.current = true;
-        setUserId(nextUserId);
-      }
-    });
-    void readCloudUser().then((user) => {
-      if (active && !authEventReceived.current) setUserId(user?.id ?? null);
-    }).catch((error: unknown) => {
-      if (active) dispatch(push(error instanceof Error ? error.message : 'Could not verify cloud sign-in.', 'error'));
-    });
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [dispatch]);
+    setPairCode(getSavedPairCode());
+    const refreshPairCode = () => setPairCode(getSavedPairCode());
+    window.addEventListener(CLOUD_SYNC_PAIR_CHANGED_EVENT, refreshPairCode);
+    return () => window.removeEventListener(CLOUD_SYNC_PAIR_CHANGED_EVENT, refreshPairCode);
+  }, []);
 
   useEffect(() => {
     lastPushed.current.clear();
-    setReadyUserId(null);
-    if (!userId || !isSupabaseSyncConfigured()) return;
+    setReadyPairCode(null);
+    if (!pairCode || !isSupabaseSyncConfigured()) return;
     let active = true;
-    let unsubscribe: (() => Promise<void>) | undefined;
-    void (async () => {
-      const stop = await subscribeToSharedRecords(applyRemoteRecord);
-      if (!active) {
-        await stop();
-        return;
-      }
-      unsubscribe = stop;
-      const remoteRecords = await readSharedRecords();
+    let interval = 0;
+    const refresh = async () => {
+      const remoteRecords = await readPairedRecords(pairCode);
       if (!active) return;
       remoteRecords.forEach(applyRemoteRecord);
-      setReadyUserId(userId);
-    })().catch((error: unknown) => {
-      if (active) dispatch(push(error instanceof Error ? error.message : 'Could not load cloud progress.', 'error'));
-    });
+    };
+    void refresh()
+      .then(() => {
+        if (!active) return;
+        setReadyPairCode(pairCode);
+        interval = window.setInterval(() => {
+          void refresh().catch((error: unknown) => {
+            if (active) dispatch(push(error instanceof Error ? error.message : 'Could not refresh paired app data.', 'error'));
+          });
+        }, 15_000);
+      })
+      .catch((error: unknown) => {
+        if (active) dispatch(push(error instanceof Error ? error.message : 'Could not load paired app data.', 'error'));
+      });
     return () => {
       active = false;
-      if (unsubscribe) void unsubscribe();
+      window.clearInterval(interval);
     };
-  }, [applyRemoteRecord, dispatch, userId]);
+  }, [applyRemoteRecord, dispatch, pairCode]);
 
   const pushChangedRecords = useCallback(async (force = false) => {
-    if (!userId || readyUserId !== userId) return;
+    if (!pairCode || readyPairCode !== pairCode) return;
     const changed = records.filter((record) =>
       force || lastPushed.current.get(record.record_key) !== stableJson(record.payload),
     );
     for (let index = 0; index < changed.length; index += 100) {
       const batch = changed.slice(index, index + 100);
-      await upsertSharedRecords(batch);
+      await upsertPairedRecords(pairCode, batch);
       batch.forEach((record) => lastPushed.current.set(record.record_key, stableJson(record.payload)));
     }
-  }, [readyUserId, records, userId]);
+  }, [pairCode, readyPairCode, records]);
 
   useEffect(() => {
-    if (readyUserId !== userId || !userId) return;
+    if (readyPairCode !== pairCode || !pairCode) return;
     const timer = window.setTimeout(() => {
       void pushChangedRecords().catch((error: unknown) => {
-        dispatch(push(error instanceof Error ? error.message : 'Could not sync cloud progress.', 'error'));
+        dispatch(push(error instanceof Error ? error.message : 'Could not sync paired app data.', 'error'));
       });
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [dispatch, pushChangedRecords, readyUserId, userId]);
+  }, [dispatch, pairCode, pushChangedRecords, readyPairCode]);
 
   useEffect(() => {
     const syncNow = () => {
       void pushChangedRecords(true).then(() => {
-        dispatch(push('Furqan progress synced.', 'success'));
+        dispatch(push('Furqan progress synced with Mishkah.', 'success'));
       }).catch((error: unknown) => {
-        dispatch(push(error instanceof Error ? error.message : 'Could not sync cloud progress.', 'error'));
+        dispatch(push(error instanceof Error ? error.message : 'Could not sync paired app data.', 'error'));
       });
     };
     window.addEventListener(CLOUD_SYNC_REQUEST_EVENT, syncNow);
@@ -243,91 +232,107 @@ export function CloudSyncProvider() {
 }
 
 export function CloudSyncPanel() {
-  const dispatch = useAppDispatch();
   const configured = isSupabaseSyncConfigured();
-  const [email, setEmail] = useState<string | null>(null);
+  const [pairCode, setPairCode] = useState<string | null>(null);
+  const [entry, setEntry] = useState('');
+  const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!configured) return;
-    let active = true;
-    const updateUser = (nextUserId: string | null, nextEmail: string | null) => {
-      if (active) setEmail(nextUserId ? nextEmail : null);
-    };
-    const unsubscribe = subscribeToCloudAuth(updateUser);
-    void readCloudUser().then((user) => {
-      if (active) setEmail(user?.email ?? null);
-    }).catch((error: unknown) => {
-      if (active) dispatch(push(error instanceof Error ? error.message : 'Could not verify cloud sign-in.', 'error'));
-    });
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [configured, dispatch]);
+    setPairCode(getSavedPairCode());
+    const refreshPairCode = () => setPairCode(getSavedPairCode());
+    window.addEventListener(CLOUD_SYNC_PAIR_CHANGED_EVENT, refreshPairCode);
+    return () => window.removeEventListener(CLOUD_SYNC_PAIR_CHANGED_EVENT, refreshPairCode);
+  }, []);
 
-  const connect = async () => {
+  const create = async () => {
     setBusy(true);
     try {
-      await startGoogleCloudSignIn();
+      const code = await createPairCode();
+      setPairCode(code);
+      setMessage('Pairing code created. Enter it in Mishkah to connect the apps.');
+      window.dispatchEvent(new Event(CLOUD_SYNC_PAIR_CHANGED_EVENT));
     } catch (error) {
-      dispatch(push(error instanceof Error ? error.message : 'Google sign-in failed.', 'error'));
-      setBusy(false);
-    }
-  };
-
-  const disconnect = async () => {
-    setBusy(true);
-    try {
-      await stopCloudSignIn();
-      setEmail(null);
-      dispatch(push('Cloud sync disconnected.', 'success'));
-    } catch (error) {
-      dispatch(push(error instanceof Error ? error.message : 'Could not sign out of cloud sync.', 'error'));
+      setMessage(error instanceof Error ? error.message : 'Could not create a pairing code.');
     } finally {
       setBusy(false);
     }
   };
 
+  const join = async () => {
+    setBusy(true);
+    try {
+      const code = await joinPairCode(entry);
+      setPairCode(code);
+      setEntry('');
+      setMessage('Mishkah is paired. Syncing Quran progress now.');
+      window.dispatchEvent(new Event(CLOUD_SYNC_PAIR_CHANGED_EVENT));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not join that pairing.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const forget = () => {
+    forgetPairCode();
+    setPairCode(null);
+    setMessage('This app has been unpaired. The other app keeps its local data.');
+    window.dispatchEvent(new Event(CLOUD_SYNC_PAIR_CHANGED_EVENT));
+  };
+
+  const copyCode = async () => {
+    if (!pairCode || !navigator.clipboard) {
+      setMessage('Select and copy the pairing code manually.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(pairCode);
+      setMessage('Pairing code copied.');
+    } catch (error) {
+      setMessage(error instanceof Error ? `Could not copy the code: ${error.message}` : 'Could not copy the code.');
+    }
+  };
+
   return (
     <section className="rounded-2xl border border-line bg-surface p-4">
-      <div className="mb-1 text-sm font-semibold text-ink">LIXZON cloud sync</div>
+      <div className="mb-1 text-sm font-semibold text-ink">Pair Mishkah</div>
       <p className="mb-3 text-xs leading-relaxed text-muted">
-        Keep your Furqan memorization and streak progress in sync across your devices.
+        Pair once with a private code to sync reading streaks, memorized ayahs, and the Qur’an verse of the day across both apps.
       </p>
       {!configured ? (
         <p className="text-xs text-muted">
-          Cloud sync is unavailable until this build is configured with a Supabase project.
+          Pairing is unavailable until this build is configured with the shared Supabase project.
         </p>
-      ) : email ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-auto text-xs text-muted">Connected as {email}</span>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => window.dispatchEvent(new Event(CLOUD_SYNC_REQUEST_EVENT))}
-            className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-onaccent disabled:opacity-50"
-          >
-            Sync now
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void disconnect()}
-            className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-50"
-          >
-            Disconnect
-          </button>
-        </div>
       ) : (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void connect()}
-          className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-onaccent disabled:opacity-50"
-        >
-          {busy ? 'Connecting…' : 'Connect with Google'}
-        </button>
+        <>
+          {pairCode ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="select-all rounded-lg bg-surface2 px-3 py-2 text-sm font-semibold tracking-widest text-ink">{pairCode}</code>
+              <button type="button" disabled={busy} onClick={() => void copyCode()} className="rounded-full border border-line px-3 py-2 text-xs font-medium text-ink disabled:opacity-50">Copy code</button>
+              <button type="button" disabled={busy} onClick={() => window.dispatchEvent(new Event(CLOUD_SYNC_REQUEST_EVENT))} className="rounded-full bg-accent px-3 py-2 text-xs font-semibold text-onaccent disabled:opacity-50">Sync now</button>
+              <button type="button" disabled={busy} onClick={forget} className="rounded-full border border-line px-3 py-2 text-xs font-medium text-ink disabled:opacity-50">Unpair</button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <button type="button" disabled={busy} onClick={() => void create()} className="rounded-full bg-accent px-3 py-2 text-xs font-semibold text-onaccent disabled:opacity-50">
+                {busy ? 'Working…' : 'Create pairing code'}
+              </button>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  value={entry}
+                  onChange={(event) => setEntry(event.target.value)}
+                  aria-label="Mishkah pairing code"
+                  placeholder="Enter Mishkah’s 20-character code"
+                  maxLength={24}
+                  className="min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink"
+                />
+                <button type="button" disabled={busy || !entry.trim()} onClick={() => void join()} className="rounded-full border border-line px-3 py-2 text-xs font-medium text-ink disabled:opacity-50">Pair with Mishkah</button>
+              </div>
+            </div>
+          )}
+          {message && <p role="status" className="mt-2 text-xs text-muted">{message}</p>}
+        </>
       )}
     </section>
   );
