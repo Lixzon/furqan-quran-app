@@ -14,9 +14,8 @@ Mishkah reads the streak and today's verse from these records, so both apps show
 ## Configure the project
 
 1. Create one Supabase project for the LIXZON apps.
-2. Apply both migrations with the Supabase CLI or SQL editor:
-   - `supabase/migrations/20261108150000_lixzon_sync_records.sql`
-   - `supabase/migrations/20261109130000_lixzon_pair_sync.sql`
+2. Apply `supabase/migrations/20261109130000_lixzon_pair_sync.sql` with the Supabase CLI or SQL editor.
+   The earlier `20261108150000_lixzon_sync_records.sql` migration belongs to the old authenticated-record sync path and is not required for pairing. If it is already installed, leave it in place; the pairing migration uses separate tables and RPCs.
 3. Use the Supabase **publishable** key (or legacy anon key). Never ship a `service_role` key in a client app.
 4. Copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 
