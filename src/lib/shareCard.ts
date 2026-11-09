@@ -1,10 +1,6 @@
 /**
- * Offline share-card renderer.
- *
- * Cards are painted on a canvas from ten bundled scenes (nature, sky,
- * architecture and geometry) so exporting never waits on the network and the
- * app ships no large bitmaps. Every scene is generated art only — no living
- * beings, in line with the app's Halal visual rules.
+ * Offline share-card renderer. User-facing card backgrounds are bundled
+ * photographs of landscapes and architecture; no people or animals are shown.
  */
 
 export type CardFormat = 'square' | 'story';
@@ -35,7 +31,11 @@ export type CardPresetId =
   | 'geometry'
   | 'aurora'
   | 'stone-dome'
-  | 'parchment';
+  | 'parchment'
+  | 'photo-ocean'
+  | 'photo-snow'
+  | 'photo-sky'
+  | 'photo-skyline';
 
 type Painter = (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
 
@@ -43,7 +43,8 @@ export interface CardPreset {
   id: CardPresetId;
   label: string;
   swatch: [string, string];
-  paint: Painter;
+  paint?: Painter;
+  image?: string;
 }
 
 const SIZE: Record<CardFormat, { width: number; height: number }> = {
@@ -131,7 +132,7 @@ function archPath(ctx: CanvasRenderingContext2D, cx: number, baseY: number, widt
 
 /* ------------------------------- presets ------------------------------- */
 
-export const CARD_PRESETS: CardPreset[] = [
+const ILLUSTRATED_PRESETS: CardPreset[] = [
   {
     id: 'dawn-dunes',
     label: 'Dawn dunes',
@@ -401,8 +402,20 @@ export const CARD_PRESETS: CardPreset[] = [
   },
 ];
 
+const PHOTO_BASE = `${import.meta.env.BASE_URL}share-backgrounds/`;
+
+// Bundled Unsplash photographs, used under the Unsplash License.
+export const CARD_PRESETS: CardPreset[] = [
+  { id: 'photo-ocean', label: 'Ocean', swatch: ['#9bc7d7', '#063b54'], image: `${PHOTO_BASE}ocean.jpg` },
+  { id: 'photo-snow', label: 'Snow mountains', swatch: ['#d8eafa', '#304d6c'], image: `${PHOTO_BASE}snow.jpg` },
+  { id: 'photo-sky', label: 'Clouds', swatch: ['#b9d8ed', '#f4eee5'], image: `${PHOTO_BASE}sky.jpg` },
+  { id: 'photo-skyline', label: 'City skyline', swatch: ['#f5c5a5', '#16495d'], image: `${PHOTO_BASE}skyline.jpg` },
+];
+
 export function presetById(id: CardPresetId): CardPreset {
-  return CARD_PRESETS.find((preset) => preset.id === id) ?? CARD_PRESETS[0];
+  return CARD_PRESETS.find((preset) => preset.id === id)
+    ?? ILLUSTRATED_PRESETS.find((preset) => preset.id === id)
+    ?? CARD_PRESETS[0];
 }
 
 /* ------------------------------- text ---------------------------------- */
@@ -475,7 +488,12 @@ export async function renderShareCard(options: CardOptions): Promise<HTMLCanvasE
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas is not available on this device.');
 
-  presetById(options.preset).paint(ctx, w, h);
+  const preset = presetById(options.preset);
+  if (preset.image) {
+    await drawPhotoCover(ctx, preset.image, w, h);
+  } else {
+    preset.paint?.(ctx, w, h);
+  }
 
   // Legibility scrim, stronger on the story format where text is taller.
   const scrim = ctx.createLinearGradient(0, 0, 0, h);
@@ -607,6 +625,36 @@ export async function renderShareCard(options: CardOptions): Promise<HTMLCanvasE
   }
 
   return canvas;
+}
+
+async function drawPhotoCover(
+  ctx: CanvasRenderingContext2D,
+  src: string,
+  width: number,
+  height: number,
+): Promise<void> {
+  const image = new Image();
+  image.decoding = 'async';
+  image.src = src;
+  try {
+    await image.decode();
+  } catch {
+    throw new Error('The selected photo background could not be loaded.');
+  }
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+  const cropWidth = width / scale;
+  const cropHeight = height / scale;
+  ctx.drawImage(
+    image,
+    (image.naturalWidth - cropWidth) / 2,
+    (image.naturalHeight - cropHeight) / 2,
+    cropWidth,
+    cropHeight,
+    0,
+    0,
+    width,
+    height,
+  );
 }
 
 export function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {

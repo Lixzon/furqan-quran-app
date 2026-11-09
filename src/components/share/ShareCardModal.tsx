@@ -34,7 +34,7 @@ export function ShareCardModal({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const blobRef = useRef<Blob | null>(null);
   const [format, setFormat] = useState<CardFormat>('square');
-  const [preset, setPreset] = useState<CardPresetId>('night-sky');
+  const [preset, setPreset] = useState<CardPresetId>('photo-ocean');
   const [showBadge, setShowBadge] = useState(true);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -147,7 +147,7 @@ export function ShareCardModal({
         </div>
 
         <div>
-          <div className="mb-2 text-xs font-medium text-mut">Offline scene</div>
+          <div className="mb-2 text-xs font-medium text-mut">Photo background · works offline</div>
           <div className="thin-scroll flex gap-2 overflow-x-auto pb-1">
             {CARD_PRESETS.map((option) => (
               <button
@@ -160,8 +160,10 @@ export function ShareCardModal({
                   preset === option.id ? 'border-accent text-accent' : 'border-line text-mut hover:text-ink'
                 }`}
               >
-                <span
-                  className="h-10 w-full rounded-lg"
+                <img
+                  src={option.image}
+                  alt=""
+                  className="h-10 w-full rounded-lg object-cover"
                   style={{ background: `linear-gradient(160deg, ${option.swatch[0]}, ${option.swatch[1]})` }}
                 />
                 <span className="w-full truncate text-center">{option.label}</span>
@@ -198,7 +200,7 @@ export function ShareCardModal({
           </button>
         </div>
         <p className="text-center text-[10px] leading-relaxed text-mut">
-          Scenes are painted on-device, so cards export offline. Links open Furqan at this ayah.
+          Photos are bundled with Furqan, so cards work offline. Links open Furqan at this ayah.
         </p>
       </div>
     </Modal>

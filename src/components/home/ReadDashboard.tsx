@@ -10,6 +10,7 @@ import { useQuran } from '../../data/QuranProvider';
 import { Icon } from '../ui/Icon';
 import { ReadScene, type ReadSceneType } from './ReadScene';
 import { QURAN_GUIDANCE } from '../../data/quranGuidanceData';
+import { getDailyQuranJourney } from '../../data/dailyQuranJourney';
 import type { AyahData } from '../../types';
 
 const HOME_RECOMMENDATIONS: Array<{
@@ -38,6 +39,9 @@ export function ReadDashboard() {
   const progress = useAppSelector((state) => state.progress);
   const settings = useAppSelector((state) => state.settings);
   const bookmarks = useAppSelector((state) => state.bookmarks.items);
+  const journey = getDailyQuranJourney();
+  const mishkahUrl = (import.meta.env.VITE_MISHKAH_URL?.trim() || 'https://lixzon.github.io/Mishkah').replace(/\/+$/, '');
+  const journeyStoryUrl = `${mishkahUrl}/?journeyStory=${encodeURIComponent(journey.id)}`;
   const [verse, setVerse] = useState<DailyVerse | null>(null);
   const lastBookmark = bookmarks[0];
   const lastPosition = progress.lastPosition;
@@ -130,6 +134,42 @@ export function ReadDashboard() {
           </div>
         </article>
       )}
+
+      <article className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-black/45 p-4 text-white shadow-card backdrop-blur-md">
+        <ReadScene scene="clouds" />
+        <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/65 to-emerald-950/75" />
+        <div className="relative space-y-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-200">Daily Quran journey · shared with Mishkah</p>
+            <h2 className="mt-1 text-lg font-semibold">The story of {journey.title}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-white/70">Read related passages, then continue with the long story and a reflection.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {journey.passages.map((passage) => (
+              <button
+                key={`${passage.surah}:${passage.from}`}
+                type="button"
+                onClick={() => navigate(`/surah/${passage.surah}?ayah=${passage.from}`)}
+                className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-white/15"
+              >
+                Surah {passage.surah} · {passage.from}{passage.to && passage.to !== passage.from ? `–${passage.to}` : ''}
+              </button>
+            ))}
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-200">A short reflection</p>
+            <p className="mt-1 text-sm leading-relaxed text-white/90">{journey.reflection}</p>
+          </div>
+          <a
+            href={journeyStoryUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-10 items-center rounded-full bg-white px-4 py-2 text-xs font-semibold text-emerald-950 transition hover:bg-emerald-50"
+          >
+            Read the long story in Mishkah ↗
+          </a>
+        </div>
+      </article>
 
       <button
         type="button"
