@@ -9,9 +9,11 @@ import {
   createPairCode,
   forgetPairCode,
   getSavedPairCode,
+  isPairingCodeRevokedError,
   isSupabaseSyncConfigured,
   joinPairCode,
   readPairedRecords,
+  revokePairCode,
   upsertPairedRecords,
   type SharedSyncRecord,
 } from '../services/cloudSync';
@@ -77,6 +79,21 @@ function CloudSyncCoordinator() {
   const [pairCode, setPairCode] = useState<string | null>(null);
   const [readyPairCode, setReadyPairCode] = useState<string | null>(null);
   const lastPushed = useRef(new Map<string, string>());
+
+  const handleSyncError = useCallback((error: unknown, fallback: string) => {
+    if (isPairingCodeRevokedError(error)) {
+      try {
+        forgetPairCode();
+        setPairCode(null);
+        window.dispatchEvent(new Event(CLOUD_SYNC_PAIR_CHANGED_EVENT));
+        dispatch(push('This pairing was revoked on another device. Shared cloud records were deleted; local data remains.', 'error'));
+      } catch (storageError) {
+        dispatch(push(storageError instanceof Error ? storageError.message : 'The revoked pairing code could not be removed from this browser.', 'error'));
+      }
+      return;
+    }
+    dispatch(push(error instanceof Error ? error.message : fallback, 'error'));
+  }, [dispatch]);
 
   const records = useMemo<CloudRecordInput[]>(() => {
     const result: CloudRecordInput[] = [
@@ -177,18 +194,18 @@ function CloudSyncCoordinator() {
         setReadyPairCode(pairCode);
         interval = window.setInterval(() => {
           void refresh().catch((error: unknown) => {
-            if (active) dispatch(push(error instanceof Error ? error.message : 'Could not refresh paired app data.', 'error'));
+            if (active) handleSyncError(error, 'Could not refresh paired app data.');
           });
         }, 15_000);
       })
       .catch((error: unknown) => {
-        if (active) dispatch(push(error instanceof Error ? error.message : 'Could not load paired app data.', 'error'));
+        if (active) handleSyncError(error, 'Could not load paired app data.');
       });
     return () => {
       active = false;
       window.clearInterval(interval);
     };
-  }, [applyRemoteRecord, dispatch, pairCode]);
+  }, [applyRemoteRecord, handleSyncError, pairCode]);
 
   const pushChangedRecords = useCallback(async (force = false) => {
     if (!pairCode || readyPairCode !== pairCode) return;
@@ -206,23 +223,23 @@ function CloudSyncCoordinator() {
     if (readyPairCode !== pairCode || !pairCode) return;
     const timer = window.setTimeout(() => {
       void pushChangedRecords().catch((error: unknown) => {
-        dispatch(push(error instanceof Error ? error.message : 'Could not sync paired app data.', 'error'));
+        handleSyncError(error, 'Could not sync paired app data.');
       });
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [dispatch, pairCode, pushChangedRecords, readyPairCode]);
+  }, [handleSyncError, pairCode, pushChangedRecords, readyPairCode]);
 
   useEffect(() => {
     const syncNow = () => {
       void pushChangedRecords(true).then(() => {
         dispatch(push('Furqan progress synced with Mishkah.', 'success'));
       }).catch((error: unknown) => {
-        dispatch(push(error instanceof Error ? error.message : 'Could not sync paired app data.', 'error'));
+        handleSyncError(error, 'Could not sync paired app data.');
       });
     };
     window.addEventListener(CLOUD_SYNC_REQUEST_EVENT, syncNow);
     return () => window.removeEventListener(CLOUD_SYNC_REQUEST_EVENT, syncNow);
-  }, [dispatch, pushChangedRecords]);
+  }, [dispatch, handleSyncError, pushChangedRecords]);
 
   return null;
 }
@@ -274,11 +291,33 @@ export function CloudSyncPanel() {
     }
   };
 
-  const forget = () => {
+  const disconnect = () => {
     forgetPairCode();
     setPairCode(null);
-    setMessage('This app has been unpaired. The other app keeps its local data.');
+    setMessage('This device is disconnected. Other devices with this code remain paired.');
     window.dispatchEvent(new Event(CLOUD_SYNC_PAIR_CHANGED_EVENT));
+  };
+
+  const revoke = async () => {
+    if (!pairCode || !window.confirm(
+      'Revoke this pairing for every device? Shared cloud records will be deleted, but each device keeps its local data.',
+    )) return;
+    setBusy(true);
+    try {
+      const revoked = await revokePairCode(pairCode);
+      forgetPairCode();
+      setPairCode(null);
+      setMessage(
+        revoked
+          ? 'Pairing revoked everywhere. Shared cloud records were deleted; local data remains on this device.'
+          : 'This pairing was already revoked. Local data remains on this device.',
+      );
+      window.dispatchEvent(new Event(CLOUD_SYNC_PAIR_CHANGED_EVENT));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not revoke the app pairing.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const copyCode = async () => {
@@ -298,7 +337,7 @@ export function CloudSyncPanel() {
     <section className="rounded-2xl border border-line bg-surface p-4">
       <div className="mb-1 text-sm font-semibold text-ink">Pair Mishkah</div>
       <p className="mb-3 text-xs leading-relaxed text-muted">
-        Pair once with a private code to sync reading streaks, memorized ayahs, and the Qur’an verse of the day across both apps.
+        Use one private code to sync reading streaks, memorized ayahs, and the Qur’an verse of the day across your paired devices.
       </p>
       {!configured ? (
         <p className="text-xs text-muted">
@@ -311,7 +350,8 @@ export function CloudSyncPanel() {
               <code className="select-all rounded-lg bg-surface2 px-3 py-2 text-sm font-semibold tracking-widest text-ink">{pairCode}</code>
               <button type="button" disabled={busy} onClick={() => void copyCode()} className="rounded-full border border-line px-3 py-2 text-xs font-medium text-ink disabled:opacity-50">Copy code</button>
               <button type="button" disabled={busy} onClick={() => window.dispatchEvent(new Event(CLOUD_SYNC_REQUEST_EVENT))} className="rounded-full bg-accent px-3 py-2 text-xs font-semibold text-onaccent disabled:opacity-50">Sync now</button>
-              <button type="button" disabled={busy} onClick={forget} className="rounded-full border border-line px-3 py-2 text-xs font-medium text-ink disabled:opacity-50">Unpair</button>
+              <button type="button" disabled={busy} onClick={disconnect} className="rounded-full border border-line px-3 py-2 text-xs font-medium text-ink disabled:opacity-50">Disconnect this device</button>
+              <button type="button" disabled={busy} onClick={() => void revoke()} className="rounded-full border border-red-300 px-3 py-2 text-xs font-medium text-red-700 disabled:opacity-50">Revoke everywhere</button>
             </div>
           ) : (
             <div className="space-y-3">
