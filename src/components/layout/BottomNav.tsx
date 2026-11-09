@@ -1,20 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useAppSelector } from '../../store';
-import { Icon, type IconName } from '../ui/Icon';
-
-interface BottomNavItem {
-  to: string;
-  label: string;
-  icon: IconName;
-  end?: boolean;
-}
-
-const items: BottomNavItem[] = [
-  { to: '/', label: 'Read', icon: 'book', end: true },
-  { to: '/guidance', label: 'Guidance', icon: 'quote' },
-  { to: '/library', label: 'Library', icon: 'list' },
-  { to: '/profile', label: 'Profile', icon: 'user' },
-];
+import { Icon } from '../ui/Icon';
+import { MAIN_ITEMS } from './nav';
 
 export function BottomNav() {
   const readingMode = useAppSelector((s) => s.settings.readingMode);
@@ -23,7 +10,7 @@ export function BottomNav() {
   return (
     <nav className="safe-b fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur-xl md:hidden" style={{ paddingTop: 4 }}>
       <div className="mx-auto flex max-w-3xl items-stretch justify-around">
-        {items.map((item) => (
+        {MAIN_ITEMS.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

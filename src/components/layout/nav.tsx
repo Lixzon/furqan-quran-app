@@ -13,10 +13,10 @@ interface NavItem {
 
 export const MAIN_ITEMS: NavItem[] = [
   { to: '/', icon: 'book', label: 'Read', end: true },
-  { to: '/guidance', icon: 'quote', label: 'Guidance' },
   { to: '/library', icon: 'list', label: 'Library' },
-  { to: '/profile', icon: 'user', label: 'Profile' },
+  { to: '/guidance', icon: 'quote', label: 'Guidance' },
   { to: '/progress', icon: 'progress', label: 'Progress' },
+  { to: '/profile', icon: 'user', label: 'Profile' },
 ];
 
 export function Sidebar() {
