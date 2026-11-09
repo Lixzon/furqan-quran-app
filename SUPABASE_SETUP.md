@@ -17,13 +17,22 @@ Mishkah reads the streak and today's verse from these records, so both apps show
 2. Apply these migrations with the Supabase CLI or SQL editor, in order:
    - `supabase/migrations/20261109130000_lixzon_pair_sync.sql`
    - `supabase/migrations/20261109210200_lixzon_revoke_pair.sql`
+   - `supabase/migrations/20261110120000_lixzon_user_backups.sql`
    The earlier `20261108150000_lixzon_sync_records.sql` migration belongs to the old authenticated-record sync path and is not required for pairing. If it is already installed, leave it in place; the pairing migration uses separate tables and RPCs.
 3. Use the Supabase **publishable** key (or legacy anon key). Never ship a `service_role` key in a client app.
 4. Copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 
+Enable Supabase Auth's Email provider and configure the email template to include the one-time token as `{{ .Token }}`. Both apps verify the code in-app; no magic-link redirect URL is required. The backup table is protected by row-level security and each authenticated account can access only its own rows.
+
 For the deployed Furqan web app, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the hosting provider's build environment (Vercel: Project Settings -> Environment Variables for Production), then redeploy. Use the same project URL and publishable/anon key as Mishkah. Without them, the deployed build remains local-only.
 
-No Authentication provider needs to be enabled: pairing uses the code-hash functions in the second migration, and the pair tables have no client-facing row access.
+Pairing itself does not require Auth: it uses the code-hash functions and the pair tables have no client-facing row access. Email Auth is required for cloud backup.
+
+## Email cloud backup
+
+Sign in from Settings using a one-time email code. Furqan backs up its Quran reading progress, bookmarks, memorized ayahs, likes, playlists, theme, and settings. Mishkah keeps its own separate backup under the same email account, including preferences, prayer/checklist and dhikr progress, and reading streak. Pairing and email backup are independent.
+
+On a new device with an existing backup, explicitly restore it or replace the cloud copy with the device's data. After creating the first backup or restoring, saved changes back up automatically. Pairing codes, authentication tokens, audio downloads, and Quran text caches are not included. Each app's cloud backup is limited to 1 MB; Furqan's existing file export/import remains available for larger backups.
 
 ## Pair the apps
 
