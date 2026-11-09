@@ -20,6 +20,8 @@ Mishkah reads the streak and today's verse from these records, so both apps show
 3. Use the Supabase **publishable** key (or legacy anon key). Never ship a `service_role` key in a client app.
 4. Copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 
+For the deployed Furqan web app, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the hosting provider's build environment (Vercel: Project Settings -> Environment Variables), then redeploy. Without them, the deployed build remains local-only.
+
 No Authentication provider needs to be enabled: pairing uses the code-hash functions in the second migration, and the pair tables have no client-facing row access.
 
 ## Pair the apps
