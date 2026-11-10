@@ -4,12 +4,12 @@ Furqan and Mishkah share one private pairing instead of user accounts. There is 
 
 ## What gets synced
 
-- `furqan.progression` - Furqan reading streak, published by Furqan.
+- `furqan.progression` - Furqan reading streak, latest reading position, and saved-verse references.
 - `quran.daily-highlight:<date>` - the verse of the day both apps show.
 - `furqan.memorized:<surah>:<ayah>` - memorization state per ayah.
 - `mishkah.engagement` - Mishkah's engagement snapshot.
 
-Mishkah reads the streak and today's verse from these records, and Furqan also displays the paired verse record on Home. The daily verse uses a UTC date key so both apps show the same ayah across time zones. Qur'an references inside Mishkah open the full surah in Furqan.
+Mishkah reads the streak, reading position, saved verses, memorization state, and today's verse from these records. Furqan's weekly surah spotlight and daily journey use the same UTC-based selections as Mishkah, and both apps offer the Friday Al-Kahf reading. The daily verse uses a UTC date key so both apps show the same ayah across time zones. Qur'an references inside Mishkah open the full surah in Furqan.
 
 ## Configure the project
 

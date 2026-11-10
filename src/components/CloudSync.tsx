@@ -122,6 +122,18 @@ function CloudSyncCoordinator() {
           currentStreak: progress.currentStreak,
           highestStreak: progress.highestStreak,
           lastActiveDate: progress.lastActiveDate,
+          lastPosition: backupProgress.lastPosition
+            ? {
+                surah: backupProgress.lastPosition.surah,
+                ayah: backupProgress.lastPosition.ayah,
+                name: backupProgress.lastPosition.name,
+              }
+            : null,
+          bookmarks: bookmarks.items.map((bookmark) => ({
+            surah: bookmark.surah,
+            ayah: bookmark.ayah,
+            name: bookmark.surahName,
+          })),
         },
       },
     ];
@@ -152,7 +164,7 @@ function CloudSyncCoordinator() {
       },
     });
     return result;
-  }, [memorizedItems, progress, syncDateKey]);
+  }, [backupProgress.lastPosition, bookmarks.items, memorizedItems, progress, syncDateKey]);
 
   useEffect(() => {
     const refreshDate = () => setSyncDateKey(utcDateKey());
@@ -626,7 +638,7 @@ export function CloudSyncPanel() {
       <section className="rounded-2xl border border-line bg-surface p-4">
         <div className="mb-1 text-sm font-semibold text-ink">Pair Mishkah</div>
         <p className="mb-3 text-xs leading-relaxed text-muted">
-          Use one private code to sync reading streaks, memorized ayahs, and the Qur’an verse of the day across your paired devices.
+          Use one private code to sync reading streaks, reading position, saved verses, memorized ayahs, and the Qur’an verse of the day across your paired devices.
         </p>
         {!configured ? (
           <p className="text-xs text-muted">
