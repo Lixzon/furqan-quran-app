@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { getSurah } from '../../lib/dataClient';
@@ -11,7 +11,78 @@ import { Icon } from '../ui/Icon';
 import { ReadScene, type ReadSceneType } from './ReadScene';
 import { QURAN_GUIDANCE } from '../../data/quranGuidanceData';
 import { getDailyQuranJourney } from '../../data/dailyQuranJourney';
+import { dailyQhdTheme, type DailyQhdTheme } from '../../data/dailyQhdReminder';
 import type { AyahData } from '../../types';
+
+const HOME_PHOTO_VARIANT_KEY = 'furqan:home-photo-variant';
+const HOME_PHOTO_VARIANT_COUNT = 9;
+const DAY_MS = 86_400_000;
+
+const REFLECT_AND_ACT: Record<DailyQhdTheme['id'], { question: string; action: string }> = {
+  remembrance: {
+    question: 'What moment today could you meet with remembrance of Allah?',
+    action: 'Pause for a minute of dhikr or a sincere du’a.',
+  },
+  mercy: {
+    question: 'Who around you might need patience, mercy, or practical help?',
+    action: 'Offer one specific kindness without expecting anything back.',
+  },
+  prayer: {
+    question: 'How can you make space for the next salah in your day?',
+    action: 'Check its time now and prepare a calm place to pray.',
+  },
+  forgiveness: {
+    question: 'What would you like to turn back to Allah about, without losing hope?',
+    action: 'Make tawbah and take one small step toward a better choice.',
+  },
+  charity: {
+    question: 'What time, skill, or resource could you share for good?',
+    action: 'Plan one manageable act of charity or service.',
+  },
+  character: {
+    question: 'Where could you choose fairness, excellence, or care today?',
+    action: 'Make one conversation more patient and considerate.',
+  },
+  gratitude: {
+    question: 'Which blessing in your life have you not paused to notice?',
+    action: 'Thank Allah for it, then use it in a good way.',
+  },
+};
+
+const WEEKLY_SURAH_SPOTLIGHTS = [
+  { surah: 1, name: 'Al-Fatiha', range: '1–7', note: 'A short opening prayer asking Allah for guidance.' },
+  { surah: 18, name: 'Al-Kahf', range: '1–10', note: 'Begin with verses about revelation, faith, and steadfastness.' },
+  { surah: 55, name: 'Ar-Rahman', range: '1–16', note: 'Reflect on signs of creation and the blessings named in these verses.' },
+  { surah: 67, name: 'Al-Mulk', range: '1–5', note: 'Read about creation and the signs in the heavens.' },
+  { surah: 93, name: 'Ad-Duha', range: '1–11', note: 'A reminder of care, gratitude, and kindness to others.' },
+  { surah: 94, name: 'Ash-Sharh', range: '1–8', note: 'Reflect on ease, perseverance, and turning to Allah.' },
+  { surah: 103, name: 'Al-Asr', range: '1–3', note: 'A concise reminder of faith, good deeds, truth, and patience.' },
+] as const;
+
+function nextPhotoVariant(previousVariant?: number): number {
+  if (previousVariant === undefined) return Math.floor(Math.random() * HOME_PHOTO_VARIANT_COUNT);
+  return (previousVariant + 1 + Math.floor(Math.random() * (HOME_PHOTO_VARIANT_COUNT - 1)))
+    % HOME_PHOTO_VARIANT_COUNT;
+}
+
+function initialPhotoVariant(): number {
+  try {
+    const storedVariant = Number.parseInt(localStorage.getItem(HOME_PHOTO_VARIANT_KEY) ?? '', 10);
+    if (Number.isInteger(storedVariant) && storedVariant >= 0 && storedVariant < HOME_PHOTO_VARIANT_COUNT) {
+      return nextPhotoVariant(storedVariant);
+    }
+  } catch (error) {
+    console.warn('Furqan could not read the Home photo shuffle state.', error);
+  }
+  return nextPhotoVariant();
+}
+
+function weeklySpotlightIndex(date = new Date()): number {
+  const utcDate = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  const mondayOffset = (new Date(utcDate).getUTCDay() + 6) % 7;
+  const monday = utcDate - mondayOffset * DAY_MS;
+  return Math.floor(monday / (7 * DAY_MS)) % WEEKLY_SURAH_SPOTLIGHTS.length;
+}
 
 const HOME_RECOMMENDATIONS: Array<{
   id: string;
@@ -40,9 +111,15 @@ export function ReadDashboard() {
   const settings = useAppSelector((state) => state.settings);
   const bookmarks = useAppSelector((state) => state.bookmarks.items);
   const journey = getDailyQuranJourney();
+  const dailyTheme = dailyQhdTheme();
+  const reflection = REFLECT_AND_ACT[dailyTheme.id];
+  const weeklySurah = WEEKLY_SURAH_SPOTLIGHTS[weeklySpotlightIndex()];
+  const weeklySurahName = surahs?.find((item) => item.number === weeklySurah.surah)?.englishName ?? weeklySurah.name;
   const mishkahUrl = (import.meta.env.VITE_MISHKAH_URL?.trim() || 'https://lixzon.github.io/Mishkah').replace(/\/+$/, '');
   const journeyStoryUrl = `${mishkahUrl}/?journeyStory=${encodeURIComponent(journey.id)}`;
   const [verse, setVerse] = useState<DailyVerse | null>(null);
+  const [photoVariant, setPhotoVariant] = useState(initialPhotoVariant);
+  const touchStartY = useRef<number | null>(null);
   const lastBookmark = bookmarks[0];
   const lastPosition = progress.lastPosition;
   const verseIsBookmarked = verse
@@ -53,9 +130,7 @@ export function ReadDashboard() {
     if (!surahs?.length) return;
     let alive = true;
     const now = new Date();
-    const yearStart = Date.UTC(now.getFullYear(), 0, 1);
-    const dayOfYear = Math.floor((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - yearStart) / 86_400_000);
-    const targetGlobalAyah = (dayOfYear % 6236) + 1;
+    const targetGlobalAyah = dailyQhdTheme(now).globalAyah;
     let cumulative = 0;
     const target = surahs.find((item) => {
       cumulative += item.numberOfAyahs;
@@ -70,6 +145,24 @@ export function ReadDashboard() {
       .catch(() => undefined);
     return () => { alive = false; };
   }, [surahs]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(HOME_PHOTO_VARIANT_KEY, String(photoVariant));
+    } catch (error) {
+      console.warn('Furqan could not save the Home photo shuffle state.', error);
+    }
+  }, [photoVariant]);
+
+  const shufflePhotos = () => setPhotoVariant((current) => nextPhotoVariant(current));
+  const startPullRefresh = (clientY: number) => {
+    touchStartY.current = window.scrollY <= 0 ? clientY : null;
+  };
+  const finishPullRefresh = (clientY: number) => {
+    const startY = touchStartY.current;
+    touchStartY.current = null;
+    if (startY !== null && window.scrollY <= 0 && clientY - startY >= 72) shufflePhotos();
+  };
 
   const toggleBookmark = () => {
     if (!verse) return;
@@ -101,10 +194,35 @@ export function ReadDashboard() {
   const khatamAyahsPerDay = Math.ceil(TOTAL_QURAN_AYAHS / settings.khatamTargetDays);
 
   return (
-    <section className="mb-5 space-y-3" aria-label="Daily reading dashboard">
+    <section
+      className="mb-5 space-y-3"
+      aria-label="Daily reading dashboard"
+      onTouchStart={(event) => {
+        const touch = event.touches[0];
+        if (touch) startPullRefresh(touch.clientY);
+      }}
+      onTouchEnd={(event) => {
+        const touch = event.changedTouches[0];
+        if (touch) finishPullRefresh(touch.clientY);
+      }}
+      onTouchCancel={() => { touchStartY.current = null; }}
+    >
+      <div className="flex items-center justify-between gap-3 px-1">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-mut">Your daily Qur’an</p>
+        <button
+          type="button"
+          aria-label="Refresh Home photos"
+          title="Refresh Home photos"
+          onClick={shufflePhotos}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-accent transition hover:bg-surface2"
+        >
+          <Icon name="refresh" size={14} />
+          Refresh photos
+        </button>
+      </div>
       {verse && (
         <article className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-black/40 p-4 text-white shadow-card backdrop-blur-md transition-all duration-300 hover:scale-[1.01] hover:shadow-emerald-900/20">
-          <ReadScene scene="quran" />
+          <ReadScene scene="quran" variant={photoVariant} />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
           <div className="relative">
             <div className="flex items-center justify-between gap-2">
@@ -136,7 +254,30 @@ export function ReadDashboard() {
       )}
 
       <article className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-black/45 p-4 text-white shadow-card backdrop-blur-md">
-        <ReadScene scene="clouds" />
+        <ReadScene scene="clouds" variant={photoVariant + 2} />
+        <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/70 to-emerald-950/75" />
+        <div className="relative">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-200">
+            Reflect &amp; act · {dailyTheme.title}
+          </p>
+          <p className="mt-2 text-sm font-medium leading-relaxed">{reflection.question}</p>
+          <p className="mt-2 text-xs leading-relaxed text-white/75">
+            <span className="font-semibold text-white/90">One small step: </span>{reflection.action}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate(`/surah/${dailyTheme.surah}?ayah=${dailyTheme.ayah}`)}
+            className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 text-[11px] font-medium text-white transition hover:bg-white/15"
+          >
+            Qur’an {dailyTheme.surah}:{dailyTheme.ayah}
+            <Icon name="forward" size={13} />
+          </button>
+          <p className="mt-2 text-[10px] text-white/55">A personal reflection prompt, not a quoted tafsir.</p>
+        </div>
+      </article>
+
+      <article className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-black/45 p-4 text-white shadow-card backdrop-blur-md">
+        <ReadScene scene="clouds" variant={photoVariant} />
         <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/65 to-emerald-950/75" />
         <div className="relative space-y-3">
           <div>
@@ -195,12 +336,33 @@ export function ReadDashboard() {
           <Icon name="forward" size={16} className="shrink-0 text-white/60" />
       </button>
 
+      <article className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-black/45 p-4 text-white shadow-card backdrop-blur-md">
+        <ReadScene scene="arch" variant={photoVariant + 4} />
+        <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/65 to-emerald-950/75" />
+        <div className="relative flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-200">This week’s surah spotlight</p>
+            <h2 className="mt-1 text-lg font-semibold">{weeklySurahName}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-white/75">{weeklySurah.note}</p>
+            <p className="mt-2 text-[10px] font-medium text-white/55">Qur’an {weeklySurah.surah}:{weeklySurah.range}</p>
+          </div>
+          <button
+            type="button"
+            aria-label={`Read ${weeklySurahName}`}
+            onClick={() => navigate(`/surah/${weeklySurah.surah}?ayah=1`)}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
+          >
+            <Icon name="forward" size={17} />
+          </button>
+        </div>
+      </article>
+
       <button
         type="button"
         onClick={() => navigate('/settings')}
         className="group relative isolate flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border border-white/10 bg-black/40 p-4 text-left text-white shadow-card backdrop-blur-md transition-all duration-300 hover:scale-[1.01] hover:shadow-emerald-900/20"
       >
-        <ReadScene scene="quran" />
+        <ReadScene scene="quran" variant={photoVariant} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
         <span className="relative min-w-0">
           <span className="block text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-200">Khatam planner</span>
@@ -234,7 +396,7 @@ export function ReadDashboard() {
                 onClick={() => navigate(`/surah/${passage.surahs[0]}?ayah=${passage.startAyah ?? 1}`)}
                 className="group relative isolate flex min-h-36 flex-col justify-end overflow-hidden rounded-2xl border border-white/10 bg-black/40 p-3 text-left text-white shadow-card backdrop-blur-md transition-all duration-300 hover:scale-[1.02] hover:shadow-emerald-900/20"
               >
-                <ReadScene scene={recommendation.scene} />
+                <ReadScene scene={recommendation.scene} variant={photoVariant} />
                 <span className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
                 <span className="relative text-sm font-semibold leading-snug">{recommendation.title}</span>
                 <span className="relative mt-1 line-clamp-2 text-[11px] leading-relaxed text-white/75">{recommendation.description}</span>

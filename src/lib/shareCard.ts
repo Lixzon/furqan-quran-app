@@ -35,7 +35,12 @@ export type CardPresetId =
   | 'photo-ocean'
   | 'photo-snow'
   | 'photo-sky'
-  | 'photo-skyline';
+  | 'photo-skyline'
+  | 'photo-mountain-starry'
+  | 'photo-mountain-valley'
+  | 'photo-alpine-range'
+  | 'photo-forest-sunrise'
+  | 'photo-lakeshore';
 
 type Painter = (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
 
@@ -410,6 +415,11 @@ export const CARD_PRESETS: CardPreset[] = [
   { id: 'photo-snow', label: 'Snow mountains', swatch: ['#d8eafa', '#304d6c'], image: `${PHOTO_BASE}snow.jpg` },
   { id: 'photo-sky', label: 'Clouds', swatch: ['#b9d8ed', '#f4eee5'], image: `${PHOTO_BASE}sky.jpg` },
   { id: 'photo-skyline', label: 'City skyline', swatch: ['#f5c5a5', '#16495d'], image: `${PHOTO_BASE}skyline.jpg` },
+  { id: 'photo-mountain-starry', label: 'Starry mountains', swatch: ['#18244a', '#8e8fbe'], image: `${PHOTO_BASE}mountain-starry.jpg` },
+  { id: 'photo-mountain-valley', label: 'Mountain valley', swatch: ['#94b9d2', '#294a55'], image: `${PHOTO_BASE}mountain-valley.jpg` },
+  { id: 'photo-alpine-range', label: 'Alpine range', swatch: ['#c5dced', '#344a61'], image: `${PHOTO_BASE}alpine-range.jpg` },
+  { id: 'photo-forest-sunrise', label: 'Forest sunrise', swatch: ['#f3c27b', '#314c3b'], image: `${PHOTO_BASE}forest-sunrise.jpg` },
+  { id: 'photo-lakeshore', label: 'Lakeshore', swatch: ['#c6d3d5', '#24444a'], image: `${PHOTO_BASE}lakeshore.jpg` },
 ];
 
 export function presetById(id: CardPresetId): CardPreset {

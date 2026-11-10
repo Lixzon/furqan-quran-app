@@ -12,6 +12,175 @@ export interface QuranGuidanceRecommendation {
   sourceNote: string;
 }
 
+export interface GuidanceSource {
+  label: string;
+  url: string;
+}
+
+export interface PracticalGuidance {
+  id: string;
+  title: string;
+  summary: string;
+  practice: string;
+  sources: readonly GuidanceSource[];
+}
+
+export const PRACTICAL_GUIDANCE: readonly PracticalGuidance[] = [
+  {
+    id: 'eating-with-good-manners',
+    title: 'Eat with gratitude and good manners',
+    summary: 'The Prophet ﷺ taught a child to mention Allah’s name, eat with the right hand, and take food from what is near.',
+    practice: 'Begin with Bismillah, eat without waste, and give thanks. The manners are Prophetic; the Qur’an also tells believers not to be excessive.',
+    sources: [
+      { label: 'Sahih al-Bukhari 5376', url: 'https://sunnah.com/bukhari:5376' },
+      { label: 'Qur’an 7:31', url: 'https://quran.com/7/31' },
+    ],
+  },
+  {
+    id: 'fruit-and-black-seed',
+    title: 'Fruit and seeds, with their sources in view',
+    summary: 'The Qur’an names dates, grapes, olives, and other fruits among Allah’s signs. A hadith also mentions black seed in a healing context.',
+    practice: 'Enjoy wholesome foods as food. Do not turn a religious text into a cure-all claim or replace medical advice with a supplement.',
+    sources: [
+      { label: 'Qur’an 16:11', url: 'https://quran.com/16/11' },
+      { label: 'Sahih al-Bukhari 5688', url: 'https://sunnah.com/bukhari:5688' },
+    ],
+  },
+  {
+    id: 'beneficial-movement',
+    title: 'Build strength through beneficial habits',
+    summary: 'The Prophet ﷺ praised the strong believer and encouraged seeking what is beneficial while asking Allah for help.',
+    practice: 'Choose safe, regular movement that suits your health. This narration gives a principle of strength and benefit; it does not prescribe a particular workout.',
+    sources: [{ label: 'Sahih Muslim 2664', url: 'https://sunnah.com/muslim:2664' }],
+  },
+  {
+    id: 'modest-dress',
+    title: 'Dress with modesty and dignity',
+    summary: 'The Qur’an gives guidance on modesty, and the Prophet ﷺ distinguished appreciation of good appearance from pride.',
+    practice: 'Choose clean, dignified clothing and avoid arrogance. Detailed dress rulings can differ by school and circumstance; ask a trusted scholar about personal questions.',
+    sources: [
+      { label: 'Qur’an 24:30–31', url: 'https://quran.com/24/30-31' },
+      { label: 'Sahih Muslim 91a', url: 'https://sunnah.com/muslim:91a' },
+    ],
+  },
+  {
+    id: 'guard-the-tongue',
+    title: 'Leave mockery, suspicion, and backbiting',
+    summary: 'The Qur’an warns against ridicule, offensive nicknames, suspicion, spying, and speaking ill of people behind their backs.',
+    practice: 'If a conversation turns to humiliating someone, redirect it. The Prophet ﷺ taught believers to speak good or remain silent.',
+    sources: [
+      { label: 'Qur’an 49:11–12', url: 'https://quran.com/49/11-12' },
+      { label: 'Sahih al-Bukhari 6018', url: 'https://sunnah.com/bukhari:6018' },
+    ],
+  },
+  {
+    id: 'listen-before-speaking',
+    title: 'Listen carefully, then speak for good',
+    summary: 'The Qur’an praises those who listen attentively and follow what is best.',
+    practice: 'A reflection exercise—not a quoted hadith: pause, listen without interrupting, and answer only when you can do so fairly and helpfully.',
+    sources: [{ label: 'Qur’an 39:18', url: 'https://quran.com/39/18' }],
+  },
+  {
+    id: 'serve-at-home',
+    title: 'Let kindness begin at home',
+    summary: 'When asked about the Prophet’s conduct at home, ʿA’ishah described him helping his family and going to prayer when its time came.',
+    practice: 'Take one useful household task off someone else’s hands, while keeping the prayer obligations in their proper place.',
+    sources: [{ label: 'Sahih al-Bukhari 6039', url: 'https://sunnah.com/bukhari:6039' }],
+  },
+  {
+    id: 'care-for-teeth',
+    title: 'Care for cleanliness before worship',
+    summary: 'The Prophet ﷺ strongly encouraged cleaning the teeth with siwak, especially in connection with prayer.',
+    practice: 'Keep up good oral hygiene. Siwak is a Prophetic practice; ordinary dental care remains useful and is not replaced by this reminder.',
+    sources: [{ label: 'Sahih al-Bukhari 887', url: 'https://sunnah.com/bukhari:887' }],
+  },
+  {
+    id: 'learn-from-early-generations',
+    title: 'Learn the Prophets’ and Companions’ example carefully',
+    summary: 'The Qur’an praises the earliest believers, and authentic reports describe the excellence of the Prophet’s generation.',
+    practice: 'Study a specific action through its Qur’anic passage or a checked narration. Do not treat unsourced viral quotes or invented stories as history.',
+    sources: [
+      { label: 'Qur’an 9:100', url: 'https://quran.com/9/100' },
+      { label: 'Sahih al-Bukhari 2652', url: 'https://sunnah.com/bukhari:2652' },
+    ],
+  },
+  {
+    id: 'small-consistent-deeds',
+    title: 'Keep doing small good deeds',
+    summary: 'The Prophet ﷺ taught that the deeds most beloved to Allah are those done consistently, even if they are small.',
+    practice: 'Choose one sustainable act—prayer on time, charity, helping someone, or a few verses—and keep returning to it.',
+    sources: [
+      { label: 'Sahih al-Bukhari 6464', url: 'https://sunnah.com/bukhari:6464' },
+      { label: 'Sahih Muslim 783', url: 'https://sunnah.com/muslim:783' },
+    ],
+  },
+];
+
+export interface MomentGuidance {
+  id: string;
+  moment: string;
+  arabic?: string;
+  transliteration?: string;
+  meaning: string;
+  practice?: string;
+  sources: readonly GuidanceSource[];
+}
+
+export const EVERYDAY_MOMENTS: readonly MomentGuidance[] = [
+  {
+    id: 'rain-begins',
+    moment: 'When rain begins',
+    arabic: 'اللَّهُمَّ صَيِّبًا نَافِعًا',
+    transliteration: 'Allahumma ṣayyiban nāfiʿan.',
+    meaning: 'O Allah, make it a beneficial rain.',
+    sources: [{ label: 'Sahih al-Bukhari 1032', url: 'https://sunnah.com/bukhari:1032' }],
+  },
+  {
+    id: 'after-rain',
+    moment: 'After rainfall',
+    arabic: 'مُطِرْنَا بِفَضْلِ اللَّهِ وَرَحْمَتِهِ',
+    transliteration: 'Muṭirnā bi-faḍlillāhi wa-raḥmatih.',
+    meaning: 'We have been given rain by Allah’s bounty and mercy.',
+    practice: 'This is a remembrance of gratitude reported after rain, rather than a forecast or weather explanation.',
+    sources: [{ label: 'Sahih al-Bukhari 846', url: 'https://sunnah.com/bukhari:846' }],
+  },
+  {
+    id: 'bad-dream',
+    moment: 'After a disturbing dream',
+    meaning: 'Seek Allah’s protection from its evil and from Satan, lightly blow to the left three times, turn to the other side, and do not recount it.',
+    practice: 'These steps are from the narration; a frightening dream is not a prediction. Seek personal support if distress continues.',
+    sources: [
+      { label: 'Sahih Muslim 2261a', url: 'https://sunnah.com/muslim:2261a' },
+      { label: 'Sahih al-Bukhari 7044', url: 'https://sunnah.com/bukhari:7044' },
+    ],
+  },
+  {
+    id: 'waking-up',
+    moment: 'When waking up',
+    arabic: 'الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ',
+    transliteration: 'Al-ḥamdu lillāhi alladhī aḥyānā baʿda mā amātanā wa ilayhi an-nushūr.',
+    meaning: 'All praise is for Allah, who gave us life after causing us to die, and to Him is the resurrection.',
+    sources: [{ label: 'Sahih al-Bukhari 6312', url: 'https://sunnah.com/bukhari:6312' }],
+  },
+  {
+    id: 'going-to-sleep',
+    moment: 'Before going to sleep',
+    arabic: 'بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا',
+    transliteration: 'Bismika Allahumma amūtu wa-aḥyā.',
+    meaning: 'In Your name, O Allah, I die and I live.',
+    sources: [{ label: 'Sahih al-Bukhari 6324', url: 'https://sunnah.com/bukhari:6324' }],
+  },
+  {
+    id: 'dua-of-yunus',
+    moment: 'In distress: the supplication of Yunus',
+    arabic: 'لَا إِلَٰهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ',
+    transliteration: 'Lā ilāha illā anta, subḥānaka, innī kuntu minaẓ-ẓālimīn.',
+    meaning: 'There is no deity except You; glory be to You. Indeed, I was among the wrongdoers.',
+    practice: 'A Qur’anic supplication from the account of Prophet Yunus; read it with reflection, not as a guaranteed formula for a particular result.',
+    sources: [{ label: 'Qur’an 21:87', url: 'https://quran.com/21/87' }],
+  },
+];
+
 export const GUIDANCE_CATEGORIES: Array<{ id: GuidanceCategoryId; label: string }> = [
   { id: 'routines', label: 'Daily & nightly' },
   { id: 'weekly', label: 'Weekly' },

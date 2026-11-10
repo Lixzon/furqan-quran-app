@@ -4,6 +4,7 @@ import { push } from '../store/slices/toastSlice';
 import { mergeCloudStreak } from '../store/slices/progressSlice';
 import { mergeCloudMemorized, type MemorizedAyah } from '../store/slices/memorizedSlice';
 import { createBackupJson, parseBackupJson, restoreBackup, type FurqanBackup } from '../lib/backup';
+import { dailyQhdTheme } from '../data/dailyQhdReminder';
 import {
   CLOUD_BACKUP_ENABLED_EVENT,
   CLOUD_BACKUP_ENABLED_KEY_PREFIX,
@@ -148,16 +149,12 @@ function CloudSyncCoordinator() {
       });
     }
     const now = new Date();
-    const dayOfYear = Math.floor(
-      (Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) -
-        Date.UTC(now.getFullYear(), 0, 1)) / 86_400_000,
-    );
     result.push({
       record_key: `quran.daily-highlight:${localDateKey(now)}`,
       payload: {
         source: 'furqan',
         date: localDateKey(now),
-        globalAyah: (dayOfYear % 6236) + 1,
+        globalAyah: dailyQhdTheme(now).globalAyah,
       },
     });
     return result;
