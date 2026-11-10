@@ -5,6 +5,7 @@ import { mergeCloudStreak } from '../store/slices/progressSlice';
 import { mergeCloudMemorized, type MemorizedAyah } from '../store/slices/memorizedSlice';
 import { createBackupJson, parseBackupJson, restoreBackup, type FurqanBackup } from '../lib/backup';
 import { dailyQhdTheme } from '../data/dailyQhdReminder';
+import { savePairedDailyHighlight, utcDateKey } from '../services/pairedDailyHighlight';
 import {
   CLOUD_BACKUP_ENABLED_EVENT,
   CLOUD_BACKUP_ENABLED_KEY_PREFIX,
@@ -33,13 +34,6 @@ type CloudRecordInput = Pick<SharedSyncRecord, 'record_key' | 'payload'>;
 
 function stableJson(value: unknown): string {
   return JSON.stringify(value);
-}
-
-function localDateKey(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 function isValidDateOrNull(value: unknown): value is string | null {
@@ -118,6 +112,7 @@ function CloudSyncCoordinator() {
     dispatch(push(error instanceof Error ? error.message : fallback, 'error'));
   }, [dispatch]);
 
+  const [syncDateKey, setSyncDateKey] = useState(utcDateKey);
   const records = useMemo<CloudRecordInput[]>(() => {
     const result: CloudRecordInput[] = [
       {
@@ -148,17 +143,22 @@ function CloudSyncCoordinator() {
         },
       });
     }
-    const now = new Date();
     result.push({
-      record_key: `quran.daily-highlight:${localDateKey(now)}`,
+      record_key: `quran.daily-highlight:${syncDateKey}`,
       payload: {
         source: 'furqan',
-        date: localDateKey(now),
-        globalAyah: dailyQhdTheme(now).globalAyah,
+        date: syncDateKey,
+        globalAyah: dailyQhdTheme(new Date(`${syncDateKey}T12:00:00.000Z`)).globalAyah,
       },
     });
     return result;
-  }, [memorizedItems, progress]);
+  }, [memorizedItems, progress, syncDateKey]);
+
+  useEffect(() => {
+    const refreshDate = () => setSyncDateKey(utcDateKey());
+    const interval = window.setInterval(refreshDate, 30_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const supabase = getSupabaseClient();
@@ -224,6 +224,21 @@ function CloudSyncCoordinator() {
 
   const applyRemoteRecord = useCallback((record: SharedSyncRecord) => {
     lastPushed.current.set(record.record_key, stableJson(record.payload));
+    const todayKey = utcDateKey();
+    if (record.record_key === `quran.daily-highlight:${todayKey}`) {
+      if (
+        record.payload.date === todayKey &&
+        typeof record.payload.globalAyah === 'number' &&
+        Number.isInteger(record.payload.globalAyah) &&
+        record.payload.globalAyah >= 1 &&
+        record.payload.globalAyah <= 6236
+      ) {
+        savePairedDailyHighlight(todayKey, record.payload.globalAyah);
+      } else {
+        console.warn('Ignored invalid Qur’an daily highlight received from paired sync.');
+      }
+      return;
+    }
     if (record.record_key === 'furqan.progression') {
       const { currentStreak, highestStreak, lastActiveDate } = record.payload;
       if (

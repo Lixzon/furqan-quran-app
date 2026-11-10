@@ -17,9 +17,10 @@ export const DAILY_QHD_THEMES: readonly DailyQhdTheme[] = [
 ];
 
 export function dailyQhdTheme(date = new Date()): DailyQhdTheme {
-  const startOfYear = Date.UTC(date.getFullYear(), 0, 1);
+  const year = date.getUTCFullYear();
+  const startOfYear = Date.UTC(year, 0, 1);
   const dayOfYear = Math.floor(
-    (Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - startOfYear) / 86_400_000,
+    (Date.UTC(year, date.getUTCMonth(), date.getUTCDate()) - startOfYear) / 86_400_000,
   );
   const index = ((dayOfYear % DAILY_QHD_THEMES.length) + DAILY_QHD_THEMES.length) % DAILY_QHD_THEMES.length;
   return DAILY_QHD_THEMES[index];
