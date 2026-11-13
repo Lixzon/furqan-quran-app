@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { PageHeader } from '../components/ui/common';
+import { Icon } from '../components/ui/Icon';
 import {
   ISLAMIC_SCHOOLS,
   MISHKAH_FAQS,
@@ -13,6 +14,11 @@ import {
 } from '../services/mishkahAssistant';
 import { recordDiagnostic } from '../services/diagnostics';
 import { copyText } from '../lib/share';
+import { findAppDestination, type AppDestination } from '../services/appGuide';
+import { useQuran } from '../data/QuranProvider';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useSectionSwitcher } from '../shared/SectionSwitcher';
+import { appSectionForPath } from '../shared/sectionNavigation';
 
 interface ChatMessage {
   id: string;
@@ -21,10 +27,17 @@ interface ChatMessage {
   schoolId?: IslamicSchoolId;
   researchQuestion?: string;
   answer?: MishkahAnswer;
+  destination?: AppDestination;
   note?: string;
 }
 
 const QUICK_PROMPTS = MISHKAH_FAQS.slice(0, 4);
+const APP_GUIDE_PROMPTS = [
+  'Open the Mishka Library',
+  'Open my favorites',
+  'Take me to the Quran reader',
+  'Find the Maryam archive',
+];
 const SCHOOL_PREFERENCE_KEY = 'furqan:mishkah:school:v1';
 const PRAYER_CONTEXT =
   /\b(prayer|pray|salah|salat|namaz|adhan|fajr|dhuhr|zuhr|asr|maghrib|isha|timezone|time zone|prayer time)\b/i;
@@ -53,6 +66,10 @@ function googleResearchUrl(question: string, schoolId?: IslamicSchoolId): string
 }
 
 export default function MishkahAssistantPage() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const { requestSwitch } = useSectionSwitcher();
+  const { surahs } = useQuran();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState('');
   const [country, setCountry] = useState('');
@@ -62,6 +79,18 @@ export default function MishkahAssistantPage() {
   const [researchNotice, setResearchNotice] = useState('');
   const onlineConfigured = hasMishkahOnlineAssistant();
   const showPrayerContext = PRAYER_CONTEXT.test(question);
+  const openDestination = (destination: AppDestination) => {
+    if (destination.section === appSectionForPath(pathname)) {
+      navigate(destination.path);
+      return;
+    }
+    const sectionName = destination.section === 'mishka' ? 'Mishka' : 'Furqan';
+    requestSwitch(
+      destination.section,
+      destination.path,
+      `Do you want to switch to ${sectionName} to open ${destination.label}?`,
+    );
+  };
 
   const updateSchool = (value: string) => {
     const selected = value ? findSchool(value) : undefined;
@@ -88,6 +117,18 @@ export default function MishkahAssistantPage() {
       text,
       ...(selectedSchool ? { schoolId: selectedSchool } : {}),
     }]);
+
+    const appDestination = findAppDestination(text, appSectionForPath(pathname), surahs ?? []);
+    if (appDestination) {
+      setMessages((current) => [...current, {
+        id: `${Date.now()}-destination`,
+        role: 'assistant',
+        text: `I can take you to ${appDestination.label}. I only navigate; I cannot change your saved content or settings.`,
+        destination: appDestination,
+      }]);
+      setBusy(false);
+      return;
+    }
 
     try {
       const answer = await answerMishkahQuestion(text, {
@@ -168,7 +209,7 @@ export default function MishkahAssistantPage() {
           id="mishkah-question"
           value={question}
           onChange={(event) => setQuestion(event.target.value.slice(0, 1500))}
-          placeholder="Ask Rafiq AI about the Qur’an or worship…"
+          placeholder="Try “open the library” or ask a reviewed guidance question…"
           rows={2}
           maxLength={1500}
           disabled={busy}
@@ -193,17 +234,17 @@ export default function MishkahAssistantPage() {
   return (
     <div className="page-enter">
       <PageHeader
-        title="Rafiq AI"
-        subtitle="Qur’an, worship, and Islamic guidance in Furqan."
+        title="Rafiq · app guide"
+        subtitle="Ask about the app or use the reviewed offline Islamic guidance."
       />
 
       <p className="mb-3 text-xs leading-relaxed text-mut">
-        Furqan’s offline guide gives general information—not personal fatwas.
+        Rafiq can guide you to app features and answer a limited set of reviewed questions. He cannot edit content or settings.
       </p>
       <p className="mb-4 rounded-xl border border-line bg-surface2 px-3 py-2 text-xs leading-relaxed text-mut" role="status">
         {onlineConfigured
-          ? 'Offline answers are always available. Enable online answers in Answer preferences when you want current, source-checked information.'
-          : 'Offline answers are available. Online answers are not configured for this build; set VITE_MISHKAH_AI_ENDPOINT to enable them.'}
+          ? 'Offline navigation and reviewed answers work without a connection. Online answers are optional and require your consent.'
+          : 'Offline navigation and reviewed answers are available. No online AI service is configured for this build.'}
       </p>
 
       <details className="mb-4 rounded-2xl border border-line bg-surface px-4 py-3">
@@ -242,7 +283,7 @@ export default function MishkahAssistantPage() {
                 className="mt-0.5 accent-[var(--accent)]"
               />
               <span>
-                Use the configured online AI for this session. Your question, selected tradition and relevant location context are sent to the service. Furqan does not save chat history; do not enter private details.
+                Use the configured online answer service for this session. Your question, selected tradition and relevant location context are sent to the service. Manāra does not save chat history; do not enter private details.
               </span>
             </label>
           ) : (
@@ -254,20 +295,38 @@ export default function MishkahAssistantPage() {
       </details>
 
       {messages.length === 0 ? (
-        <section className="mb-3 rounded-2xl border border-dashed border-line bg-surface/60 p-4">
-          <h2 className="text-sm font-semibold text-ink">Suggested questions</h2>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {QUICK_PROMPTS.map((prompt) => (
-              <button
-                key={prompt.id}
-                type="button"
-                disabled={busy}
-                onClick={() => void submitQuestion(prompt.title)}
-                className="rounded-full border border-line bg-surface px-3 py-2 text-xs font-medium text-ink pressable"
-              >
-                {prompt.title}
-              </button>
-            ))}
+        <section className="mb-3 space-y-4 rounded-2xl border border-dashed border-line bg-surface/60 p-4">
+          <div>
+            <h2 className="text-sm font-semibold text-ink">App guide shortcuts</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {APP_GUIDE_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void submitQuestion(prompt)}
+                  className="rounded-full border border-line bg-surface px-3 py-2 text-xs font-medium text-ink pressable"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-ink">Reviewed guidance questions</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {QUICK_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt.id}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void submitQuestion(prompt.title)}
+                  className="rounded-full border border-line bg-surface px-3 py-2 text-xs font-medium text-ink pressable"
+                >
+                  {prompt.title}
+                </button>
+              ))}
+            </div>
           </div>
         </section>
       ) : (
@@ -282,9 +341,21 @@ export default function MishkahAssistantPage() {
               <div className="text-[11px] font-semibold uppercase tracking-wide text-mut">
                 {message.role === 'user'
                   ? `You${schoolName(message.schoolId) ? ` · ${schoolName(message.schoolId)}` : ''}`
-                  : message.answer?.mode === 'online' ? 'Rafiq AI · Online-assisted' : 'Rafiq AI · Offline'}
+                  : message.answer?.mode === 'online' ? 'Rafiq · Online-assisted' : 'Rafiq · Offline'}
               </div>
               <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-ink">{message.text}</p>
+              {message.destination ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const destination = message.destination;
+                    if (destination) openDestination(destination);
+                  }}
+                  className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-onaccent"
+                >
+                  Open {message.destination.label}<Icon name="forward" size={15} />
+                </button>
+              ) : null}
               {message.note && <p className="mt-2 text-xs text-mut">{message.note}</p>}
               {message.role === 'assistant' && message.answer?.schoolSpecific && (
                 <div className="mt-3 rounded-xl bg-accent/8 p-3">

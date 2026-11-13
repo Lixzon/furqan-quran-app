@@ -11,6 +11,7 @@ import likesReducer, { totalLikedItems } from './slices/likesSlice';
 import bookmarksReducer from './slices/bookmarksSlice';
 import memorizedReducer from './slices/memorizedSlice';
 import searchSessionReducer from './slices/searchSessionSlice';
+import guidanceReducer from './slices/guidanceSlice';
 import { computeXp, type XpProgress } from '../lib/xp';
 import { db } from '../db/database';
 
@@ -28,6 +29,7 @@ export const store = configureStore({
     bookmarks: bookmarksReducer,
     memorized: memorizedReducer,
     searchSession: searchSessionReducer,
+    guidance: guidanceReducer,
   },
 });
 
@@ -88,6 +90,7 @@ store.subscribe(() => {
     [KEYS.likes, s.likes],
     [KEYS.bookmarks, s.bookmarks],
     [KEYS.memorized, s.memorized],
+    [KEYS.guidance, s.guidance],
   ];
   const changed: [string, unknown][] = [];
   for (const [key, value] of writers) {
@@ -115,5 +118,6 @@ persistSlicesToIndexedDb([
   [KEYS.likes, initialState.likes],
   [KEYS.bookmarks, initialState.bookmarks],
   [KEYS.memorized, initialState.memorized],
+  [KEYS.guidance, initialState.guidance],
 ]);
 persistBookmarksToIndexedDb();

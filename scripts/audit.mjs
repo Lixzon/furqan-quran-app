@@ -217,16 +217,18 @@ check(
   'assistant supports the six selected Islamic schools',
 );
 check(
-  assistantHeader.includes('aria-label="Ask Rafiq AI about the Qur’an and Islamic guidance"') &&
-    assistantHeader.includes("navigate('/mishkah')"),
-  'home header exposes the Islamic AI assistant next to search',
+  assistantHeader.includes('SwitchAppsButton') &&
+    assistantHeader.includes('Search Quran chapters') &&
+    !assistantHeader.includes('Ask Rafiq AI about the Qur’an and Islamic guidance'),
+  'home header exposes the app switcher and search without an assistant capsule',
 );
 check(
   assistantPage.includes('id="mishkah-school"') &&
-    assistantPage.includes('title="Rafiq AI"') &&
+    assistantPage.includes('title="Rafiq · app guide"') &&
+    assistantPage.includes('Rafiq can guide you to app features') &&
     assistantPage.includes('Research on Google') &&
     assistantPage.includes('Continue with Gemini'),
-  'assistant offers the reviewed wording, school selection and external research actions',
+  'Rafiq app guide discloses its scope and offers reviewed guidance and external research',
 );
 check(
   assistantPage.includes('<details className="mb-4') &&

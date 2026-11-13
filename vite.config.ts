@@ -4,10 +4,9 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const manifest = {
-  name: 'Furqan',
-  short_name: 'Furqan',
-  description:
-    'The Seeker who carries the Light of Guidance across horizons.',
+  name: 'Manāra',
+  short_name: 'Manāra',
+  description: 'A unified Quran and daily spiritual journey.',
   theme_color: '#0d9488',
   background_color: '#f3f7f5',
   display: 'standalone',
@@ -32,16 +31,16 @@ const manifest = {
     { name: 'Support Furqan', short_name: 'Support', url: '/support' },
   ],
   icons: [
-    { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-    { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: 'icons/manara-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: 'icons/manara-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
     {
-      src: 'icons/maskable-512.png',
+      src: 'icons/manara-maskable-512.png',
       sizes: '512x512',
       type: 'image/png',
       purpose: 'maskable',
     },
     {
-      src: 'icons/maskable-192.png',
+      src: 'icons/manara-maskable-192.png',
       sizes: '192x192',
       type: 'image/png',
       purpose: 'maskable',

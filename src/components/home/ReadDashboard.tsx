@@ -12,12 +12,6 @@ import { ReadScene, type ReadSceneType } from './ReadScene';
 import { QURAN_GUIDANCE } from '../../data/quranGuidanceData';
 import { getDailyQuranJourney } from '../../data/dailyQuranJourney';
 import { dailyQhdTheme, type DailyQhdTheme } from '../../data/dailyQhdReminder';
-import {
-  getPairedDailyHighlight,
-  PAIRED_DAILY_HIGHLIGHT_CHANGED_EVENT,
-  utcDateKey,
-  type PairedDailyHighlight,
-} from '../../services/pairedDailyHighlight';
 import type { AyahData } from '../../types';
 
 const HOME_PHOTO_VARIANT_KEY = 'furqan:home-photo-variant';
@@ -117,17 +111,12 @@ export function ReadDashboard() {
   const settings = useAppSelector((state) => state.settings);
   const bookmarks = useAppSelector((state) => state.bookmarks.items);
   const journey = getDailyQuranJourney();
-  const [dailyDateKey, setDailyDateKey] = useState(utcDateKey);
+  const [dailyDateKey, setDailyDateKey] = useState(() => new Date().toISOString().slice(0, 10));
   const dailyTheme = dailyQhdTheme(new Date(`${dailyDateKey}T12:00:00.000Z`));
   const reflection = REFLECT_AND_ACT[dailyTheme.id];
   const weeklySurah = WEEKLY_SURAH_SPOTLIGHTS[weeklySpotlightIndex()];
   const weeklySurahName = surahs?.find((item) => item.number === weeklySurah.surah)?.englishName ?? weeklySurah.name;
-  const mishkahUrl = (import.meta.env.VITE_MISHKAH_URL?.trim() || 'https://lixzon.github.io/Mishkah').replace(/\/+$/, '');
-  const journeyStoryUrl = `${mishkahUrl}/?journeyStory=${encodeURIComponent(journey.id)}`;
   const [verse, setVerse] = useState<DailyVerse | null>(null);
-  const [pairedHighlight, setPairedHighlight] = useState<PairedDailyHighlight | null>(
-    () => getPairedDailyHighlight(),
-  );
   const [photoVariant, setPhotoVariant] = useState(initialPhotoVariant);
   const touchStartY = useRef<number | null>(null);
   const lastBookmark = bookmarks[0];
@@ -137,27 +126,15 @@ export function ReadDashboard() {
     : false;
 
   useEffect(() => {
-    const refreshPairedHighlight = () => {
-      setDailyDateKey(utcDateKey());
-      setPairedHighlight(getPairedDailyHighlight());
-    };
-    window.addEventListener(PAIRED_DAILY_HIGHLIGHT_CHANGED_EVENT, refreshPairedHighlight);
-    window.addEventListener('storage', refreshPairedHighlight);
-    refreshPairedHighlight();
-    const interval = window.setInterval(refreshPairedHighlight, 30_000);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener(PAIRED_DAILY_HIGHLIGHT_CHANGED_EVENT, refreshPairedHighlight);
-      window.removeEventListener('storage', refreshPairedHighlight);
-    };
+    const refreshDate = () => setDailyDateKey(new Date().toISOString().slice(0, 10));
+    const interval = window.setInterval(refreshDate, 30_000);
+    return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
     if (!surahs?.length) return;
     let alive = true;
-    const targetGlobalAyah = pairedHighlight?.date === dailyDateKey
-      ? pairedHighlight.globalAyah
-      : dailyTheme.globalAyah;
+    const targetGlobalAyah = dailyTheme.globalAyah;
     let cumulative = 0;
     const target = surahs.find((item) => {
       cumulative += item.numberOfAyahs;
@@ -171,7 +148,7 @@ export function ReadDashboard() {
       })
       .catch(() => undefined);
     return () => { alive = false; };
-  }, [dailyDateKey, dailyTheme.globalAyah, pairedHighlight, surahs]);
+  }, [dailyDateKey, dailyTheme.globalAyah, surahs]);
 
   useEffect(() => {
     try {
@@ -308,7 +285,7 @@ export function ReadDashboard() {
         <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/65 to-emerald-950/75" />
         <div className="relative space-y-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-200">Daily Quran journey · shared with Mishkah</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-200">Daily Quran journey</p>
             <h2 className="mt-1 text-lg font-semibold">The story of {journey.title}</h2>
             <p className="mt-1 text-xs leading-relaxed text-white/70">Read related passages, then continue with the long story and a reflection.</p>
           </div>
@@ -328,14 +305,13 @@ export function ReadDashboard() {
             <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-200">A short reflection</p>
             <p className="mt-1 text-sm leading-relaxed text-white/90">{journey.reflection}</p>
           </div>
-          <a
-            href={journeyStoryUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => navigate('/guidance?tab=readings')}
             className="inline-flex min-h-10 items-center rounded-full bg-white px-4 py-2 text-xs font-semibold text-emerald-950 transition hover:bg-emerald-50"
           >
-            Read the long story in Mishkah ↗
-          </a>
+            Explore Quran guidance
+          </button>
         </div>
       </article>
 
